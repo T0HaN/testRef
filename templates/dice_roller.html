@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бросок кубов | {{ char.name }}</title>
+    <style>
+        :root {
+            --primary-dark: #0f0f1a; --secondary-dark: #1a1a2e; --accent-gold: #d4af37;
+            --text-light: #e0d6bd; --text-muted: #8a9ba8; --border-color: #4a4a6d;
+            --card-bg: rgba(30, 30, 50, 0.7); --hover-glow: 0 0 15px rgba(212, 175, 55, 0.3);
+            --dice-bg: rgba(44, 44, 84, 0.8);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body {
+            background: linear-gradient(135deg, var(--secondary-dark), #0d1021);
+            color: var(--text-light); min-height: 100vh; padding: 20px;
+            background-image: radial-gradient(circle at 10% 20%, rgba(40,40,80,0.2) 0%, transparent 20%),
+                              radial-gradient(circle at 90% 80%, rgba(40,40,80,0.2) 0%, transparent 20%);
+        }
+        .container { max-width: 1000px; width: 100%; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        h1 { color: var(--accent-gold); font-size: 2.5rem; font-weight: 700; letter-spacing: 2px; text-shadow: 0 0 15px rgba(212,175,55,0.3); }
+        .subtitle { color: var(--text-muted); margin-top: 8px; font-style: italic; }
+        .nav-buttons { display: flex; gap: 10px; }
+        .btn-nav {
+            padding: 10px 20px; background: var(--card-bg); border: 1px solid var(--border-color);
+            border-radius: 8px; color: var(--text-light); text-decoration: none; font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn-nav:hover { border-color: var(--accent-gold); box-shadow: var(--hover-glow); }
+
+        .dice-container {
+            background: var(--primary-dark); border-radius: 16px; padding: 25px;
+            border: 1px solid var(--border-color); box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+        }
+        .section-title {
+            color: var(--accent-gold); font-weight: 700; font-size: 1.3rem; text-align: center;
+            padding: 12px 0; margin-bottom: 20px; letter-spacing: 1px; position: relative;
+        }
+        .section-title::after {
+            content: ''; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+            width: 80px; height: 2px; background: linear-gradient(to right, transparent, var(--accent-gold), transparent);
+        }
+
+        .dice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .dice-btn {
+            background: var(--dice-bg); border: 2px solid var(--border-color); border-radius: 12px;
+            padding: 20px; color: var(--text-light); font-weight: 700; font-size: 1.2rem;
+            cursor: pointer; transition: all 0.3s ease; text-align: center;
+        }
+        .dice-btn:hover {
+            border-color: var(--accent-gold); transform: translateY(-3px);
+            box-shadow: var(--hover-glow); background: rgba(54, 54, 94, 0.9);
+        }
+        .dice-btn:active { transform: translateY(0); }
+        .dice-btn .dice-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+
+        .custom-roll {
+            background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 30px;
+            border: 1px solid rgba(74, 74, 109, 0.4);
+        }
+        .form-group { margin-bottom: 15px; }
+        .form-label {
+            display: block; font-weight: 600; color: var(--text-muted); margin-bottom: 8px;
+            text-transform: uppercase; letter-spacing: 1px; font-size: 0.85rem;
+        }
+        .form-control {
+            width: 100%; padding: 12px; background: rgba(20, 20, 35, 0.8);
+            border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-light);
+            font-size: 1rem; transition: all 0.3s ease;
+        }
+        .form-control:focus {
+            outline: none; border-color: var(--accent-gold); box-shadow: var(--hover-glow);
+        }
+        .btn-roll {
+            background: linear-gradient(135deg, var(--accent-gold), #b8962e);
+            color: var(--primary-dark); border: none; padding: 14px 30px;
+            font-size: 1.1rem; font-weight: 700; border-radius: 10px;
+            cursor: pointer; transition: all 0.3s ease; width: 100%;
+            box-shadow: 0 5px 20px rgba(212,175,55,0.4);
+        }
+        .btn-roll:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(212,175,55,0.6); }
+
+        .ability-checks, .skill-checks {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px; margin-bottom: 30px;
+        }
+        .check-btn {
+            background: rgba(20, 20, 35, 0.6); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 12px 15px; cursor: pointer;
+            transition: all 0.3s ease; display: flex; justify-content: space-between; align-items: center;
+            color: var(--text-light); font-weight: 600;
+        }
+        .check-btn:hover {
+            border-color: var(--accent-gold); background: rgba(40, 40, 70, 0.8);
+            transform: translateX(5px);
+        }
+        .check-btn .mod {
+            background: var(--accent-gold); color: var(--primary-dark);
+            padding: 2px 10px; border-radius: 6px; font-weight: 700;
+        }
+        .check-btn.proficient { border-left: 3px solid var(--accent-gold); }
+
+        .roll-result {
+            background: rgba(20, 20, 35, 0.8); border-radius: 12px; padding: 25px;
+            margin-bottom: 20px; border: 2px solid var(--border-color);
+            text-align: center; animation: fadeIn 0.5s ease-out;
+        }
+        .roll-result.crit-success { border-color: #4ade80; box-shadow: 0 0 20px rgba(74, 222, 128, 0.3); }
+        .roll-result.crit-fail { border-color: #f87171; box-shadow: 0 0 20px rgba(248, 113, 113, 0.3); }
+        .roll-result.success { border-color: #60a5fa; }
+        .roll-result.fail { border-color: #fbbf24; }
+
+        .result-header { font-size: 1.2rem; color: var(--text-muted); margin-bottom: 10px; }
+        .result-dice { font-size: 3rem; font-weight: 800; color: var(--accent-gold); margin: 15px 0; }
+        .result-total {
+            font-size: 4rem; font-weight: 900; color: var(--text-light);
+            text-shadow: 0 0 20px rgba(212, 175, 55, 0.5); margin: 10px 0;
+        }
+        .result-breakdown { color: var(--text-muted); font-size: 1.1rem; margin-top: 10px; }
+        .result-type {
+            display: inline-block; padding: 6px 15px; border-radius: 20px;
+            font-weight: 700; font-size: 0.9rem; margin-top: 10px; text-transform: uppercase;
+        }
+        .crit-success .result-type { background: rgba(74, 222, 128, 0.2); color: #4ade80; }
+        .crit-fail .result-type { background: rgba(248, 113, 113, 0.2); color: #f87171; }
+        .success .result-type { background: rgba(96, 165, 250, 0.2); color: #60a5fa; }
+        .fail .result-type { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+
+        .roll-history {
+            max-height: 300px; overflow-y: auto; margin-top: 20px;
+        }
+        .history-item {
+            background: rgba(20, 20, 35, 0.4); border-radius: 8px; padding: 12px;
+            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
+            border-left: 3px solid var(--border-color);
+        }
+        .history-item.crit { border-left-color: var(--accent-gold); }
+        .history-time { color: var(--text-muted); font-size: 0.85rem; }
+        .history-result { font-weight: 700; color: var(--accent-gold); font-size: 1.2rem; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes rollAnim { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.2); } 100% { transform: rotate(360deg) scale(1); } }
+        .rolling { animation: rollAnim 0.5s ease-in-out; }
+
+        footer { text-align: center; margin-top: 25px; color: var(--text-muted); font-size: 0.9rem; padding-top: 15px; border-top: 1px solid var(--border-color); }
+        @media (max-width: 768px) { header { flex-direction: column; } .nav-buttons { width: 100%; justify-content: center; } .result-total { font-size: 3rem; } }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>🎲 БРОСОК КУБОВ</h1>
+                <div class="subtitle">{{ char.name }} | {{ char.char_class }} {{ char.level }} ур.</div>
+            </div>
+            <div class="nav-buttons">
+                <a href="{{ url_for('view_char', char_id=char.id) }}" class="btn-nav">← Назад к листу</a>
+            </div>
+        </header>
+
+        <div class="dice-container">
+            <div class="section-title">БЫСТРЫЕ БРОСКИ</div>
+            <div class="dice-grid">
+                <button class="dice-btn" onclick="rollDice(4)">
+                    <span class="dice-icon">📦</span>d4
+                </button>
+                <button class="dice-btn" onclick="rollDice(6)">
+                    <span class="dice-icon">🎲</span>d6
+                </button>
+                <button class="dice-btn" onclick="rollDice(8)">
+                    <span class="dice-icon">🔷</span>d8
+                </button>
+                <button class="dice-btn" onclick="rollDice(10)">
+                    <span class="dice-icon">🔺</span>d10
+                </button>
+                <button class="dice-btn" onclick="rollDice(12)">
+                    <span class="dice-icon">⬡</span>d12
+                </button>
+                <button class="dice-btn" onclick="rollDice(20)">
+                    <span class="dice-icon">⬢</span>d20
+                </button>
+                <button class="dice-btn" onclick="rollDice(100)">
+                    <span class="dice-icon">💯</span>d100
+                </button>
+            </div>
+
+            <div class="section-title">ПРОВЕРКИ ХАРАКТЕРИСТИК</div>
+            <div class="ability-checks">
+                {% for key, ability in abilities.items() %}
+                <button class="check-btn" onclick="rollAbilityCheck('{{ key }}', {{ ability.modifier }})">
+                    <span>{{ ability.name }}</span>
+                    <span class="mod">{{ '+' if ability.modifier >= 0 else '' }}{{ ability.modifier }}</span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <div class="section-title">ПРОВЕРКИ НАВЫКОВ</div>
+            <div class="skill-checks">
+                {% for skill in skills %}
+                <button class="check-btn {% if skill.proficient %}proficient{% endif %}"
+                        onclick="rollSkillCheck('{{ skill.name }}', {{ skill.total }})">
+                    <span>{{ skill.name }}</span>
+                    <span class="mod">{{ '+' if skill.total >= 0 else '' }}{{ skill.total }}</span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <div class="custom-roll">
+                <div class="section-title">ИНДИВИДУАЛЬНЫЙ БРОСОК</div>
+                <div class="form-group">
+                    <label class="form-label">Формула броска</label>
+                    <input type="text" id="customFormula" class="form-control" placeholder="Например: 2d6+3 или 1d20+5-2">
+                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">
+                        Поддерживаются: NdM+X-Y (где N - количество, M - грани, X/Y - модификаторы)
+                    </small>
+                </div>
+                <button class="btn-roll" onclick="rollCustom()">🎲 Бросить</button>
+            </div>
+
+            <div id="resultContainer"></div>
+
+            <div class="section-title">ИСТОРИЯ БРОСКОВ</div>
+            <div class="roll-history" id="rollHistory">
+                <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+                    История пуста. Сделайте первый бросок!
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            D&D 5e Dice Roller | Современное Средиземье
+        </footer>
+    </div>
+
+    <script>
+        const abilities = {{ abilities|tojson }};
+        let rollCount = 0;
+
+        function rollDice(sides) {
+            const result = Math.floor(Math.random() * sides) + 1;
+            displayResult(`d${sides}`, result, result, `${result}`, false);
+            addToHistory(`d${sides}`, result);
+        }
+
+        function rollAbilityCheck(abilityKey, modifier) {
+            const roll = Math.floor(Math.random() * 20) + 1;
+            const total = roll + modifier;
+            const breakdown = `${roll} ${modifier >= 0 ? '+' : ''}${modifier}`;
+            const isCrit = roll === 20;
+            const isFail = roll === 1;
+            displayResult(`Проверка ${abilities[abilityKey].name}`, roll, total, breakdown, isCrit, isFail);
+            addToHistory(`${abilities[abilityKey].name}`, total, isCrit, isFail);
+        }
+
+        function rollSkillCheck(skillName, bonus) {
+            const roll = Math.floor(Math.random() * 20) + 1;
+            const total = roll + bonus;
+            const breakdown = `${roll} ${bonus >= 0 ? '+' : ''}${bonus}`;
+            const isCrit = roll === 20;
+            const isFail = roll === 1;
+            displayResult(`Навык ${skillName}`, roll, total, breakdown, isCrit, isFail);
+            addToHistory(skillName, total, isCrit, isFail);
+        }
+
+        function rollCustom() {
+            const formula = document.getElementById('customFormula').value.trim();
+            if (!formula) {
+                alert('Введите формулу броска!');
+                return;
+            }
+
+            try {
+                const result = parseAndRoll(formula);
+                displayResult('Индивидуальный бросок', result.total, result.total, result.breakdown, false, false);
+                addToHistory(formula, result.total);
+            } catch (e) {
+                alert('Ошибка в формуле! Пример: 2d6+3 или 1d20+5');
+            }
+        }
+
+        function parseAndRoll(formula) {
+            const parts = formula.toLowerCase().split(/([+-])/);
+            let total = 0;
+            let breakdown = [];
+
+            for (let i = 0; i < parts.length; i += 2) {
+                const part = parts[i].trim();
+                const sign = i === 0 ? '+' : parts[i-1];
+
+                if (part.includes('d')) {
+                    const [count, sides] = part.split('d').map(Number);
+                    let rollSum = 0;
+                    for (let j = 0; j < count; j++) {
+                        rollSum += Math.floor(Math.random() * sides) + 1;
+                    }
+                    total += sign === '+' ? rollSum : -rollSum;
+                    breakdown.push(`${sign} ${rollSum} (${count}d${sides})`);
+                } else if (part) {
+                    const num = parseInt(part);
+                    total += sign === '+' ? num : -num;
+                    breakdown.push(`${sign} ${num}`);
+                }
+            }
+
+            return { total, breakdown: breakdown.join(' ') };
+        }
+
+        function displayResult(title, roll, total, breakdown, isCrit = false, isFail = false) {
+            rollCount++;
+            const container = document.getElementById('resultContainer');
+
+            let resultClass = '';
+            let resultText = '';
+
+            if (isCrit) {
+                resultClass = 'crit-success';
+                resultText = 'КРИТИЧЕСКИЙ УСПЕХ!';
+            } else if (isFail) {
+                resultClass = 'crit-fail';
+                resultText = 'КРИТИЧЕСКИЙ ПРОВАЛ!';
+            } else if (total >= 15) {
+                resultClass = 'success';
+                resultText = 'УСПЕХ';
+            } else {
+                resultClass = 'fail';
+                resultText = 'НЕУДАЧА';
+            }
+
+            container.innerHTML = `
+                <div class="roll-result ${resultClass} rolling">
+                    <div class="result-header">${title}</div>
+                    <div class="result-dice">🎲 ${roll}</div>
+                    <div class="result-total">${total}</div>
+                    <div class="result-breakdown">${breakdown}</div>
+                    <div class="result-type">${resultText}</div>
+                </div>
+            `;
+
+            setTimeout(() => {
+                container.querySelector('.roll-result').classList.remove('rolling');
+            }, 500);
+        }
+
+        function addToHistory(name, result, isCrit = false, isFail = false) {
+            const history = document.getElementById('rollHistory');
+            const time = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            if (rollCount === 1) {
+                history.innerHTML = '';
+            }
+
+            const item = document.createElement('div');
+            item.className = `history-item ${isCrit || isFail ? 'crit' : ''}`;
+            item.innerHTML = `
+                <div>
+                    <div style="font-weight: 600;">${name}</div>
+                    <div class="history-time">${time}</div>
+                </div>
+                <div class="history-result">${result}</div>
+            `;
+
+            history.insertBefore(item, history.firstChild);
+
+            if (history.children.length > 20) {
+                history.removeChild(history.lastChild);
+            }
+        }
+    </script>
+</body>
+</html>

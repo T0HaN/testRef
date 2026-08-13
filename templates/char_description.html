@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Описание | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #141418;
+            --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8;
+            --text-secondary: #a89f8a;
+            --accent-gold: #c9a961;
+            --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a;
+            --accent-green: #4a6b4a;
+            --border-color: #3a352a;
+            --shadow-color: rgba(0, 0, 0, 0.6);
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-ui: 'Segoe UI', Tahoma, sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .inv-header {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .inv-header h1 {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.6rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .nav-links { display: flex; gap: 0.7rem; }
+        .nav-btn {
+            padding: 0.55rem 1.1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); }
+
+        .messages { margin-bottom: 1rem; }
+        .msg { padding: 0.7rem 1rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid; }
+        .msg.error { background: rgba(139,58,58,0.2); border-color: var(--accent-red); color: #f5c6cb; }
+        .msg.success { background: rgba(74,107,74,0.2); border-color: var(--accent-green); color: #d4edda; }
+
+        .section {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .section-title {
+            font-family: var(--font-main);
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.6rem;
+            margin-bottom: 1rem;
+        }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-group textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 0.8rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+        }
+        .form-group textarea:focus { outline: none; border-color: var(--accent-gold); }
+        .form-group textarea::placeholder { color: var(--text-secondary); opacity: 0.5; }
+
+        /* Character traits grid */
+        .traits-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 700px) { .traits-grid { grid-template-columns: 1fr; } }
+
+        .trait-block {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        .trait-block label {
+            font-size: 0.8rem;
+            color: var(--accent-gold);
+            margin-bottom: 0.5rem;
+            display: block;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .trait-block textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 0.6rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+        .trait-block textarea:focus { outline: none; border-color: var(--accent-gold-dim); }
+
+        /* Image upload */
+        .image-upload-container {
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+        @media (max-width: 700px) { .image-upload-container { flex-direction: column; } }
+
+        .image-preview {
+            width: 200px;
+            height: 200px;
+            background: var(--bg-primary);
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .image-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: cover;
+        }
+        .image-preview .placeholder {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .image-upload-controls { flex: 1; }
+        .image-upload-controls input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            display: inline-block;
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            margin-bottom: 0.5rem;
+        }
+        .upload-btn:hover { border-color: var(--accent-gold-dim); }
+        .remove-img-btn {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            background: rgba(139,58,58,0.3);
+            border: 1px solid var(--accent-red);
+            border-radius: 6px;
+            color: #f5c6cb;
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-left: 0.5rem;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            border: none;
+            border-radius: 8px;
+            color: var(--bg-primary);
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 1rem;
+            transition: all 0.2s;
+        }
+        .btn-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* Модальное окно просмотра изображения */
+        .image-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(8px);
+            animation: modalFadeIn 0.3s ease;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .image-modal .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 85vh;
+            border: 3px solid var(--accent-gold);
+            border-radius: 8px;
+            box-shadow: 0 0 60px rgba(201, 169, 97, 0.4);
+            cursor: zoom-out;
+        }
+
+        .image-modal .modal-caption {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--accent-gold);
+            font-family: var(--font-main);
+            font-size: 1.2rem;
+            text-align: center;
+            letter-spacing: 0.1em;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: var(--accent-gold);
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            z-index: 10000;
+        }
+        .modal-close:hover {
+            color: var(--text-primary);
+            transform: scale(1.1);
+        }
+
+        @media (max-width: 700px) {
+            .image-modal .modal-content { max-width: 95%; }
+            .modal-close { top: 10px; right: 15px; font-size: 30px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <header class="inv-header">
+            <h1> Описание: {{ char.name }}</h1>
+            <nav class="nav-links">
+                <a href="/char/{{ char.id }}" class="nav-btn">← Лист персонажа</a>
+            </nav>
+        </header>
+
+        <div class="messages">
+            {% if error %}<div class="msg error">⚔️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+        </div>
+
+        <form method="POST" action="/char/{{ char.id }}/description" enctype="multipart/form-data">
+
+            <!-- Изображение персонажа -->
+            <section class="section">
+                <h2 class="section-title">🖼️ Изображение персонажа</h2>
+                <div class="image-upload-container">
+                    <div class="image-preview" id="charImagePreview"
+                         {% if char.description_image %}onclick="openImageModal('{{ char.description_image }}')"{% endif %}
+                         style="{% if char.description_image %}cursor: zoom-in;{% endif %}">
+                        {% if char.description_image %}
+                            <img src="{{ char.description_image }}" alt="{{ char.name }}">
+                        {% else %}
+                            <div class="placeholder">Нет изображения<br>Загрузите портрет</div>
+                        {% endif %}
+                    </div>
+                    <div class="image-upload-controls">
+                        <label for="char_image" class="upload-btn"> Выбрать файл</label>
+                        <input type="file" id="char_image" name="char_image" accept="image/*">
+                        {% if char.description_image %}
+                            <label style="display: inline-flex; align-items: center; gap: 0.3rem; margin-left: 0.5rem;">
+                                <input type="checkbox" name="remove_image" value="1">
+                                <span class="remove-img-btn">Удалить</span>
+                            </label>
+                            <p style="font-size: 0.75rem; color: var(--accent-gold-dim); margin-top: 0.4rem;">
+                                💡 Нажмите на изображение, чтобы увеличить
+                            </p>
+                        {% endif %}
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                            Поддерживаются: JPG, PNG, GIF, WebP. Максимум 5MB.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+<!-- Модальное окно просмотра изображения -->
+<div id="imageModal" class="image-modal">
+    <span class="modal-close" onclick="closeImageModal()">&times;</span>
+    <img class="modal-content" id="modalImage" alt="{{ char.name }}">
+    <div class="modal-caption" id="modalCaption">{{ char.name }}</div>
+</div>
+
+            <!-- Описание внешности -->
+            <section class="section">
+                <h2 class="section-title">👤 Описание внешности</h2>
+                <div class="form-group">
+                    <label for="appearance">Внешний вид, рост, телосложение, отличительные черты</label>
+                    <textarea id="appearance" name="appearance" placeholder="Опишите, как выглядит ваш персонаж...">{{ char.description_appearance or '' }}</textarea>
+                </div>
+            </section>
+
+            <!-- Предыстория -->
+            <section class="section">
+                <h2 class="section-title">📖 Предыстория</h2>
+                <div class="form-group">
+                    <label for="background">Прошлое персонажа, важные события, мотивация</label>
+                    <textarea id="background" name="background" placeholder="Расскажите историю вашего героя..." style="min-height: 200px;">{{ char.description_background or '' }}</textarea>
+                </div>
+            </section>
+
+            <!-- Союзники и организации -->
+            <section class="section">
+                <h2 class="section-title">🤝 Союзники и организации</h2>
+                <div class="form-group">
+                    <label for="allies">Друзья, враги, гильдии, ордена, связи</label>
+                    <textarea id="allies" name="allies" placeholder="Перечислите важных людей и организации...">{{ char.description_allies or '' }}</textarea>
+                </div>
+            </section>
+
+            <!-- Характер -->
+            <section class="section">
+                <h2 class="section-title"> Характер</h2>
+                <div class="traits-grid">
+                    <div class="trait-block">
+                        <label for="personality">Свойства личности</label>
+                        <textarea id="personality" name="personality" placeholder="Особенности характера, привычки...">{{ char.description_personality or '' }}</textarea>
+                    </div>
+                    <div class="trait-block">
+                        <label for="ideals">Идеалы</label>
+                        <textarea id="ideals" name="ideals" placeholder="Во что верит персонаж...">{{ char.description_ideals or '' }}</textarea>
+                    </div>
+                    <div class="trait-block">
+                        <label for="bonds">Узы</label>
+                        <textarea id="bonds" name="bonds" placeholder="Что связывает персонажа с миром...">{{ char.description_bonds or '' }}</textarea>
+                    </div>
+                    <div class="trait-block">
+                        <label for="flaws">Слабости</label>
+                        <textarea id="flaws" name="flaws" placeholder="Страхи, пороки, недостатки...">{{ char.description_flaws or '' }}</textarea>
+                    </div>
+                </div>
+            </section>
+
+            <button type="submit" class="btn-submit">💾 Сохранить описание</button>
+        </form>
+    </div>
+
+    <script>
+// === Просмотр изображения ===
+    function openImageModal(src) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modal.style.display = 'block';
+        modalImg.src = src;
+        document.body.style.overflow = 'hidden'; // блокируем прокрутку фона
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('imageModal');
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    // Закрытие по клику на фон
+    document.getElementById('imageModal')?.addEventListener('click', function(e) {
+        if (e.target === this) closeImageModal();
+    });
+
+    // Закрытие по Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeImageModal();
+    });
+
+    // Предпросмотр загружаемого файла
+    document.getElementById('char_image')?.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Файл слишком большой! Максимум 5MB.');
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const preview = document.getElementById('charImagePreview');
+                preview.innerHTML = '<img src="' + event.target.result + '" alt="Preview">';
+                preview.style.cursor = 'zoom-in';
+                preview.onclick = function() { openImageModal(event.target.result); };
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    </script>
+</body>
+</html>

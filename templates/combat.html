@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Бой | {{ char.name }}</title>
+    <style>
+        :root { --primary:#0f0f1a; --accent:#d4af37; --text:#e0d6bd; --bg:rgba(30,30,50,0.8); }
+        * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
+        body { background:linear-gradient(135deg,#1a1a2e,#0d1021); color:var(--text); min-height:100vh; padding:20px; display:flex; justify-content:center; align-items:center; }
+        .arena { background:var(--bg); padding:30px; border-radius:16px; max-width:700px; width:100%; border:1px solid rgba(74,74,109,0.4); box-shadow:0 20px 50px rgba(0,0,0,0.7); }
+        h1 { color:var(--accent); text-align:center; margin-bottom:20px; }
+        .weapon-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; margin-bottom:20px; }
+        .w-btn { padding:15px; background:rgba(20,20,35,0.6); border:1px solid rgba(74,74,109,0.4); border-radius:8px; cursor:pointer; color:var(--text); transition:0.3s; text-align:center; }
+        .w-btn:hover { border-color:var(--accent); transform:translateY(-3px); }
+        .w-btn.selected { border-color:var(--accent); background:rgba(44,44,84,0.8); box-shadow:0 0 15px rgba(212,175,55,0.3); }
+        .form-group { margin-bottom:15px; }
+        .form-control { width:100%; padding:12px; background:rgba(15,15,26,0.7); border:1px solid rgba(74,74,109,0.5); border-radius:8px; color:var(--text); }
+        .btn { padding:12px; border:none; border-radius:8px; font-weight:600; cursor:pointer; transition:0.3s; }
+        .btn-primary { background:var(--accent); color:var(--primary); }
+        .result-box { margin-top:20px; padding:20px; background:rgba(20,20,35,0.6); border-radius:12px; border-left:4px solid var(--accent); animation:fadeIn 0.5s; }
+        @keyframes fadeIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
+        .d20 { font-size:3rem; font-weight:800; color:var(--accent); text-align:center; }
+        .crit { color:#4ade80; } .fail { color:#f87171; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="arena">
+        <h1>⚔️ БОЕВОЙ ЖУРНАЛ</h1>
+        <form method="POST" id="combatForm">
+            <h3 style="color:var(--accent); margin-bottom:10px;">Выберите оружие</h3>
+            <div class="weapon-list">
+                {% for w in char.inventory.weapons %}
+                <div class="w-btn" onclick="selectWeapon({{ loop.index0 }}, '{{ w.name }}', '{{ w.type }}')">
+                    <strong>{{ w.name }}</strong><br><small>{{ w.damage }} [{{ w.type }}]</small>
+                    <input type="radio" name="weapon_idx" value="{{ loop.index0 }}" required style="display:none;">
+                </div>
+                {% endfor %}
+            </div>
+
+            <div id="attr-group" class="form-group" style="display:none;">
+                <label style="color:var(--muted); display:block; margin-bottom:5px;">Характеристика атаки</label>
+                <select name="attr_choice" id="attrChoice" class="form-control"></select>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; margin-top:10px;">🎲 Бросить атаку</button>
+        </form>
+
+        {% if result %}
+        <div class="result-box">
+            <div class="d20 {{ 'crit' if result.is_crit else 'fail' if result.is_fail else '' }}">🎲 {{ result.d20 }}</div>
+            <p style="text-align:center; margin:10px 0;">Итог атаки: <strong style="color:var(--accent);">{{ result.bonus }}</strong> ({{ result.weapon }})</p>
+            {% if result.is_fail %}
+                <p style="text-align:center; color:#f87171;">❌ КРИТИЧЕСКИЙ ПРОВАЛ</p>
+            {% elif result.is_crit %}
+                <p style="text-align:center; color:#4ade80;">✨ КРИТИЧЕСКИЙ УСПЕХ!</p>
+                {% if not result.damage %}
+                <form method="POST" style="text-align:center; margin-top:10px;">
+                    <input type="hidden" name="weapon_idx" value="{{ request.form['weapon_idx'] }}">
+                    <input type="hidden" name="attr_choice" value="{{ request.form['attr_choice'] }}">
+                    <button type="submit" name="confirm_hit" value="1" class="btn btn-primary">✅ Подтвердить попадание & Бросить урон</button>
+                </form>
+                {% endif %}
+            {% else %}
+                {% if not result.damage %}
+                <form method="POST" style="text-align:center; margin-top:10px;">
+                    <input type="hidden" name="weapon_idx" value="{{ request.form['weapon_idx'] }}">
+                    <input type="hidden" name="attr_choice" value="{{ request.form['attr_choice'] }}">
+                    <button type="submit" name="confirm_hit" value="1" class="btn btn-primary">✅ Попал! (Бросить урон)</button>
+                    <button type="submit" class="btn" style="background:#555; color:#fff;">❌ Промах</button>
+                </form>
+                {% endif %}
+            {% endif %}
+
+            {% if result.damage %}
+                <div style="text-align:center; margin-top:15px; padding-top:15px; border-top:1px solid rgba(74,74,109,0.4);">
+                    <h3 style="color:#4ade80;">Урон: {{ result.damage }}</h3>
+                    <small>{{ result.dmg_formula }}</small>
+                </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const attrMap = {'standard':['STR'], 'finesse':['STR','DEX'], 'thrown':['DEX'], 'ammunition':['DEX']};
+        const names = {'STR':'Сила','DEX':'Ловкость'};
+
+        function selectWeapon(idx, name, type) {
+            document.querySelectorAll('.w-btn').forEach(b => b.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+            document.querySelector(`input[name="weapon_idx"][value="${idx}"]`).checked = true;
+
+            const group = document.getElementById('attr-group');
+            const sel = document.getElementById('attrChoice');
+            group.style.display = 'block';
+            sel.innerHTML = '';
+            attrMap[type].forEach(a => {
+                const opt = document.createElement('option');
+                opt.value = a; opt.textContent = names[a];
+                sel.appendChild(opt);
+            });
+        }
+    </script>
+</body>
+</html>

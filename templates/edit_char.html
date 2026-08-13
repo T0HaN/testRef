@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c; --bg-secondary: #141418; --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8; --text-secondary: #a89f8a;
+            --accent-gold: #c9a961; --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a; --accent-green: #4a6b4a;
+            --border-color: #3a352a; --shadow-color: rgba(0,0,0,0.6);
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-ui: 'Segoe UI', Tahoma, sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .page-header {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .page-title {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.6rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .page-subtitle { color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.2rem; }
+        .nav-btn {
+            padding: 0.55rem 1.1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); }
+
+        .messages { margin-bottom: 1.5rem; }
+        .msg { padding: 0.7rem 1rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid; }
+        .msg.error { background: rgba(139,58,58,0.2); border-color: var(--accent-red); color: #f5c6cb; }
+        .msg.success { background: rgba(74,107,74,0.2); border-color: var(--accent-green); color: #d4edda; }
+
+        .section {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .section-title {
+            font-family: var(--font-main);
+            font-size: 1.1rem;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.6rem;
+            margin-bottom: 1.2rem;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; } }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 0.7rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            font-size: 0.95rem;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: var(--accent-gold);
+        }
+        .form-group .hint {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.3rem;
+            font-style: italic;
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+        @media (max-width: 700px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.9rem;
+            text-align: center;
+        }
+        .stat-card label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+        .stat-card input {
+            width: 100%;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            font-family: var(--font-main);
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+        }
+        .stat-card input:focus { outline: none; border-color: var(--accent-gold); }
+        .stat-mod {
+            display: block;
+            margin-top: 0.3rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .hp-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.75rem;
+        }
+        @media (max-width: 700px) { .hp-grid { grid-template-columns: 1fr; } }
+
+        /* ИНТЕРАКТИВНЫЕ КАРТОЧКИ (Спасброски и Навыки) */
+        .checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.8rem;
+        }
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            background: var(--bg-primary);
+            padding: 0.8rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none; /* Убираем стандартное выделение текста при двойном клике */
+        }
+
+        /* Полностью скрываем стандартный чекбокс */
+        .checkbox-item input[type="checkbox"] {
+            display: none;
+        }
+
+        .item-name {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            transition: color 0.2s ease;
+        }
+
+        .stat-badge {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            margin-left: auto;
+            font-weight: bold;
+            border: 1px solid var(--border-color);
+            transition: all 0.2s ease;
+        }
+
+        /* Эффект наведения, когда НЕ выбрано */
+        .checkbox-item:hover {
+            border-color: var(--accent-gold-dim);
+            background: var(--bg-tertiary);
+        }
+
+        /* АКТИВНОЕ СОСТОЯНИЕ (КОГДА ЧЕКБОКС ВЫБРАН) */
+        .checkbox-item:has(input[type="checkbox"]:checked) {
+            background: rgba(201, 169, 97, 0.15); /* Полупрозрачный золотой фон */
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 10px rgba(201, 169, 97, 0.1); /* Легкое свечение */
+        }
+
+        /* Золотой текст для выбранного навыка */
+        .checkbox-item:has(input[type="checkbox"]:checked) .item-name {
+            color: var(--accent-gold);
+            font-weight: bold;
+        }
+
+        /* Яркий бейдж для выбранного навыка */
+        .checkbox-item:has(input[type="checkbox"]:checked) .stat-badge {
+            color: var(--bg-primary);
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+        .btn-submit {
+            padding: 0.85rem 2rem;
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            border: none;
+            border-radius: 6px;
+            color: var(--bg-primary);
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: opacity 0.2s;
+        }
+        .btn-submit:hover { opacity: 0.9; }
+        .btn-cancel {
+            padding: 0.85rem 2rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .btn-cancel:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">✏️ Редактирование персонажа</h1>
+                <div class="page-subtitle">{{ char.name }} • {{ char.char_class }} {{ char.level }} ур.</div>
+            </div>
+            <a href="/char/{{ char.id }}" class="nav-btn">← Отмена</a>
+        </header>
+
+        <div class="messages">
+            {% if error %}<div class="msg error">⚔️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+        </div>
+
+        <form method="POST" action="/char/{{ char.id }}/edit">
+
+            <!-- Основная информация -->
+            <section class="section">
+                <h2 class="section-title">📋 Основная информация</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="name">Имя персонажа *</label>
+                        <input type="text" id="name" name="name" value="{{ char.name }}" required maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="race">Раса</label>
+                        <select id="race" name="race">
+                            {% for race in races %}
+                            <option value="{{ race }}" {% if char.race == race %}selected{% endif %}>{{ race }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="char_class">Класс</label>
+                        <select id="char_class" name="char_class">
+                            {% for cls in classes %}
+                            <option value="{{ cls }}" {% if char.char_class == cls %}selected{% endif %}>{{ cls }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="subclass">Подкласс</label>
+                        <input type="text" id="subclass" name="subclass" value="{{ char.subclass if char.subclass != 'Нет' else '' }}" placeholder="Например: Путь берсерка">
+                    </div>
+                    <div class="form-group">
+                        <label for="alignment">Мировоззрение</label>
+                        <select id="alignment" name="alignment">
+                            {% for al in alignments %}
+                            <option value="{{ al }}" {% if char.alignment == al %}selected{% endif %}>{{ al }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="level">Уровень (1-20)</label>
+                        <input type="number" id="level" name="level" value="{{ char.level }}" min="1" max="20">
+                        <div class="hint">Автоматически пересчитывается по опыту</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="xp">Опыт (XP)</label>
+                        <input type="number" id="xp" name="xp" value="{{ char.xp }}" min="0">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Характеристики -->
+            <section class="section">
+                <h2 class="section-title">💪 Характеристики</h2>
+                <div class="stats-grid">
+                    {% for stat_key, stat_name in [('STR','СИЛА'),('DEX','ЛОВКОСТЬ'),('CON','ТЕЛО'),('INT','ИНТЕЛЛЕКТ'),('WIS','МУДРОСТЬ'),('CHA','ХАРИЗМА')] %}
+                        {% set score = char.stats[stat_key].score %}
+                        {% set mod = char.stats[stat_key].modifier %}
+                        <div class="stat-card">
+                            <label for="stat_{{ stat_key }}">{{ stat_name }}</label>
+                            <input type="number" id="stat_{{ stat_key }}" name="stat_{{ stat_key }}"
+                                   value="{{ score }}" min="1" max="30"
+                                   oninput="updateMod('{{ stat_key }}', this.value)">
+                            <span class="stat-mod" id="mod_{{ stat_key }}">
+                                Модификатор: {% if mod >= 0 %}+{% endif %}{{ mod }}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Здоровье -->
+            <section class="section">
+                <h2 class="section-title">❤️ Здоровье</h2>
+                <div class="hp-grid">
+                    <div class="form-group">
+                        <label for="hp_current">Текущие хиты</label>
+                        <input type="number" id="hp_current" name="hp_current" value="{{ char.hp.current }}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="hp_max">Максимум хитов</label>
+                        <input type="number" id="hp_max" name="hp_max" value="{{ char.hp.max }}" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="hp_temp">Временные хиты</label>
+                        <input type="number" id="hp_temp" name="hp_temp" value="{{ char.hp.temp }}" min="0">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Спасброски -->
+            <section class="section">
+                <h2 class="section-title">🛡️ Спасброски</h2>
+                <div class="checkbox-grid">
+                    {% for save_key, save_name in saving_throws %}
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="saving_throws" value="{{ save_name }}"
+                               {% if save_name in char.saving_throws %}checked{% endif %}>
+                        <span class="item-name">{{ save_name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Навыки -->
+            <section class="section">
+                <h2 class="section-title">🎯 Навыки</h2>
+                <div class="checkbox-grid">
+                    {% for skill_key, skill_name, stat_abbr in skills %}
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="skills" value="{{ skill_name }}"
+                               {% if skill_name in char.skills %}checked{% endif %}>
+                        <span class="item-name">{{ skill_name }}</span>
+                        <span class="stat-badge">{{ stat_abbr }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Физические данные -->
+            <section class="section">
+                <h2 class="section-title">👤 Внешность</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="height">Рост</label>
+                        <input type="text" id="height" name="height" value="{{ char.physical.height }}" placeholder="180 см">
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Вес</label>
+                        <input type="text" id="weight" name="weight" value="{{ char.physical.weight }}" placeholder="75 кг">
+                    </div>
+                    <div class="form-group">
+                        <label for="hair">Цвет волос</label>
+                        <input type="text" id="hair" name="hair" value="{{ char.physical.hair }}" placeholder="Чёрные">
+                    </div>
+                    <div class="form-group">
+                        <label for="eyes">Цвет глаз</label>
+                        <input type="text" id="eyes" name="eyes" value="{{ char.physical.eyes }}" placeholder="Карие">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Прочее -->
+            <section class="section">
+                <h2 class="section-title">⚙️ Прочее</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="speed">Скорость (футов)</label>
+                        <input type="number" id="speed" name="speed" value="{{ char.attributes.speed }}" min="0" max="200">
+                        <div class="hint">Обычно 30 футов для большинства рас</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Кнопки -->
+            <div class="btn-row">
+                <a href="/char/{{ char.id }}" class="btn-cancel">Отмена</a>
+                <button type="submit" class="btn-submit">💾 Сохранить изменения</button>
+            </div>
+
+        </form>
+    </div>
+
+    <script>
+        function updateMod(statKey, score) {
+            score = parseInt(score) || 10;
+            const mod = Math.floor((score - 10) / 2);
+            const modStr = mod >= 0 ? `+${mod}` : `${mod}`;
+            document.getElementById(`mod_${statKey}`).textContent = `Модификатор: ${modStr}`;
+        }
+    </script>
+</body>
+</html>

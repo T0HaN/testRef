@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Вход в Folio • D&D Manager</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #141418;
+            --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8;
+            --text-secondary: #a89f8a;
+            --accent-gold: #c9a961;
+            --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a;
+            --accent-green: #4a6b4a;
+            --border-color: #3a352a;
+            --shadow-color: rgba(0, 0, 0, 0.6);
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-runic: 'Courier New', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-main);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+        .login-container {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2.5rem;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 20px 60px var(--shadow-color), inset 0 1px 0 rgba(255,255,255,0.05);
+            position: relative;
+        }
+        .login-container::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+            border-radius: 12px 12px 0 0;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+        .header::after {
+            content: "✦";
+            position: absolute;
+            bottom: -10px; left: 50%;
+            transform: translateX(-50%);
+            color: var(--accent-gold);
+            font-size: 1.2rem;
+            background: var(--bg-tertiary);
+            padding: 0 0.75rem;
+        }
+        .realm-title {
+            font-size: 2rem;
+            font-weight: normal;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: var(--accent-gold);
+            text-shadow: 0 0 20px rgba(201, 169, 97, 0.3);
+            margin-bottom: 0.5rem;
+            font-family: var(--font-runic);
+        }
+        .subtitle {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        .messages { margin-bottom: 1.5rem; }
+        .msg {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid;
+            font-size: 0.95rem;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .msg.error { background: rgba(139, 58, 58, 0.2); border-color: var(--accent-red); color: #f5c6cb; }
+        .msg.success { background: rgba(74, 107, 74, 0.2); border-color: var(--accent-green); color: #d4edda; }
+        .msg.info { background: rgba(101, 101, 139, 0.2); border-color: #65658b; color: #cce5ff; }
+
+        .form-group { margin-bottom: 1.25rem; }
+
+        /* Скрываем блок почты и чекбокса по умолчанию (только для логина) */
+        #email-group,
+        #consent-group {
+            display: none;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.05em;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.2);
+        }
+        input::placeholder { color: var(--text-secondary); opacity: 0.7; }
+
+        /* Кастомный чекбокс */
+        .custom-checkbox {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.92rem;
+            line-height: 1.4;
+            padding: 0.4rem 0;
+        }
+        .custom-checkbox input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            min-width: 20px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            margin-top: 0.1rem;
+            transition: var(--transition, all 0.2s);
+            position: relative;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .custom-checkbox input[type="checkbox"]:checked {
+            background: var(--accent-gold);
+            border-color: var(--accent-gold);
+        }
+        .custom-checkbox input[type="checkbox"]:checked::after {
+            content: "✓";
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--bg-primary);
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .custom-checkbox input[type="checkbox"]:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.3);
+        }
+        .custom-checkbox a {
+            color: var(--accent-gold);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .custom-checkbox a:hover {
+            color: var(--accent-gold-dim);
+            text-decoration: underline;
+        }
+
+        .btn-row {
+            display: flex;
+            margin-top: 1.5rem;
+        }
+        button {
+            flex: 1;
+            padding: 0.85rem 1rem;
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            border: none;
+            border-radius: 6px;
+            color: var(--bg-primary);
+            font-family: var(--font-main);
+            font-weight: 600;
+            font-size: 1rem;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+            text-transform: uppercase;
+            position: relative;
+            overflow: hidden;
+        }
+        button::before {
+            content: "";
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.4s;
+        }
+        button:hover::before { left: 100%; }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(201, 169, 97, 0.4);
+        }
+        button:active { transform: translateY(0); }
+
+        .toggle-mode {
+            text-align: center;
+            margin-top: 1.25rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        .toggle-mode a {
+            color: var(--accent-gold);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-weight: bold;
+        }
+        .toggle-mode a:hover {
+            color: var(--accent-gold-dim);
+            text-decoration: underline;
+        }
+
+        .footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+        @media (max-width: 520px) {
+            .login-container { padding: 1.75rem; }
+            .realm-title { font-size: 1.6rem; }
+        }
+        .ornament {
+            text-align: center;
+            color: var(--accent-gold-dim);
+            font-size: 1.5rem;
+            margin: 1rem 0;
+            opacity: 0.6;
+            letter-spacing: 0.3em;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <header class="header">
+            <h1 class="realm-title">Folio</h1>
+            <p class="subtitle">Врата приключений</p>
+        </header>
+
+        <div class="messages">
+            {% if error %}
+                <div class="msg error">⚔️ {{ error }}</div>
+            {% endif %}
+            {% if success %}
+                <div class="msg success">✨ {{ success }}</div>
+            {% endif %}
+            {% if info %}
+                <div class="msg info">📜 {{ info }}</div>
+            {% endif %}
+        </div>
+
+        <form method="post" action="/login" novalidate id="auth-form">
+            <!-- Скрытое поле для определения действия (login/register) -->
+            <input type="hidden" name="action" id="action-input" value="login">
+
+            <div class="form-group">
+                <label for="username">Логин</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    required
+                    minlength="3"
+                    maxlength="50"
+                    placeholder="Имя путника..."
+                    autocomplete="username"
+                    pattern="[a-zA-Z0-9_]+"
+                    title="Только буквы, цифры и подчёркивание"
+                >
+            </div>
+
+            <!-- Блок для почты (появляется при регистрации) -->
+            <div class="form-group" id="email-group">
+                <label for="email">Электронная почта</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="почта@домен.ру"
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    minlength="4"
+                    placeholder="Тайный ключ..."
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <!-- Блок согласия на обработку ПД (появляется при регистрации) -->
+            <div class="form-group" id="consent-group">
+                <label class="custom-checkbox">
+                    <input type="checkbox" id="consent-checkbox" name="consent" value="yes">
+                    <span>
+                        Я даю своё согласие на обработку
+                        <a href="/privacy" target="_blank">персональных данных</a>
+                    </span>
+                </label>
+            </div>
+
+            <div class="ornament">❖ ❖ ❖</div>
+
+            <div class="btn-row">
+                <button type="submit" id="main-submit-btn">🔐 Войти</button>
+            </div>
+        </form>
+
+        <div class="toggle-mode">
+            <span id="toggle-prompt">Ещё не ведете летопись?</span>
+            <a href="#" id="toggle-link">Зарегистрироваться</a>
+        </div>
+
+        <footer class="footer">
+            <p>«{{ quote_text if quote_text else "Не все те, кто странствуют — потеряны." }}»</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const usernameInput = document.getElementById('username');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const consentCheckbox = document.getElementById('consent-checkbox');
+            const authForm = document.getElementById('auth-form');
+
+            const emailGroup = document.getElementById('email-group');
+            const consentGroup = document.getElementById('consent-group');
+            const actionInput = document.getElementById('action-input');
+            const submitBtn = document.getElementById('main-submit-btn');
+            const toggleLink = document.getElementById('toggle-link');
+            const togglePrompt = document.getElementById('toggle-prompt');
+
+            let isLoginMode = true;
+
+            // Фокус на поле при загрузке
+            if (usernameInput && !usernameInput.value) {
+                usernameInput.focus();
+            }
+
+            // Переключение между Входом и Регистрацией
+            toggleLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                isLoginMode = !isLoginMode;
+
+                if (isLoginMode) {
+                    // Режим Входа
+                    emailGroup.style.display = 'none';
+                    emailInput.required = false;
+                    consentGroup.style.display = 'none';
+                    consentCheckbox.required = false;
+                    actionInput.value = 'login';
+                    submitBtn.innerHTML = '🔐 Войти';
+                    togglePrompt.textContent = 'Ещё не ведете летопись?';
+                    toggleLink.textContent = 'Зарегистрироваться';
+                } else {
+                    // Режим Регистрации
+                    emailGroup.style.display = 'block';
+                    emailInput.required = true;
+                    consentGroup.style.display = 'block';
+                    consentCheckbox.required = true;
+                    actionInput.value = 'register';
+                    submitBtn.innerHTML = '📜 Зарегистрироваться';
+                    togglePrompt.textContent = 'Уже есть аккаунт?';
+                    toggleLink.textContent = 'Войти';
+                }
+            });
+
+            // Валидация перед отправкой
+            authForm.addEventListener('submit', (e) => {
+                const username = usernameInput.value.trim();
+                const password = passwordInput.value;
+
+                // Проверка логина
+                if (username.length < 3) {
+                    e.preventDefault();
+                    alert('Логин должен содержать минимум 3 символа');
+                    usernameInput.focus();
+                    return;
+                }
+
+                // Проверка пароля
+                if (password.length < 4) {
+                    e.preventDefault();
+                    alert('Пароль должен содержать минимум 4 символа');
+                    passwordInput.focus();
+                    return;
+                }
+
+                // Если регистрация — проверяем почту и согласие
+                if (!isLoginMode) {
+                    // Почта
+                    if (!emailInput.value.includes('@')) {
+                        e.preventDefault();
+                        alert('Пожалуйста, введите корректный адрес электронной почты');
+                        emailInput.focus();
+                        return;
+                    }
+
+                    // Согласие
+                    if (!consentCheckbox.checked) {
+                        e.preventDefault();
+                        alert('Для регистрации необходимо дать согласие на обработку персональных данных');
+                        consentCheckbox.focus();
+                        return;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

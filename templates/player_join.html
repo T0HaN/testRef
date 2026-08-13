@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подключение к комнате | Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #141418;
+            --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8;
+            --text-secondary: #a89f8a;
+            --accent-gold: #c9a961;
+            --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a;
+            --accent-green: #4a6b4a;
+            --border-color: #3a352a;
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-ui: 'Segoe UI', Tahoma, sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            max-width: 700px;
+            width: 100%;
+        }
+        .page-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .page-title {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.8rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+        .nav-back {
+            display: inline-block;
+            margin-top: 1rem;
+            color: var(--accent-gold-dim);
+            text-decoration: none;
+            font-size: 0.9rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        .nav-back:hover { color: var(--accent-gold); border-color: var(--accent-gold-dim); }
+
+        .messages { margin-bottom: 1.5rem; }
+        .msg {
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid;
+        }
+        .msg.error { background: rgba(139,58,58,0.2); border-color: var(--accent-red); color: #f5c6cb; }
+        .msg.success { background: rgba(74,107,74,0.2); border-color: var(--accent-green); color: #d4edda; }
+
+        .section {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .section-title {
+            font-family: var(--font-main);
+            font-size: 1.1rem;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.6rem;
+            margin-bottom: 1.2rem;
+            text-align: center;
+        }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.7rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            font-size: 0.95rem;
+        }
+        .form-group input:focus, .form-group select:focus {
+            outline: none; border-color: var(--accent-gold);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 0.85rem;
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            border: none;
+            border-radius: 6px;
+            color: var(--bg-primary);
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            transition: opacity 0.2s;
+        }
+        .btn-submit:hover { opacity: 0.9; }
+
+        /* Saved rooms */
+        .saved-rooms-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+        .saved-room-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.9rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s;
+            text-decoration: none;
+        }
+        .saved-room-card:hover { border-color: var(--accent-gold); }
+        .saved-room-info { flex: 1; }
+        .saved-room-name {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+            font-weight: bold;
+        }
+        .saved-room-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.2rem;
+        }
+        .saved-room-meta strong { color: var(--text-primary); }
+        .room-status {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            margin-left: 0.75rem;
+        }
+        .status-active { background: rgba(74,107,74,0.2); color: #8fd88f; border: 1px solid var(--accent-green); }
+        .status-closed { background: rgba(139,58,58,0.2); color: #f58b8b; border: 1px solid var(--accent-red); }
+
+        .btn-quick-join {
+            padding: 0.5rem 1rem;
+            background: var(--accent-green);
+            border: none;
+            border-radius: 4px;
+            color: var(--bg-primary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+        .btn-quick-join:hover { background: #5a8b5a; }
+
+        .divider {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+        .divider::before, .divider::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: var(--border-color);
+        }
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+
+        .empty-state {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        .char-preview {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .char-preview strong { color: var(--accent-gold); }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <header class="page-header">
+            <h1 class="page-title">Подключение к комнате</h1>
+            <div class="page-subtitle">Игрок: @{{ username }}</div>
+            <a href="/chars" class="nav-back">← Назад к персонажам</a>
+        </header>
+
+        <div class="messages">
+            {% if error %}<div class="msg error">⚠️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+        </div>
+
+        <!-- Сохранённые комнаты (История) -->
+        {% if my_rooms %}
+        <section class="section">
+            <h2 class="section-title">📌 Недавние игры</h2>
+            <div class="saved-rooms-list">
+                {% for room in my_rooms %}
+                <div class="saved-room-card">
+                    <div class="saved-room-info">
+                        <div class="saved-room-name">{{ room.name }}</div>
+                        <div class="saved-room-meta">
+                            Мастер: <strong>@{{ room.master_id }}</strong> •
+                            Код: <strong>{{ room.invite_code }}</strong>
+                        </div>
+                    </div>
+
+                    <div style="text-align: right;">
+                        {% if room.active %}
+                            <div style="margin-bottom: 0.4rem;">
+                                <span class="room-status status-active">🟢 Открыта ({{ room.current_players }}/{{ room.max_players }})</span>
+                            </div>
+                            <a href="/player/join/{{ room.id }}" class="btn-quick-join">⚡ Войти</a>
+                        {% else %}
+                            <span class="room-status status-closed">🔴 Закрыта</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="divider">или подключиться по новому коду</div>
+        {% endif %}
+
+        <!-- Форма подключения по коду -->
+        <section class="section">
+            <h2 class="section-title">🔑 Подключение по коду</h2>
+
+            <form method="POST" action="/player/join">
+
+                {% if preselected_char %}
+                <div class="char-preview">
+                    Выбранный персонаж: <strong>{{ preselected_char.name }}</strong><br>
+                    <span style="color: var(--text-secondary);">
+                        {{ preselected_char.char_class }} {{ preselected_char.level }} ур. • {{ preselected_char.race }}
+                    </span>
+                    <input type="hidden" name="char_id" value="{{ preselected_char.id }}">
+                </div>
+                {% else %}
+                <div class="form-group">
+                    <label for="char_id">Выберите персонажа</label>
+                    <select id="char_id" name="char_id" required>
+                        <option value="">— Выберите —</option>
+                        {% for char in chars %}
+                        <option value="{{ char.id }}">{{ char.name }} ({{ char.char_class }} {{ char.level }} ур.)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label for="code">Код приглашения</label>
+                    <input type="text" id="code" name="code" required
+                           placeholder="Введите 6-значный код"
+                           maxlength="10"
+                           value="{{ code }}"
+                           style="text-transform: uppercase; letter-spacing: 0.15em; font-family: var(--font-main); font-size: 1.1rem; text-align: center;">
+                </div>
+
+                <button type="submit" class="btn-submit">🚪 Подключиться к комнате</button>
+            </form>
+        </section>
+
+    </div>
+</body>
+</html>

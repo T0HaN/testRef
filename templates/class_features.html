@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Классовые навыки | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c; --bg-secondary: #141418; --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8; --text-secondary: #a89f8a;
+            --accent-gold: #c9a961; --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a; --accent-green: #4a6b4a;
+            --border-color: #3a352a; --shadow-color: rgba(0,0,0,0.6);
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-ui: 'Segoe UI', Tahoma, sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+            line-height: 1.5;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .page-header {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .page-title {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.4rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.2rem;
+        }
+        .nav-links { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+        .nav-btn {
+            padding: 0.55rem 1.1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); }
+
+        .section {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        .section-title {
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* Level grouping */
+        .level-group {
+            margin-bottom: 1.5rem;
+        }
+        .level-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .level-badge {
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            color: var(--bg-primary);
+            padding: 0.3rem 0.8rem;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            font-family: var(--font-main);
+            min-width: 60px;
+            text-align: center;
+        }
+        .level-label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Feature cards */
+        .feature-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: border-color 0.2s;
+        }
+        .feature-card:hover { border-color: var(--accent-gold-dim); }
+
+        .feature-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .feature-name {
+            font-family: var(--font-main);
+            font-size: 1.05rem;
+            color: var(--accent-gold);
+            font-weight: bold;
+        }
+        .feature-tags {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+        .tag {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 3px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .tag-base {
+            background: rgba(201,169,97,0.15);
+            color: var(--accent-gold);
+            border: 1px solid var(--accent-gold-dim);
+        }
+        .tag-subclass {
+            background: rgba(139,58,139,0.15);
+            color: #d48fd4;
+            border: 1px solid #8b3a8b;
+        }
+
+        .feature-description {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .feature-description:empty::before {
+            content: "Описание отсутствует в базе данных...";
+            color: var(--text-secondary);
+            opacity: 0.5;
+            font-style: italic;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 2rem;
+            color: var(--text-secondary);
+        }
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.6;
+        }
+        .empty-state h3 {
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            margin-bottom: 0.5rem;
+        }
+        .empty-state p {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Summary strip */
+        .summary-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .summary-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        .summary-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .summary-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            font-family: var(--font-main);
+            margin-top: 0.2rem;
+        }
+
+        @media (max-width: 600px) {
+            .page-header { flex-direction: column; align-items: flex-start; }
+            .feature-header { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <!-- Header -->
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">Классовые навыки</h1>
+                <div class="page-subtitle">
+                    {{ char.name }} • {{ char.char_class }} {{ char.level }} ур.
+                    {% if char.subclass and char.subclass != 'Нет' %}
+                        • {{ char.subclass }}
+                    {% endif %}
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="/char/{{ char.id }}" class="nav-btn">← Лист персонажа</a>
+                <a href="/chars" class="nav-btn">Список героев</a>
+            </nav>
+        </header>
+
+        <!-- Summary strip -->
+        <div class="summary-strip">
+            <div class="summary-item">
+                <div class="summary-label">Класс</div>
+                <div class="summary-value" style="font-size: 1rem;">{{ char.char_class }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Уровень</div>
+                <div class="summary-value">{{ char.level }}</div>
+            </div>
+            {% if char.subclass and char.subclass != 'Нет' %}
+            <div class="summary-item">
+                <div class="summary-label">Подкласс</div>
+                <div class="summary-value" style="font-size: 1rem;">{{ char.subclass }}</div>
+            </div>
+            {% endif %}
+            <div class="summary-item">
+                <div class="summary-label">Всего навыков</div>
+                <div class="summary-value">{{ features|length if features else 0 }}</div>
+            </div>
+        </div>
+
+        <!-- Features list -->
+        <section class="section">
+            <h2 class="section-title">⚔️ Классовые особенности</h2>
+
+            {% if features %}
+                {# Group by level #}
+                {% set ns = namespace(current_level=0) %}
+                {% for feat in features %}
+                    {% if feat.level != ns.current_level %}
+                        {% if ns.current_level != 0 %}
+                            </div>
+                        {% endif %}
+                        {% set ns.current_level = feat.level %}
+                        <div class="level-group">
+                            <div class="level-header">
+                                <span class="level-badge">{{ feat.level }} ур.</span>
+                                <span class="level-label">Особенности уровня</span>
+                            </div>
+                    {% endif %}
+                    <div class="feature-card">
+                        <div class="feature-header">
+                            <div class="feature-name">{{ feat.name }}</div>
+                            <div class="feature-tags">
+                                {% if feat.source == 'subclass' %}
+                                    <span class="tag tag-subclass"> Подкласс</span>
+                                {% else %}
+                                    <span class="tag tag-base">️ Базовый</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="feature-description">{{ feat.description or '' }}</div>
+                    </div>
+                {% endfor %}
+                {% if features %}
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <div class="empty-state">
+                    <div class="icon">📖</div>
+                    <h3>На {{ char.level }}-м уровне нет особенностей</h3>
+                    <p>
+                        У класса <strong>{{ char.char_class }}</strong> на текущем уровне нет дополнительных способностей в базе данных.
+                        Повысьте уровень или выберите подкласс, чтобы открыть новые навыки.
+                    </p>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Footer -->
+        <div style="text-align: center; padding: 1rem; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">
+            Современный лист персонажа D&D 5e • Стиль Средиземья
+        </div>
+    </div>
+</body>
+</html>

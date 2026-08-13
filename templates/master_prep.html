@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бестиарий и Отряд | Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #141418;
+            --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8;
+            --text-secondary: #a89f8a;
+            --accent-gold: #c9a961;
+            --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a;
+            --accent-green: #4a6b4a;
+            --border-color: #3a352a;
+            --shadow-color: rgba(0,0,0,0.6);
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-ui: 'Segoe UI', Tahoma, sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Общие кнопки в стиле Folio */
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-align: center;
+            font-family: var(--font-ui);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .btn:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); color: var(--accent-gold); }
+        .btn-primary { background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim)); color: var(--bg-primary); font-weight: 600; border: none; }
+        .btn-primary:hover { background: var(--accent-gold); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(201, 169, 97, 0.2); border-color: transparent; color: var(--bg-primary); }
+        .btn-danger { background: rgba(139,58,58,0.2); border-color: var(--accent-red); color: #f5c6cb; }
+        .btn-danger:hover { background: var(--accent-red); color: var(--bg-primary); }
+        .btn-success { background: linear-gradient(145deg, var(--accent-green), #3a5a3a); color: #fff; font-weight: bold; border: none;}
+        .btn-success:hover { background: linear-gradient(145deg, #5a8b5a, #4a6b4a); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 107, 74, 0.2); color: #fff; }
+
+        /* Заголовок */
+        .prep-header {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .prep-header h1 {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.6rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Сетка */
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 1.5rem;
+            flex-grow: 1;
+        }
+        @media (max-width: 900px) {
+            .two-columns { grid-template-columns: 1fr; }
+            .header-actions { width: 100%; justify-content: space-between; }
+        }
+
+        /* Общие стили панелей */
+        .panel {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .panel-title {
+            font-family: var(--font-main);
+            font-size: 1.2rem;
+            color: var(--accent-gold);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.8rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Левая панель */
+        .party-panel { height: fit-content; max-height: 80vh; overflow-y: auto; }
+        .selected-list { display: flex; flex-direction: column; gap: 0.8rem; flex-grow: 1; }
+        .selected-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            transition: border-color 0.2s;
+        }
+        .selected-card:hover { border-color: var(--accent-gold-dim); }
+        .selected-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .selected-name {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            font-family: var(--font-main);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .token-preview {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid var(--accent-gold);
+        }
+        .token-btn {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            font-size: 0.8rem;
+            padding: 0.4rem 0.8rem;
+        }
+        .token-btn input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .empty-party {
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 2rem 1rem;
+            font-style: italic;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        /* Правая панель */
+        .filters-row {
+            display: flex;
+            gap: 0.8rem;
+        }
+        .search-box, .filter-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: var(--font-ui);
+            padding: 0.7rem;
+            transition: border-color 0.2s;
+        }
+        .search-box { flex-grow: 1; width: 100%; }
+        .filter-box { min-width: 130px; cursor: pointer; }
+        .search-box:focus, .filter-box:focus { outline: none; border-color: var(--accent-gold); }
+
+        .monster-list-container {
+            max-height: 250px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-primary);
+        }
+        .monster-list-item {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.1s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .monster-list-item:last-child { border-bottom: none; }
+        .monster-list-item:hover { background: var(--bg-tertiary); }
+        .monster-list-item.selected {
+            background: rgba(201, 169, 97, 0.15);
+            border-left: 3px solid var(--accent-gold);
+        }
+        .monster-list-name { font-weight: 600; color: var(--text-primary); }
+        .monster-list-cr { font-size: 0.85rem; color: var(--text-secondary); }
+        .monster-list-item.selected .monster-list-name { color: var(--accent-gold); }
+
+        .monster-detail-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.2rem;
+            max-height: 380px;
+            overflow-y: auto;
+        }
+        .monster-name {
+            font-size: 1.4rem;
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+        }
+        .monster-meta {
+            display: flex;
+            gap: 1.2rem;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.2rem;
+            background: var(--bg-tertiary);
+            padding: 0.8rem;
+            border-radius: 6px;
+        }
+        .monster-meta span strong { color: var(--text-primary); font-weight: normal; }
+
+        .monster-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.6rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 0.8rem;
+            margin-bottom: 1.2rem;
+        }
+        .stat { text-align: center; font-size: 0.85rem; color: var(--text-secondary); }
+        .stat-value { font-weight: bold; color: var(--accent-gold); font-size: 1.1rem; margin-top: 0.2rem; }
+
+        .detail-section-title {
+            font-weight: bold;
+            color: var(--accent-gold);
+            margin: 1.2rem 0 0.5rem 0;
+            font-size: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .monster-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Стили для отдельных действий (карточек) */
+        .action-block {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.6rem 0.8rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .action-name {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-weight: bold;
+            margin-bottom: 0.2rem;
+            font-size: 0.95rem;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-gold-dim); }
+
+        /* Footer */
+        .footer {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-style: italic;
+            border-top: 1px solid var(--border-color);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header class="prep-header">
+        <h1>Бестиарий и Отряд</h1>
+        <div class="header-actions">
+            <a href="/games" class="btn">🧭 В панель кампаний</a>
+            <a href="/master/room/{{ room_id }}" class="btn btn-primary">⚔️ Вернуться в игру</a>
+        </div>
+    </header>
+
+    <div class="two-columns">
+
+        <!-- ЛЕВАЯ ПАНЕЛЬ: выбранные монстры -->
+        <div class="panel party-panel">
+            <div class="panel-title">
+                Отряд и выбранные монстры
+                <span id="selectedCount" style="color: var(--text-secondary); font-size: 0.9rem;">(0)</span>
+            </div>
+
+            <div id="selectedMonstersList" class="selected-list">
+                <div class="empty-party">Пусто. Выберите монстра из бестиария и добавьте его в отряд.</div>
+            </div>
+
+            <button id="saveAndGoBtn" class="btn btn-success" style="padding: 0.9rem; margin-top: 0.5rem;">Сохранить и продолжить</button>
+        </div>
+
+        <!-- ПРАВАЯ ПАНЕЛЬ: поиск, фильтры, список, детали -->
+        <div class="panel monster-panel">
+            <div class="filters-row">
+                <input type="text" id="monsterSearch" class="search-box" placeholder="Поиск по названию (например, 'гоблин')...">
+                <select id="crFilter" class="filter-box">
+                    <option value="all">Любая сложность</option>
+                    <!-- Опции сложности генерируются через JS -->
+                </select>
+            </div>
+
+            <div class="monster-list-container" id="monsterListContainer">
+                <!-- Список отфильтрованных монстров -->
+            </div>
+
+            <button id="addToPartyBtn" class="btn btn-primary">Добавить выбранного монстра</button>
+
+            <div id="monsterDetail" class="monster-detail-card">
+                <div class="empty-party">Выберите сущность для просмотра характеристик</div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>«{{ quote_text if quote_text else "Подготовка к битве важна не менее самой битвы." }}»</p>
+    </footer>
+
+</div>
+
+<script>
+    // Получаем сырые данные из БД
+    const rawMonstersData = {{ monsters | tojson }};
+    const roomId = '{{ room_id }}';
+    let selectedMonsters = [];
+    let currentMonster = null;
+
+    // Сохраняем оригинальные массивы (не "схлопываем" их в один текст)
+    const monstersData = rawMonstersData.map(m => {
+        return {
+            ...m,
+            hit_points_clean: m.hit_points || '?',
+            armor_class: m.armor_class || '?',
+            stats: m.attributes || m.stats || {},
+            challenge_rating: m.challenge_rating || '0',
+            actions: m.actions || [],
+            traits: m.traits || [],
+            legendary_actions: m.legendary_actions || [],
+            description: m.description || '',
+            meta: m.meta || ''
+        };
+    });
+
+    let filteredMonsters = [...monstersData];
+
+    function parseCR(crString) {
+        if (!crString) return -1;
+        const str = String(crString).trim();
+        if (str.includes('/')) {
+            const [num, den] = str.split('/');
+            return parseInt(num) / parseInt(den);
+        }
+        return parseFloat(str) || 0;
+    }
+
+    function populateCRFilter() {
+        const crSelect = document.getElementById('crFilter');
+        const uniqueCRs = [...new Set(monstersData.map(m => m.challenge_rating))].filter(Boolean);
+
+        uniqueCRs.sort((a, b) => parseCR(a) - parseCR(b));
+
+        uniqueCRs.forEach(cr => {
+            const opt = document.createElement('option');
+            opt.value = cr;
+            opt.textContent = `Сложность: ${cr}`;
+            crSelect.appendChild(opt);
+        });
+    }
+
+    function renderParty() {
+        const container = document.getElementById('selectedMonstersList');
+        const countSpan = document.getElementById('selectedCount');
+
+        if (selectedMonsters.length === 0) {
+            container.innerHTML = '<div class="empty-party">Пусто. Выберите монстра из бестиария и добавьте его в отряд.</div>';
+            countSpan.innerText = '(0)';
+            return;
+        }
+
+        let html = '';
+        selectedMonsters.forEach((monster, idx) => {
+            const tokenPreview = monster.token_image
+                ? `<img src="${monster.token_image}" class="token-preview" alt="token">`
+                : '';
+            const tokenBtnText = monster.token_image ? 'Сменить токен' : 'Загрузить токен';
+
+            html += `
+                <div class="selected-card" data-idx="${idx}">
+                    <div class="selected-header">
+                        <span class="selected-name">${tokenPreview} ${escapeHtml(monster.name)}</span>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <label class="btn token-btn">
+                                ${tokenBtnText}
+                                <input type="file" accept="image/*" onchange="handleTokenUpload(this, ${idx})">
+                            </label>
+                            <button class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" data-idx="${idx}">Убрать</button>
+                        </div>
+                    </div>
+                    <div style="font-size:0.85rem; color: var(--text-secondary);">
+                        КД: <strong style="color: var(--text-primary);">${monster.armor_class || '?'}</strong> &nbsp;|&nbsp;
+                        Хиты: <strong style="color: var(--text-primary);">${monster.hit_points_clean || '?'}</strong>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
+        countSpan.innerText = `(${selectedMonsters.length})`;
+
+        document.querySelectorAll('.btn-danger').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.getAttribute('data-idx'));
+                if (!isNaN(idx)) {
+                    selectedMonsters.splice(idx, 1);
+                    renderParty();
+                }
+            });
+        });
+    }
+
+    function handleTokenUpload(input, idx) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedMonsters[idx].token_image = e.target.result;
+                renderParty();
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    function saveAndGo() {
+        if (selectedMonsters.length === 0) {
+            alert('Добавьте хотя бы одного монстра перед сохранением.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('monsters_data', JSON.stringify(selectedMonsters));
+
+        fetch(`/master/prep/${roomId}/save`, {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (response.redirected) {
+                window.location.href = response.url;
+            } else {
+                window.location.href = `/master/room/${roomId}`;
+            }
+        }).catch(err => {
+            console.error('Ошибка сохранения:', err);
+            alert('Ошибка сохранения: ' + err.message);
+        });
+    }
+
+    function addCurrentMonster() {
+        if (!currentMonster) {
+            alert("Сначала выберите сущность из списка.");
+            return;
+        }
+
+        const alreadyExists = selectedMonsters.some(m => m.name === currentMonster.name);
+        if (alreadyExists) {
+            alert(`Сущность "${currentMonster.name}" уже находится в отряде.`);
+            return;
+        }
+
+        // Сохраняем в отряд ПОЛНЫЕ массивы
+        const toAdd = {
+            name: currentMonster.name,
+            armor_class: currentMonster.armor_class,
+            hit_points_clean: currentMonster.hit_points_clean,
+            challenge_rating: currentMonster.challenge_rating,
+            token_image: null,
+            stats: currentMonster.stats,
+            speed: currentMonster.speed || '',
+            actions: currentMonster.actions || [],
+            traits: currentMonster.traits || [],
+            legendary_actions: currentMonster.legendary_actions || [],
+            description: currentMonster.description || '',
+            meta: currentMonster.meta || ''
+        };
+
+        selectedMonsters.push(toAdd);
+        renderParty();
+    }
+
+    function renderActionList(title, list) {
+        if (!list || list.length === 0) return '';
+
+        let html = `<div class="detail-section-title">${title}</div><div style="display: flex; flex-direction: column; gap: 0.4rem;">`;
+
+        list.forEach(item => {
+            if (typeof item === 'string') {
+                html += `<div class="action-block"><div style="color: var(--text-secondary);">${escapeHtml(item)}</div></div>`;
+            } else {
+                let name = item.name ? escapeHtml(item.name) : '';
+                let desc = item.raw_text || item.description || '';
+
+                if (name && desc.startsWith(item.name)) {
+                    desc = desc.substring(item.name.length).replace(/^[\.\:\s]+/, '');
+                }
+
+                html += `<div class="action-block">`;
+                if (name) html += `<div class="action-name">${name}</div>`;
+                html += `<div style="color: var(--text-secondary); line-height: 1.4;">${escapeHtml(desc)}</div></div>`;
+            }
+        });
+
+        html += `</div>`;
+        return html;
+    }
+
+    function displayMonsterDetail(monster) {
+        const container = document.getElementById('monsterDetail');
+        if (!monster) {
+            container.innerHTML = '<div class="empty-party">Выберите сущность для просмотра характеристик</div>';
+            return;
+        }
+
+        let statsHtml = '';
+        if (monster.stats && Object.keys(monster.stats).length > 0) {
+            const statNames = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
+            statsHtml = '<div class="monster-stats">';
+            for (let stat of statNames) {
+                let val = monster.stats[stat] || '?';
+                if (typeof val === 'object' && val !== null) val = val.score || '?';
+                statsHtml += `<div class="stat">${stat}<div class="stat-value">${val}</div></div>`;
+            }
+            statsHtml += '</div>';
+        }
+
+        let traitsHtml = renderActionList('Особенности', monster.traits);
+        let actionsHtml = renderActionList('Действия', monster.actions);
+        let legActionsHtml = renderActionList('Легендарные действия', monster.legendary_actions);
+
+        let descHtml = monster.description
+            ? `<div class="detail-section-title">Описание</div><div class="monster-desc">${escapeHtml(monster.description).replace(/\n/g, '<br><br>')}</div>`
+            : '';
+
+        const html = `
+            <div class="monster-name">${escapeHtml(monster.name)}</div>
+            <div class="monster-meta">
+                <span>Сложность: <strong>${escapeHtml(monster.challenge_rating || '?')}</strong></span>
+                <span>КД: <strong>${monster.armor_class || '?'}</strong></span>
+                <span>Хиты: <strong>${monster.hit_points_clean || '?'}</strong></span>
+                ${monster.speed ? `<span>Скорость: <strong>${escapeHtml(monster.speed)}</strong></span>` : ''}
+                ${monster.meta ? `<span style="width: 100%; margin-top: 0.3rem;"><em>${escapeHtml(monster.meta)}</em></span>` : ''}
+            </div>
+            ${statsHtml}
+            ${descHtml}
+            ${traitsHtml}
+            ${actionsHtml}
+            ${legActionsHtml}
+        `;
+        container.innerHTML = html;
+    }
+
+    function renderMonsterList() {
+        const container = document.getElementById('monsterListContainer');
+        if (filteredMonsters.length === 0) {
+            container.innerHTML = '<div class="empty-party" style="border: none;">Монстры не найдены</div>';
+            return;
+        }
+
+        let html = '';
+        filteredMonsters.forEach((monster, idx) => {
+            const isSelected = (currentMonster && currentMonster.name === monster.name);
+            html += `
+                <div class="monster-list-item ${isSelected ? 'selected' : ''}" data-idx="${idx}">
+                    <span class="monster-list-name">${escapeHtml(monster.name)}</span>
+                    <span class="monster-list-cr">Сл. ${monster.challenge_rating || '?'}</span>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+
+        document.querySelectorAll('.monster-list-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const idx = parseInt(el.getAttribute('data-idx'));
+                if (!isNaN(idx) && filteredMonsters[idx]) {
+                    currentMonster = filteredMonsters[idx];
+                    displayMonsterDetail(currentMonster);
+
+                    document.querySelectorAll('.monster-list-item').forEach(item => item.classList.remove('selected'));
+                    el.classList.add('selected');
+                }
+            });
+        });
+    }
+
+    function filterMonsters() {
+        const query = document.getElementById('monsterSearch').value.trim().toLowerCase();
+        const crFilter = document.getElementById('crFilter').value;
+
+        filteredMonsters = monstersData.filter(m => {
+            const matchesName = m.name.toLowerCase().includes(query);
+            const matchesCR = (crFilter === 'all') || (m.challenge_rating === crFilter);
+            return matchesName && matchesCR;
+        });
+
+        if (currentMonster && !filteredMonsters.some(m => m.name === currentMonster.name)) {
+            currentMonster = null;
+            displayMonsterDetail(null);
+        }
+
+        if (filteredMonsters.length > 0 && !currentMonster) {
+            currentMonster = filteredMonsters[0];
+            displayMonsterDetail(currentMonster);
+        }
+
+        renderMonsterList();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        populateCRFilter();
+
+        if (filteredMonsters.length > 0) {
+            currentMonster = filteredMonsters[0];
+            displayMonsterDetail(currentMonster);
+        }
+        renderMonsterList();
+
+        let debounceTimer;
+        document.getElementById('monsterSearch').addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(filterMonsters, 200);
+        });
+
+        document.getElementById('crFilter').addEventListener('change', filterMonsters);
+        document.getElementById('addToPartyBtn').addEventListener('click', addCurrentMonster);
+        document.getElementById('saveAndGoBtn').addEventListener('click', saveAndGo);
+
+        renderParty();
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+</script>
+</body>
+</html>

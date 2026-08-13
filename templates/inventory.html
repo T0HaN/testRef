@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Инвентарь | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c; --bg-secondary: #141418; --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8; --text-secondary: #a89f8a;
+            --accent-gold: #c9a961; --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a; --accent-green: #4a6b4a;
+            --border-color: #3a352a;
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-ui: 'Segoe UI', Tahoma, sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .inv-header {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .inv-header h1 {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.6rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .nav-links { display: flex; gap: 0.7rem; }
+        .nav-btn {
+            padding: 0.55rem 1.1rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .nav-btn:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); }
+        .nav-btn.primary {
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            color: var(--bg-primary);
+            font-weight: 600;
+            border: none;
+        }
+
+        .messages { margin-bottom: 1rem; }
+        .msg { padding: 0.7rem 1rem; border-radius: 6px; margin-bottom: 0.5rem; border-left: 3px solid; }
+        .msg.error { background: rgba(139,58,58,0.2); border-color: var(--accent-red); color: #f5c6cb; }
+        .msg.success { background: rgba(74,107,74,0.2); border-color: var(--accent-green); color: #d4edda; }
+
+        .main-tabs {
+            display: flex;
+            margin-bottom: 1rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .main-tab {
+            flex: 1;
+            padding: 0.8rem;
+            text-align: center;
+            font-family: var(--font-main);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .main-tab:hover { color: var(--text-primary); background: var(--bg-tertiary); }
+        .main-tab.active {
+            color: var(--bg-primary);
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+        }
+
+        .inv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 800px) { .inv-grid { grid-template-columns: 1fr; } }
+
+        .section {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        .section-title {
+            font-family: var(--font-main);
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .equip-list { display: flex; flex-direction: column; gap: 0.6rem; }
+        .equip-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.8rem;
+        }
+        .equip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .equip-name { font-weight: 600; color: var(--accent-gold); font-size: 1rem; }
+        .equip-equipped {
+            background: var(--accent-green);
+            color: var(--bg-primary);
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .equip-details { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .equip-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        .btn-small {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .btn-small:hover { background: var(--bg-secondary); border-color: var(--accent-gold-dim); }
+        .btn-small.danger { background: rgba(139,58,58,0.3); border-color: var(--accent-red); color: #f5c6cb; }
+        .btn-small.danger:hover { background: var(--accent-red); color: var(--bg-primary); }
+        .btn-small.success { background: var(--accent-green); border-color: var(--accent-green); color: var(--bg-primary); font-weight: 600; }
+
+        .coins-list { display: flex; flex-direction: column; gap: 0.4rem; }
+        .coin-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+        }
+        .coin-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .coin-value { font-weight: bold; color: var(--accent-gold); font-family: var(--font-main); font-size: 1.1rem; }
+
+        .spend-form { margin-top: 0.75rem; }
+        .spend-row { display: flex; gap: 0.4rem; margin-bottom: 0.4rem; align-items: center; }
+        .spend-row input {
+            width: 70px;
+            padding: 0.35rem 0.5rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+        .spend-row input:focus { outline: none; border-color: var(--accent-gold); }
+        .spend-row label { font-size: 0.8rem; color: var(--text-secondary); min-width: 30px; }
+        .btn-spend {
+            width: 100%;
+            padding: 0.5rem;
+            background: linear-gradient(145deg, var(--accent-gold-dim), var(--bg-tertiary));
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+
+        .ammo-list { display: flex; flex-direction: column; gap: 0.4rem; }
+        .ammo-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+        .ammo-qty {
+            background: var(--accent-gold-dim);
+            color: var(--bg-primary);
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.85rem;
+        }
+
+        .sub-title { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; margin-top: 1rem; }
+        .sub-title:first-child { margin-top: 0; }
+
+        /* Carry capacity */
+        .carry-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .carry-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .carry-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            font-family: var(--font-main);
+        }
+        .carry-status {
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+        }
+        .carry-bar {
+            height: 10px;
+            background: var(--bg-tertiary);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        .carry-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        .carry-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .carry-warning {
+            margin-top: 0.5rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+        }
+
+        /* Catalog */
+        .catalog-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
+        .cat-tab {
+            padding: 0.4rem 0.85rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .cat-tab:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .cat-tab.active { background: var(--accent-gold-dim); color: var(--bg-primary); border-color: var(--accent-gold); font-weight: 600; }
+
+        .catalog-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.75rem;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .catalog-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.75rem;
+            transition: border-color 0.2s;
+        }
+        .catalog-item:hover { border-color: var(--accent-gold-dim); }
+        .catalog-name { font-weight: 600; color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.2rem; }
+        .catalog-cost { font-size: 0.8rem; color: var(--accent-gold); margin-bottom: 0.2rem; }
+        .catalog-details { font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 0.5rem; }
+        .btn-add {
+            width: 100%;
+            padding: 0.35rem;
+            background: var(--accent-green);
+            border: none;
+            border-radius: 4px;
+            color: var(--bg-primary);
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        /* Custom item form */
+        .custom-form { display: flex; flex-direction: column; gap: 1rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+        .form-group label { font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .form-group input, .form-group select, .form-group textarea {
+            padding: 0.6rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: var(--font-ui);
+            font-size: 0.95rem;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent-gold); }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+        .checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.5rem; }
+        .checkbox-grid label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--text-primary); text-transform: none; font-weight: normal; cursor: pointer; }
+        .checkbox-grid input { width: auto; margin: 0; }
+        .damage-inputs { display: flex; gap: 0.5rem; align-items: center; }
+        .damage-inputs input, .damage-inputs select { flex: 1; }
+        .btn-submit {
+            width: 100%;
+            padding: 0.8rem;
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            border: none;
+            border-radius: 6px;
+            color: var(--bg-primary);
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+
+        <header class="inv-header">
+            <h1>📦 Инвентарь</h1>
+            <nav class="nav-links">
+                <a href="/char/{{ char.id }}" class="nav-btn">← Лист</a>
+                <a href="/char/{{ char.id }}/roll" class="nav-btn primary">⚔️ В БОЙ</a>
+            </nav>
+        </header>
+
+        <div class="messages">
+            {% if error %}<div class="msg error">⚔️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+        </div>
+
+        <div class="main-tabs">
+            <button class="main-tab active" onclick="switchMainTab('inventory')">📦 Инвентарь</button>
+            <button class="main-tab" onclick="switchMainTab('catalog')">📚 Каталог</button>
+            <button class="main-tab" onclick="switchMainTab('custom')">✏️ Кастомный предмет</button>
+        </div>
+
+        <div id="tab-inventory">
+            <div class="inv-grid">
+
+                <div>
+                    <section class="section">
+                        <h2 class="section-title">⚔️ Экипировано</h2>
+
+                        <div class="sub-title" style="margin-top:0;">Оружие</div>
+                        {% if char.inventory.weapons %}
+                            <div class="equip-list">
+                                {% for w in char.inventory.weapons %}
+                                <div class="equip-item">
+                                    <div class="equip-header">
+                                        <span class="equip-name">{{ w.name }}</span>
+                                        {% if w.proficient %}<span class="equip-equipped">✅ Владение</span>{% endif %}
+                                    </div>
+                                    <div class="equip-details">
+                                        Урон: {{ w.damage }} | Тип: {{ w.type }}
+                                        {% if w.description %}<br>{{ w.description }}{% endif %}
+                                    </div>
+                                    <div class="equip-actions">
+                                        <form method="POST" action="/char/{{ char.id }}/weapon/delete/{{ loop.index0 }}" style="display:inline;">
+                                            <button type="submit" class="btn-small danger" onclick="return confirm('Удалить оружие?')">🗑️ Удалить</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Оружие не экипировано</p>
+                        {% endif %}
+
+                        <div class="sub-title">🛡️ Броня (КД: <span id="char-ac">{{ char._calculated_ac }}</span>)</div>
+                        {% if char.inventory.armor %}
+                            <div class="equip-list">
+                                {% for a in char.inventory.armor %}
+                                <div class="equip-item">
+                                    <div class="equip-header">
+                                        <span class="equip-name">{{ a.name }}</span>
+                                        {% if a.equipped %}<span class="equip-equipped">✓ Надето</span>{% endif %}
+                                    </div>
+                                    <div class="equip-details">
+                                        КД: {{ a.ac }}
+                                        {% if a.strength_req %} | {{ a.strength_req }}{% endif %}
+                                        {% if a.stealth %}<br><span style="color: var(--accent-red);">⚠️ {{ a.stealth }}</span>{% endif %}
+                                    </div>
+                                    <div class="equip-actions">
+                                        <button
+                                            type="button"
+                                            id="btn-armor-{{ loop.index0 }}"
+                                            class="btn-small {% if not a.equipped %}success{% endif %}"
+                                            onclick="toggleArmorJS({{ char.id }}, {{ loop.index0 }})">
+                                            {% if a.equipped %}Снять{% else %}Надеть{% endif %}
+                                        </button>
+                                        <form method="POST" action="/char/{{ char.id }}/armor/delete/{{ loop.index0 }}" style="display:inline;">
+                                            <button type="submit" class="btn-small danger" onclick="return confirm('Удалить броню «{{ a.name }}»?')">🗑️ Удалить</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Броня не экипирована</p>
+                        {% endif %}
+
+                        <div class="sub-title">🎒 Предметы</div>
+                        {% if char.inventory.gear %}
+                            <div class="equip-list">
+                                {% for g in char.inventory.gear %}
+                                <div class="equip-item">
+                                    <div class="equip-header">
+                                        <span class="equip-name">{{ g.name }}</span>
+                                        <span style="color: var(--text-secondary); font-size: 0.85rem;">×{{ g.qty }}</span>
+                                    </div>
+                                    <div class="equip-details">
+                                        {{ g.cost }} | {{ g.weight }}
+                                    </div>
+                                    <div class="equip-actions">
+                                        {% if g.qty and g.qty > 1 %}
+                                        <form method="POST" action="/char/{{ char.id }}/gear/decrease/{{ loop.index0 }}" style="display:inline;">
+                                            <button type="submit" class="btn-small" title="Убрать 1 шт.">−1</button>
+                                        </form>
+                                        {% endif %}
+                                        <form method="POST" action="/char/{{ char.id }}/gear/delete/{{ loop.index0 }}" style="display:inline;">
+                                            <button type="submit" class="btn-small danger" onclick="return confirm('Удалить «{{ g.name }}»?')">🗑️ Удалить</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-state">Предметов пока нет</p>
+                        {% endif %}
+                    </section>
+                </div>
+
+                <div>
+                    {% if char._carry %}
+                    <section class="section">
+                        <h2 class="section-title">⚖️ Нагрузка</h2>
+                        {% set carry = char._carry %}
+                        {% set max_w = carry.thresholds.max %}
+                        {% set pct_current = (carry.current_weight / max_w * 100) if max_w > 0 else 0 %}
+                        {% set pct_current = [pct_current, 100] | min %}
+
+                        <div class="carry-box">
+                            <div class="carry-main">
+                                <div class="carry-value" style="
+                                    {% if carry.encumbrance_level == 0 %}color: var(--accent-green);
+                                    {% elif carry.encumbrance_level == 1 %}color: #d4a94a;
+                                    {% elif carry.encumbrance_level == 2 %}color: #d47a4a;
+                                    {% else %}color: var(--accent-red);{% endif %}">
+                                    {{ carry.current_weight }} / {{ carry.max_capacity }} фнт.
+                                </div>
+                                <div class="carry-status" style="
+                                    {% if carry.encumbrance_level == 0 %}background: rgba(74,107,74,0.2); color: #8fd88f;
+                                    {% elif carry.encumbrance_level == 1 %}background: rgba(212,169,74,0.2); color: #d4a94a;
+                                    {% elif carry.encumbrance_level == 2 %}background: rgba(212,122,74,0.2); color: #d47a4a;
+                                    {% else %}background: rgba(139,58,58,0.2); color: #f58b8b;{% endif %}">
+                                    {{ carry.encumbrance_name }}
+                                </div>
+                            </div>
+
+                            <div class="carry-bar">
+                                <div class="carry-fill" style="width: {{ pct_current }}%;
+                                    {% if carry.encumbrance_level == 0 %}background: linear-gradient(90deg, var(--accent-green), #6a9b6a);
+                                    {% elif carry.encumbrance_level == 1 %}background: linear-gradient(90deg, #d4a94a, #c9944a);
+                                    {% elif carry.encumbrance_level == 2 %}background: linear-gradient(90deg, #d47a4a, #c9604a);
+                                    {% else %}background: linear-gradient(90deg, var(--accent-red), #6b2a2a);{% endif %}">
+                                </div>
+                            </div>
+
+                            <div class="carry-info">
+                                <span>🏋️ Подъём: <strong style="color: var(--text-primary);">{{ carry.push_drag_lift }} фнт.</strong></span>
+                                <span>💪 Сила: <strong style="color: var(--text-primary);">{{ carry.strength }}</strong></span>
+                            </div>
+
+                            {% if carry.speed_penalty > 0 and carry.speed_penalty < 999 %}
+                                <div class="carry-warning" style="background: rgba(212,122,74,0.15); border: 1px solid #d47a4a; color: #d47a4a;">
+                                    ⚠️ Скорость снижена на {{ carry.speed_penalty }} фт.
+                                </div>
+                            {% elif carry.encumbrance_level == 3 %}
+                                <div class="carry-warning" style="background: rgba(139,58,58,0.2); border: 1px solid var(--accent-red); color: #f5c6cb;">
+                                    ⛔ Вы не можете двигаться!
+                                </div>
+                            {% endif %}
+                        </div>
+                    </section>
+                    {% endif %}
+
+                    <section class="section">
+                        <h2 class="section-title">💰 Казна</h2>
+                        <div class="coins-list">
+                            {% for c, label in [('cp','Медные монеты'),('sp','Серебряные монеты'),('ep','Электровые монеты'),('gp','Золотые монеты'),('pp','Платиновые монеты')] %}
+                            <div class="coin-row">
+                                <span class="coin-label">{{ label }}</span>
+                                <span class="coin-value">{{ char.inventory.coins[c] }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <form method="POST" action="/char/{{ char.id }}/coins/update" class="spend-form">
+                            <div class="spend-row"><label>зм</label><input type="number" name="gp" value="0" min="0"></div>
+                            <div class="spend-row"><label>см</label><input type="number" name="sp" value="0" min="0"></div>
+                            <div class="spend-row"><label>мм</label><input type="number" name="cp" value="0" min="0"></div>
+                            <button type="submit" class="btn-spend">💸 Потратить</button>
+                        </form>
+                    </section>
+
+                    <section class="section">
+                        <h2 class="section-title">🏹 Боеприпасы</h2>
+                        <div class="sub-title" style="margin-top:0;">Стрелы</div>
+                        {% if char.inventory.arrows %}
+                            <div class="ammo-list">
+                                {% for a in char.inventory.arrows %}
+                                <div class="ammo-item">
+                                    <span>{{ a.name }}</span>
+                                    <span class="ammo-qty">{{ a.qty }} шт.</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-state" style="padding: 0.5rem;">Нет стрел</p>
+                        {% endif %}
+
+                        <div class="sub-title">Болты</div>
+                        {% if char.inventory.bolts %}
+                            <div class="ammo-list">
+                                {% for b in char.inventory.bolts %}
+                                <div class="ammo-item">
+                                    <span>{{ b.name }}</span>
+                                    <span class="ammo-qty">{{ b.qty }} шт.</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="empty-state" style="padding: 0.5rem;">Нет болтов</p>
+                        {% endif %}
+                    </section>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="tab-catalog" style="display: none;">
+            <section class="section">
+                <h2 class="section-title">📚 Каталог снаряжения</h2>
+                <div class="catalog-tabs">
+                    <button class="cat-tab active" onclick="showCat('all')">Все</button>
+                    <button class="cat-tab" onclick="showCat('weapons')">⚔️ Оружие</button>
+                    <button class="cat-tab" onclick="showCat('armor')">🛡️ Броня</button>
+                    <button class="cat-tab" onclick="showCat('gear')">🎒 Снаряжение</button>
+                </div>
+                <div class="catalog-grid">
+                    {% if equipment and 'weapons' in equipment %}
+                        {% for cat_name, items in equipment['weapons'].items() %}
+                            {% for item in items %}
+                            <div class="catalog-item" data-cat="weapons">
+                                <div class="catalog-name">{{ item.name }}</div>
+                                <div class="catalog-cost">{{ item.cost }}</div>
+                                <div class="catalog-details">{{ item.damage or '—' }} | {{ item.weight or '—' }}</div>
+                                <form method="POST" action="/char/{{ char.id }}/equipment/buy">
+                                    <input type="hidden" name="item_name" value="{{ item.name }}">
+                                    <input type="hidden" name="cost" value="{{ item.cost }}">
+                                    <input type="hidden" name="eq_type" value="weapon">
+                                    <button type="submit" class="btn-add">+ Добавить</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        {% endfor %}
+                    {% endif %}
+                    {% if equipment and 'armor' in equipment %}
+                        {% for cat_name, items in equipment['armor'].items() %}
+                            {% for item in items %}
+                            <div class="catalog-item" data-cat="armor">
+                                <div class="catalog-name">{{ item.name }}</div>
+                                <div class="catalog-cost">{{ item.cost }}</div>
+                                <div class="catalog-details">КД: {{ item.ac }} | {{ item.weight or '—' }}</div>
+                                <form method="POST" action="/char/{{ char.id }}/equipment/buy">
+                                    <input type="hidden" name="item_name" value="{{ item.name }}">
+                                    <input type="hidden" name="cost" value="{{ item.cost }}">
+                                    <input type="hidden" name="eq_type" value="armor">
+                                    <button type="submit" class="btn-add">+ Добавить</button>
+                                </form>
+                            </div>
+                            {% endfor %}
+                        {% endfor %}
+                    {% endif %}
+                    {% if equipment and 'gear' in equipment %}
+                        {% for item in equipment['gear'] %}
+                        <div class="catalog-item" data-cat="gear">
+                            <div class="catalog-name">{{ item.name }}</div>
+                            <div class="catalog-cost">{{ item.cost }}</div>
+                            <div class="catalog-details">{{ item.weight or '—' }}</div>
+                            <form method="POST" action="/char/{{ char.id }}/equipment/buy">
+                                <input type="hidden" name="item_name" value="{{ item.name }}">
+                                <input type="hidden" name="cost" value="{{ item.cost }}">
+                                <input type="hidden" name="eq_type" value="gear">
+                                <button type="submit" class="btn-add">+ Добавить</button>
+                            </form>
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+
+        <div id="tab-custom" style="display: none;">
+            <section class="section">
+                <h2 class="section-title">✏️ Создать кастомный предмет</h2>
+                <form method="POST" action="/char/{{ char.id }}/equipment/custom" class="custom-form">
+                    <div class="form-group">
+                        <label>Тип предмета</label>
+                        <select name="item_type" id="custom_type" onchange="updateCustomForm()">
+                            <option value="gear">🎒 Всякое</option>
+                            <option value="weapon">⚔️ Оружие</option>
+                            <option value="armor">🛡️ Броня</option>
+                        </select>
+                    </div>
+
+                    <div id="custom_weapon" style="display:none;">
+                        <div class="form-group">
+                            <label>Название оружия</label>
+                            <input type="text" name="weapon_name" placeholder="Например: Клинок Бури">
+                        </div>
+                        <div class="form-group">
+                            <label>Свойства</label>
+                            <div class="checkbox-grid">
+                                <label><input type="checkbox" name="weapon_props" value="ammunition" onchange="updateCustomForm()"> Боеприпасы</label>
+                                <label><input type="checkbox" name="weapon_props" value="two-handed"> Двуручное</label>
+                                <label><input type="checkbox" name="weapon_props" value="reach"> Досягаемость</label>
+                                <label><input type="checkbox" name="weapon_props" value="thrown" onchange="updateCustomForm()"> Метательное</label>
+                                <label><input type="checkbox" name="weapon_props" value="loading"> Перезарядка</label>
+                                <label><input type="checkbox" name="weapon_props" value="heavy"> Тяжёлое</label>
+                                <label><input type="checkbox" name="weapon_props" value="versatile"> Универсальное</label>
+                                <label><input type="checkbox" name="weapon_props" value="finesse"> Фехтовальное</label>
+                                <label><input type="checkbox" name="weapon_props" value="light"> Лёгкое</label>
+                            </div>
+                        </div>
+                        <div id="ammo_type_group" style="display:none;">
+                            <div class="form-group">
+                                <label>Тип боеприпасов</label>
+                                <select name="weapon_ammo_type">
+                                    <option value="arrows">Стрелы</option>
+                                    <option value="bolts">Болты</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Вес</label>
+                                <input type="text" name="weapon_weight" placeholder="например: 3 фнт.">
+                            </div>
+                            <div class="form-group">
+                                <label>Урон (x кубов y + z)</label>
+                                <div class="damage-inputs">
+                                    <input type="number" name="dmg_x" min="1" value="1" title="Количество кубов">
+                                    <select name="dmg_y" title="Тип куба">
+                                        <option value="4">к4</option>
+                                        <option value="6">к6</option>
+                                        <option value="8" selected>к8</option>
+                                        <option value="10">к10</option>
+                                        <option value="12">к12</option>
+                                        <option value="20">к20</option>
+                                    </select>
+                                    <input type="number" name="dmg_z" value="0" title="Доп. урон">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Описание</label>
+                            <textarea name="weapon_desc" placeholder="Свойства, особенности..."></textarea>
+                        </div>
+                    </div>
+
+                    <div id="custom_armor" style="display:none;">
+                        <div class="form-group">
+                            <label>Название брони</label>
+                            <input type="text" name="armor_name" placeholder="Например: Мифрильная кольчуга">
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Базовый КД</label>
+                                <input type="number" name="armor_ac" min="10" value="10">
+                            </div>
+                            <div class="form-group">
+                                <label>Модификатор</label>
+                                <select name="armor_mod">
+                                    <option value="None">Нет</option>
+                                    <option value="Лов">Ловкость</option>
+                                    <option value="Сил">Сила</option>
+                                    <option value="Тел">Телосложение</option>
+                                    <option value="Инт">Интеллект</option>
+                                    <option value="Мдр">Мудрость</option>
+                                    <option value="Хар">Харизма</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Вес</label>
+                            <input type="text" name="armor_weight" placeholder="например: 20 фнт.">
+                        </div>
+                        <div class="form-group">
+                            <label>Описание</label>
+                            <textarea name="armor_desc" placeholder="Требования, штрафы..."></textarea>
+                        </div>
+                    </div>
+
+                    <div id="custom_gear" style="display:none;">
+                        <div class="form-group">
+                            <label>Название предмета</label>
+                            <input type="text" name="gear_name" placeholder="Например: Зелье лечения">
+                        </div>
+                        <div class="form-group">
+                            <label>Описание</label>
+                            <textarea name="gear_desc" placeholder="Эффект, особенности..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Вес</label>
+                            <input type="text" name="gear_weight" placeholder="например: ½ фнт.">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">✨ Создать и добавить в инвентарь</button>
+                </form>
+            </section>
+        </div>
+
+    </div>
+
+    <script>
+        function switchMainTab(tabName) {
+            document.querySelectorAll('.main-tab').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('[id^="tab-"]').forEach(p => p.style.display = 'none');
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).style.display = 'block';
+        }
+
+        function showCat(category) {
+            document.querySelectorAll('.cat-tab').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.querySelectorAll('.catalog-item').forEach(item => {
+                item.style.display = (category === 'all' || item.dataset.cat === category) ? 'block' : 'none';
+            });
+        }
+
+        function updateCustomForm() {
+            const type = document.getElementById('custom_type').value;
+            document.getElementById('custom_weapon').style.display = type === 'weapon' ? 'block' : 'none';
+            document.getElementById('custom_armor').style.display = type === 'armor' ? 'block' : 'none';
+            document.getElementById('custom_gear').style.display = type === 'gear' ? 'block' : 'none';
+
+            const isAmmo = document.querySelector('input[name="weapon_props"][value="ammunition"]')?.checked || false;
+            const isThrown = document.querySelector('input[name="weapon_props"][value="thrown"]')?.checked || false;
+            document.getElementById('ammo_type_group').style.display = (isAmmo || isThrown) ? 'block' : 'none';
+        }
+        updateCustomForm();
+
+        // Новая функция для надевания/снятия брони через Fetch API
+        async function toggleArmorJS(charId, idx) {
+            const btn = document.getElementById(`btn-armor-${idx}`);
+
+            const originalText = btn.innerText;
+            btn.innerText = "⏳...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`/char/${charId}/armor/toggle/${idx}`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    document.getElementById('char-ac').innerText = data.new_ac;
+
+                    if (data.equipped) {
+                        // Хак для надежного обновления других кнопок того же типа (например, если снялась старая броня)
+                        location.reload();
+                    } else {
+                        btn.innerText = "Надеть";
+                        btn.classList.add('success');
+                    }
+                } else {
+                    console.error("Ошибка при экипировке брони");
+                    btn.innerText = originalText;
+                }
+            } catch (error) {
+                console.error("Сетевая ошибка:", error);
+                btn.innerText = originalText;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

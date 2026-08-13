@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лист персонажа D&D 5e - Современное Средиземье</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --primary-dark: #0f0f1a;
+            --secondary-dark: #1a1a2e;
+            --accent-gold: #d4af37;
+            --text-light: #e0d6bd;
+            --text-muted: #8a9ba8;
+            --border-color: #4a4a6d;
+            --card-bg: rgba(30, 30, 50, 0.7);
+            --hover-glow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--secondary-dark), #0d1021);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            background-attachment: fixed;
+            background-blend-mode: overlay;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(40, 40, 80, 0.2) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(40, 40, 80, 0.2) 0%, transparent 20%);
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        h1 {
+            color: var(--accent-gold);
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
+            position: relative;
+            display: inline-block;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 3px;
+            background: linear-gradient(to right, transparent, var(--accent-gold), transparent);
+            border-radius: 2px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-top: 15px;
+            font-style: italic;
+            letter-spacing: 0.5px;
+        }
+
+        .character-sheet {
+            background: var(--primary-dark);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, 0.7),
+                inset 0 0 20px rgba(0, 0, 0, 0.5);
+            position: relative;
+            border: 1px solid var(--border-color);
+        }
+
+        .sheet-header {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+            padding: 25px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(to bottom, rgba(30, 30, 50, 0.6), var(--primary-dark));
+            position: relative;
+        }
+
+        .header-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        .header-value {
+            padding: 12px 15px;
+            min-height: 45px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid rgba(74, 74, 109, 0.5);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .header-value:hover {
+            border-color: var(--accent-gold);
+            box-shadow: var(--hover-glow);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            padding: 25px;
+        }
+
+        .left-column {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .section {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(74, 74, 109, 0.4);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .section:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--hover-glow);
+        }
+
+        .section-title {
+            color: var(--accent-gold);
+            padding: 12px 0;
+            font-weight: 700;
+            font-size: 1.3rem;
+            text-align: center;
+            letter-spacing: 1px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--accent-gold), transparent);
+            border-radius: 2px;
+        }
+
+        .abilities {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .ability {
+            text-align: center;
+            background: rgba(20, 20, 35, 0.8);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(74, 74, 109, 0.5);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .ability::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, transparent, var(--accent-gold), transparent);
+        }
+
+        .ability:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent-gold);
+            box-shadow: var(--hover-glow);
+        }
+
+        .ability-name {
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 1rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .ability-score {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            margin: 10px 0;
+        }
+
+        .ability-modifier {
+            background: rgba(44, 44, 84, 0.8);
+            color: var(--accent-gold);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+            font-weight: 700;
+            font-size: 1.3rem;
+            border: 1px solid var(--accent-gold);
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+        }
+
+        .skills-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .skill {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(20, 20, 35, 0.5);
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .skill:hover {
+            background: rgba(40, 40, 70, 0.6);
+        }
+
+        .skill input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+            accent-color: var(--accent-gold);
+            cursor: pointer;
+        }
+
+        .saving-throws {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .saving-throw {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            background: rgba(20, 20, 35, 0.5);
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .saving-throw:hover {
+            background: rgba(40, 40, 70, 0.6);
+        }
+
+        .saving-throw input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+            accent-color: var(--accent-gold);
+            cursor: pointer;
+        }
+
+        .attributes {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .attribute {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .attribute-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.8;
+        }
+
+        .attribute-value {
+            padding: 12px;
+            background: rgba(20, 20, 35, 0.7);
+            border-radius: 8px;
+            border: 1px solid rgba(74, 74, 109, 0.5);
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .attribute-value:hover {
+            border-color: var(--accent-gold);
+            box-shadow: var(--hover-glow);
+        }
+
+        .inventory {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 15px;
+            background: rgba(20, 20, 35, 0.5);
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-gold);
+            transition: all 0.3s ease;
+        }
+
+        .item:hover {
+            background: rgba(40, 40, 70, 0.6);
+            transform: translateX(5px);
+        }
+
+        .hp-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .hp-section {
+            text-align: center;
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(74, 74, 109, 0.4);
+        }
+
+        .hp-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .hp-value {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--accent-gold);
+        }
+
+        .stat-card {
+            text-align: center;
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid rgba(74, 74, 109, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent-gold);
+            box-shadow: var(--hover-glow);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--accent-gold);
+            margin: 10px 0;
+            text-shadow: 0 0 10px rgba(212, 175, 55, 0.3);
+        }
+
+        .stat-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            font-style: italic;
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Адаптивность */
+        @media (max-width: 992px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .abilities {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .skills-container {
+                grid-template-columns: 1fr;
+            }
+
+            .attributes {
+                grid-template-columns: 1fr;
+            }
+
+            .hp-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sheet-header {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .abilities {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section, .ability, .header-value {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        .ability:nth-child(1) { animation-delay: 0.1s; }
+        .ability:nth-child(2) { animation-delay: 0.2s; }
+        .ability:nth-child(3) { animation-delay: 0.3s; }
+        .ability:nth-child(4) { animation-delay: 0.4s; }
+        .ability:nth-child(5) { animation-delay: 0.5s; }
+        .ability:nth-child(6) { animation-delay: 0.6s; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>СРЕДИЗЕМЬЕ</h1>
+            <div class="subtitle">Лист персонажа D&D 5e | Современная интерпретация</div>
+        </header>
+
+        <div class="character-sheet">
+            <div class="sheet-header">
+                <div class="header-group">
+                    <div class="header-label">ИМЯ ПЕРСОНАЖА</div>
+                    <div class="header-value">Гэндальф Серый</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">КЛАСС УРОВЕНЬ</div>
+                    <div class="header-value">Чародей 10</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">ПОДКЛАСС</div>
+                    <div class="header-value">Темная магия</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">РАСА</div>
+                    <div class="header-value">Майя</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">ОПЫТ</div>
+                    <div class="header-value">15,000 XP</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">МИРОВОЗЗРЕНИЕ</div>
+                    <div class="header-value">Нейтральный добрый</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">РОСТ</div>
+                    <div class="header-value">1,85 м</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">ВЕС</div>
+                    <div class="header-value">80 кг</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">ЦВЕТ ВОЛОС</div>
+                    <div class="header-value">Седые</div>
+                </div>
+
+                <div class="header-group">
+                    <div class="header-label">ЦВЕТ ГЛАЗ</div>
+                    <div class="header-value">Серо-голубые</div>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <div class="left-column">
+                    <div class="section">
+                        <div class="section-title">ХАРАКТЕРИСТИКИ</div>
+                        <div class="abilities">
+                            <div class="ability">
+                                <div class="ability-name">СИЛА</div>
+                                <div class="ability-score">10</div>
+                                <div class="ability-modifier">+0</div>
+                            </div>
+
+                            <div class="ability">
+                                <div class="ability-name">ЛОВКОСТЬ</div>
+                                <div class="ability-score">12</div>
+                                <div class="ability-modifier">+1</div>
+                            </div>
+
+                            <div class="ability">
+                                <div class="ability-name">ТЕЛО</div>
+                                <div class="ability-score">14</div>
+                                <div class="ability-modifier">+2</div>
+                            </div>
+
+                            <div class="ability">
+                                <div class="ability-name">ИНТЕЛЛЕКТ</div>
+                                <div class="ability-score">18</div>
+                                <div class="ability-modifier">+4</div>
+                            </div>
+
+                            <div class="ability">
+                                <div class="ability-name">МУДРОСТЬ</div>
+                                <div class="ability-score">20</div>
+                                <div class="ability-modifier">+5</div>
+                            </div>
+
+                            <div class="ability">
+                                <div class="ability-name">ХАРИЗМА</div>
+                                <div class="ability-score">18</div>
+                                <div class="ability-modifier">+4</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">СПАСБРОСКИ И НАВЫКИ</div>
+
+                        <div class="saving-throws">
+                            <div class="saving-throw">
+                                <input type="checkbox" id="str-save">
+                                <label for="str-save">Сила</label>
+                            </div>
+                            <div class="saving-throw">
+                                <input type="checkbox" id="dex-save">
+                                <label for="dex-save">Ловкость</label>
+                            </div>
+                            <div class="saving-throw">
+                                <input type="checkbox" id="con-save" checked>
+                                <label for="con-save">Телосложение</label>
+                            </div>
+                            <div class="saving-throw">
+                                <input type="checkbox" id="int-save" checked>
+                                <label for="int-save">Интеллект</label>
+                            </div>
+                            <div class="saving-throw">
+                                <input type="checkbox" id="wis-save" checked>
+                                <label for="wis-save">Мудрость</label>
+                            </div>
+                            <div class="saving-throw">
+                                <input type="checkbox" id="cha-save" checked>
+                                <label for="cha-save">Харизма</label>
+                            </div>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <div class="skills-container">
+                                <div class="skill">
+                                    <input type="checkbox" id="acrobatics">
+                                    <label for="acrobatics">Акробатика (Лов)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="animal" checked>
+                                    <label for="animal">Уход за животными (Мдр)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="arcana" checked>
+                                    <label for="arcana">Магия (Инт)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="athletics">
+                                    <label for="athletics">Атлетика (Сил)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="deception" checked>
+                                    <label for="deception">Обман (Хар)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="history" checked>
+                                    <label for="history">История (Инт)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="insight" checked>
+                                    <label for="insight">Проницательность (Мдр)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="intimidation" checked>
+                                    <label for="intimidation">Запугивание (Хар)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="investigation" checked>
+                                    <label for="investigation">Расследование (Инт)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="medicine" checked>
+                                    <label for="medicine">Медицина (Мдр)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="nature" checked>
+                                    <label for="nature">Природа (Инт)</label>
+                                </div>
+                                <div class="skill">
+                                    <input type="checkbox" id="perception" checked>
+                                    <label for="perception">Внимательность (Мдр)</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">АТРИБУТЫ</div>
+                        <div class="attributes">
+                            <div class="attribute">
+                                <div class="attribute-label">КЛАСС БРОНИ</div>
+                                <div class="attribute-value">15 (Разнообразие)</div>
+                            </div>
+                            <div class="attribute">
+                                <div class="attribute-label">ИНИЦИАТИВА</div>
+                                <div class="attribute-value">+1</div>
+                            </div>
+                            <div class="attribute">
+                                <div class="attribute-label">СКОРОСТЬ</div>
+                                <div class="attribute-value">9 м</div>
+                            </div>
+                            <div class="attribute">
+                                <div class="attribute-label">БОНУС ОПЫТА</div>
+                                <div class="attribute-value">+4</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="right-column">
+                    <div class="hp-container">
+                        <div class="hp-section">
+                            <div class="hp-label">ТЕКУЩИЕ ХИТЫ</div>
+                            <div class="hp-value">65</div>
+                        </div>
+                        <div class="hp-section">
+                            <div class="hp-label">МАКСИМУМ ХИТОВ</div>
+                            <div class="hp-value">65</div>
+                        </div>
+                        <div class="hp-section">
+                            <div class="hp-label">ВРЕМЕННЫЕ ХИТЫ</div>
+                            <div class="hp-value">0</div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                        <div class="stat-card">
+                            <div class="stat-number">15</div>
+                            <div class="stat-label">КЛАСС БРОНИ</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-number">+1</div>
+                            <div class="stat-label">ИНИЦИАТИВА</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-number">9 м</div>
+                            <div class="stat-label">СКОРОСТЬ</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-number">+4</div>
+                            <div class="stat-label">МАСТЕРСТВО</div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">ОПИСАНИЕ</div>
+                        <div style="background: rgba(20, 20, 35, 0.6); border-radius: 8px; padding: 15px; height: 150px; overflow-y: auto; border: 1px solid rgba(74, 74, 109, 0.3);">
+                            Гэндальф - один из пяти Волшебников, посланных в Средиземье для борьбы с силами Тьмы.
+                            Он мудр, терпелив и обладает огромной силой, хотя предпочитает использовать её сдержанно.
+                            Известен своей белой палочкой, длинной серой бородой и глазами, полными древней мудрости.
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">ИНВЕНТАРЬ</div>
+                        <div class="inventory">
+                            <div class="item">
+                                <span>Гламдринг (Эльфийский клинок)</span>
+                                <span>1</span>
+                            </div>
+                            <div class="item">
+                                <span>Серая палочка</span>
+                                <span>1</span>
+                            </div>
+                            <div class="item">
+                                <span>Плащ с эльфийской застежкой</span>
+                                <span>1</span>
+                            </div>
+                            <div class="item">
+                                <span>Табак "Трендалл"</span>
+                                <span>1</span>
+                            </div>
+                            <div class="item">
+                                <span>Портмоне с 25 зм</span>
+                                <span>1</span>
+                            </div>
+                            <div class="item">
+                                <span>Книга заклинаний</span>
+                                <span>1</span>
+                            </div>
+                            <div class="item">
+                                <span>Посох</span>
+                                <span>1</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-title">СПОСОБНОСТИ И ЗАКЛИНАНИЯ</div>
+                        <div style="background: rgba(20, 20, 35, 0.6); border-radius: 8px; padding: 15px; height: 150px; overflow-y: auto; border: 1px solid rgba(74, 74, 109, 0.3);">
+                            <p><strong>Способности:</strong></p>
+                            <ul>
+                                <li>Магическое сопротивление</li>
+                                <li>Магическая броня</li>
+                                <li>Возрождение (Белый)</li>
+                                <li>Понимание языков</li>
+                            </ul>
+
+                            <p><strong>Заклинания:</strong></p>
+                            <ul>
+                                <li>Огненный шар (4 уровень)</li>
+                                <li>Волшебный огонь (2 уровень)</li>
+                                <li>Лечение ран (1 уровень)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            "Не все бродящие по свету потеряны" - Дж. Р. Р. Толкин<br>
+            Современный лист персонажа D&D 5e | Стиль Средиземья
+        </footer>
+    </div>
+</body>
+</html>

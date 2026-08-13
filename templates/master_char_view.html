@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ char.name }} | Просмотр мастером</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-dark: #0f0f1a;
+            --secondary-dark: #1a1a2e;
+            --accent-gold: #d4af37;
+            --text-light: #e0d6bd;
+            --text-muted: #8a9ba8;
+            --border-color: #4a4a6d;
+            --card-bg: rgba(30, 30, 50, 0.7);
+            --hover-glow: 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+        body {
+            background: linear-gradient(135deg, var(--secondary-dark), #0d1021);
+            color: var(--text-light);
+            min-height: 100vh;
+            padding: 20px;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(40,40,80,0.2) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(40,40,80,0.2) 0%, transparent 20%);
+        }
+
+        .container { max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 25px; flex-wrap: wrap; gap: 15px;
+        }
+        h1 { color: var(--accent-gold); font-size: 2rem; font-weight: 700; letter-spacing: 1px; }
+        .subtitle { color: var(--text-muted); font-size: 1rem; }
+
+        .btn-nav {
+            padding: 10px 20px; background: var(--card-bg);
+            border: 1px solid var(--border-color); border-radius: 8px;
+            color: var(--text-light); text-decoration: none;
+            font-weight: 600; transition: all 0.3s ease;
+        }
+        .btn-nav:hover { border-color: var(--accent-gold); box-shadow: var(--hover-glow); }
+
+        /* === ТАБЫ === */
+        .tabs {
+            display: flex; gap: 5px; margin-bottom: 0;
+            border-bottom: 1px solid var(--border-color); padding: 10px 25px 0;
+            background: var(--primary-dark); border-radius: 16px 16px 0 0;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 10px 20px; background: transparent; border: 1px solid var(--border-color);
+            border-radius: 8px 8px 0 0; color: var(--text-muted); font-weight: 600;
+            cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px;
+        }
+        .tab-btn:hover { color: var(--text-light); border-color: var(--accent-gold); }
+        .tab-btn.active {
+            background: var(--card-bg); border-color: var(--accent-gold);
+            color: var(--accent-gold); border-bottom: 2px solid var(--accent-gold);
+        }
+        .tab-btn.disabled { opacity: 0.5; cursor: not-allowed; border-color: var(--border-color); }
+        .tab-btn.disabled:hover { color: var(--text-muted); border-color: var(--border-color); }
+
+        /* === ОСНОВНОЙ КОНТЕНТ === */
+        .character-sheet {
+            background: var(--primary-dark); border-radius: 0 0 16px 16px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7), inset 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+            max-height: calc(100vh - 180px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sheet-header {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+            padding: 25px; border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(to bottom, rgba(30,30,50,0.6), var(--primary-dark));
+            flex-shrink: 0;
+        }
+        .header-group { display: flex; flex-direction: column; }
+        .header-label {
+            font-weight: 600; color: var(--text-muted); font-size: 0.85rem;
+            margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.8;
+        }
+        .header-value {
+            padding: 12px 15px; min-height: 45px; background: var(--card-bg);
+            border-radius: 8px; border: 1px solid rgba(74,74,109,0.5);
+            font-size: 1.1rem; display: flex; align-items: center;
+        }
+
+        /* Контейнер для вкладок с прокруткой */
+        .tab-content-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+        }
+
+        .main-content { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        .left-column, .right-column { display: flex; flex-direction: column; gap: 25px; }
+
+        .section {
+            background: var(--card-bg); border-radius: 12px; padding: 20px;
+            border: 1px solid rgba(74,74,109,0.4); transition: transform 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        .section:hover { transform: translateY(-3px); box-shadow: var(--hover-glow); }
+
+        .section-title {
+            color: var(--accent-gold); padding: 12px 0; font-weight: 700;
+            font-size: 1.3rem; text-align: center; letter-spacing: 1px;
+            position: relative; margin-bottom: 20px;
+        }
+        .section-title::after {
+            content: ''; position: absolute; bottom: -8px; left: 50%;
+            transform: translateX(-50%); width: 80px; height: 2px;
+            background: linear-gradient(to right, transparent, var(--accent-gold), transparent);
+        }
+
+        /* Характеристики */
+        .abilities { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+        .ability {
+            text-align: center; background: rgba(20,20,35,0.8); border-radius: 10px;
+            padding: 15px; border: 1px solid rgba(74,74,109,0.5); transition: all 0.3s ease;
+        }
+        .ability:hover { border-color: var(--accent-gold); box-shadow: var(--hover-glow); }
+        .ability-name {
+            font-weight: 700; color: var(--text-muted); font-size: 1rem;
+            margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .ability-score { font-size: 2rem; font-weight: 800; color: var(--accent-gold); margin: 10px 0; }
+        .ability-modifier {
+            background: rgba(44,44,84,0.8); color: var(--accent-gold);
+            width: 45px; height: 45px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            margin: 0 auto; font-weight: 700; font-size: 1.3rem;
+            border: 1px solid var(--accent-gold);
+        }
+
+        /* Навыки и спасброски */
+        .skills-container, .saving-throws { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .skill, .saving-throw {
+            display: flex; align-items: center; padding: 8px 10px;
+            background: rgba(20,20,35,0.5); border-radius: 6px;
+        }
+        .skill input[type="checkbox"], .saving-throw input[type="checkbox"] {
+            margin-right: 10px; transform: scale(1.2); accent-color: var(--accent-gold);
+        }
+
+        /* Атрибуты */
+        .attributes { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .attribute { display: flex; flex-direction: column; }
+        .attribute-label {
+            font-weight: 600; color: var(--text-muted); margin-bottom: 8px;
+            font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .attribute-value {
+            padding: 12px; background: rgba(20,20,35,0.7); border-radius: 8px;
+            border: 1px solid rgba(74,74,109,0.5); font-size: 1.1rem;
+        }
+
+        /* Здоровье */
+        .hp-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .hp-section {
+            text-align: center; background: var(--card-bg); border-radius: 10px;
+            padding: 15px; border: 1px solid rgba(74,74,109,0.4);
+        }
+        .hp-label {
+            font-weight: 600; color: var(--text-muted); margin-bottom: 8px;
+            font-size: 0.9rem; text-transform: uppercase;
+        }
+        .hp-value { font-size: 1.6rem; font-weight: 700; color: var(--accent-gold); }
+
+        /* Стат-карточки */
+        .stat-card {
+            text-align: center; background: var(--card-bg); border-radius: 10px;
+            padding: 18px; border: 1px solid rgba(74,74,109,0.4);
+        }
+        .stat-number { font-size: 2.5rem; font-weight: 800; color: var(--accent-gold); margin: 10px 0; }
+        .stat-label {
+            font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem;
+        }
+
+        /* Текстовые блоки */
+        .description-box {
+            background: rgba(20,20,35,0.6); border-radius: 8px; padding: 15px;
+            height: 200px; overflow-y: auto; border: 1px solid rgba(74,74,109,0.3);
+            line-height: 1.5;
+        }
+
+        /* Инвентарь */
+        .inventory-list { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        .item {
+            display: flex; justify-content: space-between; padding: 12px 15px;
+            background: rgba(20,20,35,0.5); border-radius: 8px;
+            border-left: 3px solid var(--accent-gold);
+        }
+
+        /* === ВКЛАДКИ === */
+        .tab-panel { display: none; animation: fadeIn 0.3s ease-out; }
+        .tab-panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Сетки для классовых навыков и заклинаний — прокрутка внутри контейнера */
+        .features-grid, .spells-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        /* Карточки навыков/заклинаний */
+        .feature-card, .spell-card {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(74,74,109,0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .feature-card:hover, .spell-card:hover {
+            border-color: var(--accent-gold);
+            box-shadow: var(--hover-glow);
+            transform: translateY(-2px);
+        }
+        .feature-card .header, .spell-card .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(74,74,109,0.3);
+        }
+        .feature-card .name, .spell-card .name {
+            font-weight: 700;
+            color: var(--accent-gold);
+            font-size: 1.1rem;
+        }
+        .feature-card .level-badge, .spell-card .level-badge {
+            background: rgba(212,175,55,0.2);
+            color: var(--accent-gold);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .feature-card .source, .spell-card .source {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .feature-card .source.subclass { color: #60a5fa; }
+        .feature-card .source.base { color: var(--accent-gold); }
+        .feature-card .desc, .spell-card .desc {
+            font-size: 0.9rem;
+            line-height: 1.4;
+            color: var(--text-light);
+            flex-grow: 1;
+        }
+
+        /* Мета-информация заклинаний */
+        .spell-card .meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 6px 0 10px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .spell-card .meta span {
+            background: rgba(44,44,84,0.5);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
+        /* Внутренние табы для заклинаний */
+        .spell-subtabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .spell-subtab {
+            padding: 8px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        .spell-subtab.active {
+            background: var(--accent-gold);
+            color: var(--primary-dark);
+            border-color: var(--accent-gold);
+        }
+
+        /* Поиск */
+        .tab-search {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .tab-search input {
+            width: 100%;
+            max-width: 400px;
+            padding: 10px 15px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 1rem;
+        }
+        .tab-search input:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: var(--hover-glow);
+        }
+
+        /* Адаптивность */
+        @media (max-width: 992px) {
+            .main-content { grid-template-columns: 1fr; }
+            .abilities { grid-template-columns: repeat(2, 1fr); }
+            .sheet-header { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .tabs { flex-direction: column; padding: 10px 15px 0; }
+            .tab-btn { border-radius: 8px; margin-bottom: 5px; }
+            .features-grid, .spells-grid { grid-template-columns: 1fr; }
+            .feature-card, .spell-card { min-height: auto; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>{{ char.name }}</h1>
+                <div class="subtitle">{{ char.char_class }} {{ char.level }} ур. • {{ char.race }} • Игрок: {{ room.current_players | selectattr('char_id', 'equalto', char.id) | map(attribute='username') | first }}</div>
+            </div>
+            <a href="{{ back_url }}" class="btn-nav">← Назад в комнату</a>
+        </header>
+
+        <!-- Вкладки -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('main', this)">📋 Основное</button>
+            <button class="tab-btn" onclick="switchTab('inventory', this)">🎒 Инвентарь</button>
+            <button class="tab-btn" onclick="switchTab('description', this)">📜 Описание</button>
+            <button class="tab-btn" onclick="switchTab('features', this)">⚔️ Классовые навыки</button>
+            <button class="tab-btn {% if not has_spells %}disabled{% endif %}"
+                    {% if not has_spells %}onclick="return false;" title="Этот класс не владеет заклинаниями"{% else %}onclick="switchTab('spells', this)"{% endif %}>
+                📚 Заклинания
+            </button>
+        </div>
+
+        <div class="character-sheet">
+            <!-- Контейнер для прокрутки контента вкладок -->
+            <div class="tab-content-wrapper">
+
+                <!-- Вкладка: Основное -->
+                <div id="main" class="tab-panel active">
+                    <div class="sheet-header">
+                        <div class="header-group"><div class="header-label">ИМЯ</div><div class="header-value">{{ char.name }}</div></div>
+                        <div class="header-group"><div class="header-label">КЛАСС / УРОВЕНЬ</div><div class="header-value">{{ char.char_class }} {{ char.level }}</div></div>
+                        <div class="header-group"><div class="header-label">ПОДКЛАСС</div><div class="header-value">{{ char.subclass }}</div></div>
+                        <div class="header-group"><div class="header-label">РАСА</div><div class="header-value">{{ char.race }}</div></div>
+                        <div class="header-group"><div class="header-label">ОПЫТ</div><div class="header-value">{{ char.xp }} XP</div></div>
+                        <div class="header-group"><div class="header-label">МИРОВОЗЗРЕНИЕ</div><div class="header-value">{{ char.alignment }}</div></div>
+                        <div class="header-group"><div class="header-label">РОСТ</div><div class="header-value">{{ char.physical.height }}</div></div>
+                        <div class="header-group"><div class="header-label">ВЕС</div><div class="header-value">{{ char.physical.weight }}</div></div>
+                        <div class="header-group"><div class="header-label">ВОЛОСЫ</div><div class="header-value">{{ char.physical.hair }}</div></div>
+                        <div class="header-group"><div class="header-label">ГЛАЗА</div><div class="header-value">{{ char.physical.eyes }}</div></div>
+                    </div>
+
+                    <div class="main-content">
+                        <div class="left-column">
+                            <div class="section">
+                                <div class="section-title">ХАРАКТЕРИСТИКИ</div>
+                                <div class="abilities">
+                                    {% for stat_key, stat_name in [('STR','СИЛА'),('DEX','ЛОВКОСТЬ'),('CON','ТЕЛО'),('INT','ИНТЕЛЛЕКТ'),('WIS','МУДРОСТЬ'),('CHA','ХАРИЗМА')] %}
+                                    {% set s = char.stats[stat_key] %}
+                                    {% set score = s.score if s is mapping else s %}
+                                    {% set mod = s.modifier if s is mapping else (score - 10) // 2 %}
+                                    <div class="ability">
+                                        <div class="ability-name">{{ stat_name }}</div>
+                                        <div class="ability-score">{{ score }}</div>
+                                        <div class="ability-modifier">{{ '+' if mod >= 0 else '' }}{{ mod }}</div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <div class="section">
+                                <div class="section-title">СПАСБРОСКИ И НАВЫКИ</div>
+                                <div class="saving-throws">
+                                    {% for save in saves %}
+                                    <div class="saving-throw" style="justify-content: space-between;">
+                                        <div style="display: flex; align-items: center;">
+                                            <input type="checkbox" {{ 'checked' if save.proficient else '' }} disabled>
+                                            <label>{{ save.name }}</label>
+                                        </div>
+                                        <span style="font-weight: 700; color: var(--accent-gold); min-width: 25px; text-align: right;">{% if save.total >= 0 %}+{% endif %}{{ save.total }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div style="margin-top: 20px;">
+                                    <div class="skills-container">
+                                        {% for skill in skills %}
+                                        <div class="skill" style="justify-content: space-between;">
+                                            <div style="display: flex; align-items: center;">
+                                                <input type="checkbox" {{ 'checked' if skill.proficient else '' }} disabled>
+                                                <label>{{ skill.name }} ({{ skill.abbr }})</label>
+                                            </div>
+                                            <span style="font-weight: 700; color: var(--accent-gold); min-width: 25px; text-align: right;">{% if skill.total >= 0 %}+{% endif %}{{ skill.total }}</span>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="section">
+                                <div class="section-title">АТРИБУТЫ</div>
+                                <div class="attributes">
+                                    <div class="attribute"><div class="attribute-label">КЛАСС БРОНИ</div><div class="attribute-value">{{ char._calculated_ac }}</div></div>
+                                    <div class="attribute"><div class="attribute-label">ИНИЦИАТИВА</div><div class="attribute-value">{{ char.attributes.initiative }}</div></div>
+                                    <div class="attribute"><div class="attribute-label">СКОРОСТЬ</div><div class="attribute-value">{{ char.attributes.speed }}</div></div>
+                                    <div class="attribute"><div class="attribute-label">МАСТЕРСТВО</div><div class="attribute-value">{{ char.attributes.prof_bonus }}</div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="right-column">
+                            <div class="hp-container">
+                                <div class="hp-section"><div class="hp-label">ТЕКУЩИЕ ХИТЫ</div><div class="hp-value">{{ char.hp.current }}</div></div>
+                                <div class="hp-section"><div class="hp-label">МАКСИМУМ</div><div class="hp-value">{{ char.hp.max }}</div></div>
+                                <div class="hp-section"><div class="hp-label">ВРЕМЕННЫЕ</div><div class="hp-value">{{ char.hp.temp }}</div></div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+                                <div class="stat-card"><div class="stat-number">{{ char._calculated_ac }}</div><div class="stat-label">КЛАСС БРОНИ</div></div>
+                                <div class="stat-card"><div class="stat-number">{{ char.attributes.initiative }}</div><div class="stat-label">ИНИЦИАТИВА</div></div>
+                                <div class="stat-card"><div class="stat-number">{{ char.attributes.speed }}</div><div class="stat-label">СКОРОСТЬ</div></div>
+                                <div class="stat-card"><div class="stat-number">{{ char.attributes.prof_bonus }}</div><div class="stat-label">МАСТЕРСТВО</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Инвентарь -->
+                <div id="inventory" class="tab-panel">
+                    <div class="main-content">
+                        <div class="left-column">
+                            <div class="section">
+                                <div class="section-title">⚔️ ОРУЖИЕ</div>
+                                {% if char.inventory.weapons %}
+                                <div class="inventory-list">
+                                    {% for w in char.inventory.weapons %}
+                                    <div class="item">
+                                        <div><strong style="color:var(--accent-gold);">{{ w.name }}</strong><br><small>Урон: {{ w.damage }} | Тип: {{ w.type }}</small></div>
+                                        {% if w.proficient %}<span style="color:#4ade80;">✅</span>{% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}<p style="color:var(--text-muted); text-align:center;">Оружия нет</p>{% endif %}
+                            </div>
+                            <div class="section">
+                                <div class="section-title">🛡️ БРОНЯ</div>
+                                {% if char.inventory.armor %}
+                                <div class="inventory-list">
+                                    {% for a in char.inventory.armor %}
+                                    <div class="item">
+                                        <div><strong style="color:var(--accent-gold);">{{ a.name }}</strong><br><small>КД: {{ a.ac }} {% if a.equipped %}• <span style="color:#4ade80;">Надето</span>{% endif %}</small></div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}<p style="color:var(--text-muted); text-align:center;">Брони нет</p>{% endif %}
+                            </div>
+                        </div>
+                        <div class="right-column">
+                            <div class="section">
+                                <div class="section-title">🎒 ПРЕДМЕТЫ</div>
+                                {% if char.inventory.gear %}
+                                <div class="inventory-list">
+                                    {% for g in char.inventory.gear %}
+                                    <div class="item"><div><strong>{{ g.name }}</strong></div><div>{{ g.qty }} шт.</div></div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}<p style="color:var(--text-muted); text-align:center;">Предметов нет</p>{% endif %}
+                            </div>
+                            <div class="section">
+                                <div class="section-title">💰 МОНЕТЫ</div>
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; text-align: center;">
+                                    {% for c, label in [('cp','ММ'),('sp','СМ'),('ep','ЭМ'),('gp','ЗМ'),('pp','ПМ')] %}
+                                    <div style="background:rgba(20,20,35,0.6); padding:10px; border-radius:6px;">
+                                        <div style="color:var(--accent-gold); font-weight:700;">{{ char.inventory.coins[c] }}</div>
+                                        <div style="font-size:0.85rem; color:var(--text-muted);">{{ label }}</div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Описание -->
+                <div id="description" class="tab-panel">
+                    <div style="padding: 0 25px;">
+                        <div class="section">
+                            <div class="section-title">ИСТОРИЯ ПЕРСОНАЖА</div>
+                            <div class="description-box">{{ char.description or 'Описание отсутствует...' }}</div>
+                        </div>
+                        <div class="section" style="margin-top: 20px;">
+                            <div class="section-title">ЧЕРТЫ ХАРАКТЕРА</div>
+                            <div class="description-box">{{ char.features_spells or 'Не указано...' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Вкладка: Классовые навыки -->
+                <div id="features" class="tab-panel">
+                    <div style="padding: 0 25px;">
+                        <div class="tab-search">
+                            <input type="text" id="featuresSearch" placeholder="🔍 Поиск навыка..." oninput="filterFeatures()">
+                        </div>
+                        {% if class_features %}
+                        <div class="features-grid" id="featuresGrid">
+                            {% for feat in class_features %}
+                            <div class="feature-card" data-name="{{ feat.name|lower }}" data-source="{{ feat.source }}">
+                                <div class="header">
+                                    <span class="name">{{ feat.name }}</span>
+                                    <span class="level-badge">{{ feat.level }} ур.</span>
+                                </div>
+                                <div class="source {{ feat.source }}">
+                                    {% if feat.source == 'subclass' %}🔮 Подкласс{% else %}⚔️ Базовый класс{% endif %}
+                                </div>
+                                <div class="desc">{{ feat.description }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p style="color:var(--text-muted); text-align:center; padding:40px;">На этом уровне особенностей ещё нет</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Вкладка: Заклинания -->
+                <div id="spells" class="tab-panel">
+                    {% if has_spells %}
+                    <div style="padding: 0 25px;">
+                        <div class="tab-search">
+                            <input type="text" id="spellsSearch" placeholder="🔍 Поиск заклинания..." oninput="filterSpells()" style="margin-bottom: 10px;">
+                        </div>
+                        <div class="spell-subtabs">
+                            <button class="spell-subtab active" onclick="switchSpellTab('known', this)">✨ Известные ({{ known_spells|length }})</button>
+                            <button class="spell-subtab" onclick="switchSpellTab('available', this)">📖 Доступные ({{ available_spells|length }})</button>
+                        </div>
+
+                        <!-- Известные заклинания -->
+                        <div id="known-spells" class="spells-grid tab-panel active">
+                            {% if known_spells %}
+                                {% for spell in known_spells %}
+                                <div class="spell-card" data-name="{{ spell.name|lower }}" data-level="{{ spell.level }}">
+                                    <div class="header">
+                                        <span class="name">{{ spell.name }}</span>
+                                        <span class="level-badge">{{ spell.level }} ур.</span>
+                                    </div>
+                                    <div class="meta">
+                                        <span>{{ spell.school }}</span>
+                                        <span>{{ spell.casting_time }}</span>
+                                        <span>{{ spell.range }}</span>
+                                        <span>{{ spell.components }}</span>
+                                    </div>
+                                    <div class="desc">{{ spell.description }}</div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p style="color:var(--text-muted); text-align:center; padding:40px; grid-column:1/-1;">Заклинаний пока нет</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Доступные заклинания -->
+                        <div id="available-spells" class="spells-grid tab-panel">
+                            {% if available_spells %}
+                                {% for spell in available_spells %}
+                                <div class="spell-card" data-name="{{ spell.name|lower }}" data-level="{{ spell.level }}"
+                                     style="{% if spell.name in known_spells|map(attribute='name')|list %}border-color: #4ade80;{% endif %}">
+                                    <div class="header">
+                                        <span class="name">{{ spell.name }}</span>
+                                        <span class="level-badge">{{ spell.level }} ур.</span>
+                                    </div>
+                                    <div class="meta">
+                                        <span>{{ spell.school }}</span>
+                                        <span>{{ spell.casting_time }}</span>
+                                        <span>{{ spell.range }}</span>
+                                        <span>{{ spell.components }}</span>
+                                    </div>
+                                    <div class="desc">{{ spell.description }}</div>
+                                    {% if spell.name in known_spells|map(attribute='name')|list %}
+                                    <div style="margin-top:10px; color:#4ade80; font-size:0.85rem; font-weight:600;">✅ Изучено</div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p style="color:var(--text-muted); text-align:center; padding:40px; grid-column:1/-1;">Нет доступных заклинаний</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <p style="color:var(--text-muted); text-align:center; padding:60px 20px;">
+                        Класс <strong>{{ char.char_class }}</strong> не владеет заклинаниями.<br>
+                        Эта вкладка недоступна.
+                    </p>
+                    {% endif %}
+                </div>
+
+            </div> <!-- конец tab-content-wrapper -->
+        </div> <!-- конец character-sheet -->
+    </div>
+
+    <script>
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+
+            // Сброс прокрутки при переключении
+            const wrapper = document.querySelector('.tab-content-wrapper');
+            if (wrapper) wrapper.scrollTop = 0;
+        }
+
+        function switchSpellTab(tabId, btn) {
+            const parent = document.getElementById('spells');
+            parent.querySelectorAll('.spells-grid').forEach(p => p.classList.remove('active'));
+            parent.querySelectorAll('.spell-subtab').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabId + '-spells').classList.add('active');
+            btn.classList.add('active');
+        }
+
+        function filterFeatures() {
+            const query = document.getElementById('featuresSearch').value.toLowerCase();
+            document.querySelectorAll('#featuresGrid .feature-card').forEach(card => {
+                const name = card.dataset.name;
+                card.style.display = name.includes(query) ? 'flex' : 'none';
+            });
+        }
+
+        function filterSpells() {
+            const query = document.getElementById('spellsSearch').value.toLowerCase();
+            const activeTab = document.querySelector('#spells .spells-grid.active');
+            if (activeTab) {
+                activeTab.querySelectorAll('.spell-card').forEach(card => {
+                    const name = card.dataset.name;
+                    card.style.display = name.includes(query) ? 'flex' : 'none';
+                });
+            }
+        }
+    </script>
+</body>
+</html>
