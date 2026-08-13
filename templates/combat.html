@@ -3,25 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Бой | {{ char.name }}</title>
-    <style>
-        :root { --primary:#0f0f1a; --accent:#d4af37; --text:#e0d6bd; --bg:rgba(30,30,50,0.8); }
-        * { margin:0; padding:0; box-sizing:border-box; font-family:'Inter',sans-serif; }
-        body { background:linear-gradient(135deg,#1a1a2e,#0d1021); color:var(--text); min-height:100vh; padding:20px; display:flex; justify-content:center; align-items:center; }
-        .arena { background:var(--bg); padding:30px; border-radius:16px; max-width:700px; width:100%; border:1px solid rgba(74,74,109,0.4); box-shadow:0 20px 50px rgba(0,0,0,0.7); }
-        h1 { color:var(--accent); text-align:center; margin-bottom:20px; }
-        .weapon-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; margin-bottom:20px; }
-        .w-btn { padding:15px; background:rgba(20,20,35,0.6); border:1px solid rgba(74,74,109,0.4); border-radius:8px; cursor:pointer; color:var(--text); transition:0.3s; text-align:center; }
-        .w-btn:hover { border-color:var(--accent); transform:translateY(-3px); }
-        .w-btn.selected { border-color:var(--accent); background:rgba(44,44,84,0.8); box-shadow:0 0 15px rgba(212,175,55,0.3); }
-        .form-group { margin-bottom:15px; }
-        .form-control { width:100%; padding:12px; background:rgba(15,15,26,0.7); border:1px solid rgba(74,74,109,0.5); border-radius:8px; color:var(--text); }
-        .btn { padding:12px; border:none; border-radius:8px; font-weight:600; cursor:pointer; transition:0.3s; }
-        .btn-primary { background:var(--accent); color:var(--primary); }
-        .result-box { margin-top:20px; padding:20px; background:rgba(20,20,35,0.6); border-radius:12px; border-left:4px solid var(--accent); animation:fadeIn 0.5s; }
-        @keyframes fadeIn { from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:translateY(0)} }
-        .d20 { font-size:3rem; font-weight:800; color:var(--accent); text-align:center; }
-        .crit { color:#4ade80; } .fail { color:#f87171; }
-    </style>
+    <link rel="stylesheet" href="/static/css/combat.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -82,25 +64,6 @@
         {% endif %}
     </div>
 
-    <script>
-        const attrMap = {'standard':['STR'], 'finesse':['STR','DEX'], 'thrown':['DEX'], 'ammunition':['DEX']};
-        const names = {'STR':'Сила','DEX':'Ловкость'};
-
-        function selectWeapon(idx, name, type) {
-            document.querySelectorAll('.w-btn').forEach(b => b.classList.remove('selected'));
-            event.currentTarget.classList.add('selected');
-            document.querySelector(`input[name="weapon_idx"][value="${idx}"]`).checked = true;
-
-            const group = document.getElementById('attr-group');
-            const sel = document.getElementById('attrChoice');
-            group.style.display = 'block';
-            sel.innerHTML = '';
-            attrMap[type].forEach(a => {
-                const opt = document.createElement('option');
-                opt.value = a; opt.textContent = names[a];
-                sel.appendChild(opt);
-            });
-        }
-    </script>
+    <script src="/static/js/combat.js"></script>
 </body>
 </html>
