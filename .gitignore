@@ -4,8 +4,6 @@
 __pycache__/
 *.o
 *.obj
-dist/
-build/
 *.class
 *.exe
 *.dll
@@ -17,10 +15,12 @@ build/
 .venv/
 venv/
 node_modules/
-.mypy_cache/
-.pytest_cache/
+dist/
+build/
 target/
 .gradle/
+.mypy_cache/
+.pytest_cache/
 
 # Logs and temp files
 *.log
