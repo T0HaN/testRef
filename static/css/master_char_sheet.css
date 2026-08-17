@@ -1,0 +1,93 @@
+:root {
+    --bg-primary: #0a0a0c; --bg-secondary: #141418; --bg-tertiary: #1e1e24;
+    --text-primary: #e0d4b8; --text-secondary: #a89f8a;
+    --accent-gold: #c9a961; --accent-gold-dim: #8b7542;
+    --accent-red: #8b3a3a; --accent-green: #4a6b4a;
+    --border-color: #3a352a;
+    --font-main: 'Georgia', serif; --font-ui: 'Segoe UI', Tahoma, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-ui); background: var(--bg-primary); color: var(--text-primary); padding: 1.5rem; overflow-y: auto; }
+
+/* HEADER */
+.header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid var(--accent-gold); padding-bottom: 1rem; margin-bottom: 1.5rem; }
+.char-title-wrap { display: flex; align-items: center; gap: 1.5rem; }
+.char-avatar { width: 80px; height: 80px; border-radius: 50%; border: 3px solid var(--accent-gold); object-fit: cover; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; }
+.char-name { font-family: var(--font-main); font-size: 2.5rem; color: var(--accent-gold); line-height: 1; margin-bottom: 0.3rem; }
+.char-subtitle { font-size: 1rem; color: var(--text-secondary); letter-spacing: 0.05em; text-transform: uppercase; }
+.btn-back { padding: 0.5rem 1rem; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); text-decoration: none; transition: 0.2s; }
+.btn-back:hover { border-color: var(--accent-gold); color: var(--accent-gold); }
+
+/* GRID LAYOUT */
+.sheet-grid { display: grid; grid-template-columns: 280px 1fr 1fr; gap: 1.5rem; align-items: start; }
+@media (max-width: 1024px) { .sheet-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px) { .sheet-grid { grid-template-columns: 1fr; } }
+
+/* PANELS */
+.panel { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; box-shadow: 0 4px 10px rgba(0,0,0,0.5); margin-bottom: 1.5rem; }
+.panel-title { font-family: var(--font-main); font-size: 1.1rem; color: var(--accent-gold); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* STATS (STR, DEX...) */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.8rem; margin-bottom: 1.5rem; }
+.stat-box { background: var(--bg-tertiary); border: 1px solid var(--accent-gold-dim); border-radius: 8px; text-align: center; padding: 0.5rem; position: relative; }
+.stat-name { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-mod { font-family: var(--font-main); font-size: 1.8rem; color: var(--accent-gold); font-weight: bold; margin: 0.2rem 0; }
+.stat-score { font-size: 0.8rem; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 10px; width: 40px; margin: 0 auto; padding: 2px 0; }
+
+/* COMBAT STATS */
+.combat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
+.combat-box { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; text-align: center; padding: 0.8rem 0.5rem; }
+.combat-val { font-family: var(--font-main); font-size: 1.6rem; color: var(--text-primary); margin-top: 0.3rem; font-weight: bold; }
+.combat-val.hp { color: var(--accent-green); }
+.combat-val.ac { color: #3498db; }
+
+/* LISTS (Skills, Saves) */
+.list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9rem; }
+.list-item:last-child { border-bottom: none; }
+.list-item.proficient .item-name { color: var(--accent-gold); font-weight: bold; }
+.list-item.proficient::before { content: '●'; color: var(--accent-gold); margin-right: 0.5rem; font-size: 0.8rem; }
+.list-item:not(.proficient)::before { content: '○'; color: var(--text-secondary); margin-right: 0.5rem; font-size: 0.8rem; }
+.item-name { flex: 1; }
+.item-mod { font-weight: bold; width: 30px; text-align: right; }
+
+/* INVENTORY & SPELLS */
+.card-item { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.8rem; margin-bottom: 0.6rem; }
+.card-header { display: flex; justify-content: space-between; margin-bottom: 0.3rem; align-items: center; }
+.card-title { font-weight: bold; color: var(--accent-gold); font-size: 1rem; }
+.card-meta { font-size: 0.75rem; background: var(--bg-tertiary); padding: 0.2rem 0.5rem; border-radius: 4px; color: var(--text-secondary); }
+.card-desc { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4; margin-top: 0.4rem; white-space: pre-wrap; }
+
+/* COINS */
+.coins-wrap { display: flex; gap: 1rem; justify-content: center; background: var(--bg-tertiary); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1rem;}
+.coin-val { font-family: var(--font-main); font-weight: bold; font-size: 1.2rem; }
+.c-gold { color: #ffd700; } .c-silver { color: #c0c0c0; } .c-copper { color: #cd7f32; }
+
+/* COLLAPSIBLE ACCORDION STYLES */
+.collapsible-header {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+.collapsible-header:hover .card-title {
+    color: #fff;
+}
+.collapsible-content {
+    display: none;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+}
+.collapsible-content.open {
+    display: block;
+}
+.chevron {
+    transition: transform 0.2s;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+.chevron.open {
+    transform: rotate(180deg);
+}

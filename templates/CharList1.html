@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мои Герои | Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/CharList1.css">
+</head>
+<body>
+
+    <!-- ОСНОВНАЯ ОБЛАСТЬ (СЛЕВА) -->
+    <main class="main-content">
+        <!-- ЛОГОТИП -->
+        <div class="top-brand">
+            <h1 class="logo-title">Folio</h1>
+            <button class="mobile-menu-btn" id="menu-toggle">☰</button>
+        </div>
+
+        <!-- Заголовок -->
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">⚔️ Ваши Герои</h1>
+                <div class="page-subtitle">Всего персонажей: {{ chars|length }}</div>
+            </div>
+            <!-- Имя пользователя и кнопка выхода перенесены в боковую панель -->
+        </header>
+
+        <!-- Сообщения -->
+        <div class="messages">
+            {% if error %}<div class="msg error">⚔️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+            {% if info %}<div class="msg info">📜 {{ info }}</div>{% endif %}
+        </div>
+
+        <div class="actions">
+            <a href="/new_char" class="btn-new">➕ Новый герой</a>
+        </div>
+
+        <!-- Список персонажей -->
+        {% if chars %}
+            <div class="chars-grid">
+                {% for char in chars %}
+                <article class="char-card">
+                    <div class="char-content">
+                        <div class="char-header">
+                            <div>
+                                <div class="char-name">{{ char.name }}</div>
+                                <small style="color: var(--text-secondary);">{{ char.race }}</small>
+                            </div>
+                            <span class="char-level">Ур. {{ char.level }}</span>
+                        </div>
+
+                        <div class="char-meta">
+                            <span>⚔️ <strong>{{ char.char_class }}</strong></span>
+                            {% if char.subclass and char.subclass != 'Нет' %}
+                                <span>• {{ char.subclass }}</span>
+                            {% endif %}
+                            <span>✨ XP: <strong>{{ char.xp }}</strong></span>
+                            <span>❤️ ХП: <strong>{{ char.hp.current }}/{{ char.hp.max }}</strong></span>
+                        </div>
+
+                        <!-- Мини-характеристики -->
+                        <div class="stats-row">
+                            {% for stat_key in ['STR','DEX','CON','INT','WIS','CHA'] %}
+                                {% set stat = char.stats[stat_key] %}
+                                <div class="stat-mini">
+                                    <span class="abbr">{{ stat_key }}</span>
+                                    <span class="val">{{ stat.score }}</span>
+                                    <span class="mod">{% if stat.modifier >= 0 %}+{% endif %}{{ stat.modifier }}</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Навыки -->
+                        {% if char.skills %}
+                        <div class="char-skills">
+                            <strong>Навыки:</strong><br>
+                            {% for skill in char.skills[:6] %}
+                                <span class="skill-tag">{{ skill }}</span>
+                            {% endfor %}
+                            {% if char.skills|length > 6 %}
+                                <span class="skill-tag">+{{ char.skills|length - 6 }} ещё</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Кнопки действий -->
+                    <div class="char-actions">
+                        <a href="/char/{{ char.id }}" class="view">📜 Просмотр</a>
+                        <form method="POST" action="/char/{{ char.id }}/delete">
+                            <button type="submit" class="btn-delete" onclick="return confirm('Вы уверены, что хотите навсегда удалить героя «{{ char.name }}»?')">🗑️</button>
+                        </form>
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <!-- Пустое состояние -->
+            <div class="empty-state">
+                <div class="icon">⚔️</div>
+                <h3>Пока нет героев</h3>
+                <p>Создайте первого персонажа и начните своё приключение.</p>
+            </div>
+        {% endif %}
+
+        <!-- Футер -->
+        <footer class="footer">
+            <p>«{{ quote_text if quote_text else "Смелость не в том, чтобы не бояться, а в том, чтобы действовать вопреки страху." }}»</p>
+        </footer>
+    </main>
+
+    <!-- БОКОВОЕ МЕНЮ (СПРАВА) -->
+    <aside class="sidebar" id="sidebar">
+        <!-- ПРОФИЛЬ -->
+        <div class="user-profile">
+            <div class="user-avatar">🎭</div>
+            <div class="user-info">
+                <div class="user-name">{{ username|default("Путник") }}</div>
+                <a href="/logout" class="user-logout">Покинуть таверну</a>
+            </div>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/dashboard" class="nav-item">
+                <span class="nav-icon">🧭</span>
+                <span>Сводка</span>
+            </a>
+            <!-- Вкладка персонажей теперь активна -->
+            <a href="/chars" class="nav-item active">
+                <span class="nav-icon">⚔️</span>
+                <span>Мои персонажи</span>
+            </a>
+            <a href="/games" class="nav-item">
+                <span class="nav-icon">🗺️</span>
+                <span>Мои игры</span>
+            </a>
+            <a href="#" class="nav-item" style="opacity: 0.5; pointer-events: none;">
+                <span class="nav-icon">⚒️</span>
+                <span>Кузня (Скоро)</span>
+            </a>
+            <a href="#" class="nav-item" style="opacity: 0.5; pointer-events: none;">
+                <span class="nav-icon">💎</span>
+                <span>Лавка (Скоро)</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- СКРИПТЫ -->
+    <script src="/static/js/CharList1.js"></script>
+</body>
+</html>

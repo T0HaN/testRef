@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бросок кубов | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/dice_roller.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>🎲 БРОСОК КУБОВ</h1>
+                <div class="subtitle">{{ char.name }} | {{ char.char_class }} {{ char.level }} ур.</div>
+            </div>
+            <div class="nav-buttons">
+                <a href="{{ url_for('view_char', char_id=char.id) }}" class="btn-nav">← Назад к листу</a>
+            </div>
+        </header>
+
+        <div class="dice-container">
+            <div class="section-title">БЫСТРЫЕ БРОСКИ</div>
+            <div class="dice-grid">
+                <button class="dice-btn" onclick="rollDice(4)">
+                    <span class="dice-icon">📦</span>d4
+                </button>
+                <button class="dice-btn" onclick="rollDice(6)">
+                    <span class="dice-icon">🎲</span>d6
+                </button>
+                <button class="dice-btn" onclick="rollDice(8)">
+                    <span class="dice-icon">🔷</span>d8
+                </button>
+                <button class="dice-btn" onclick="rollDice(10)">
+                    <span class="dice-icon">🔺</span>d10
+                </button>
+                <button class="dice-btn" onclick="rollDice(12)">
+                    <span class="dice-icon">⬡</span>d12
+                </button>
+                <button class="dice-btn" onclick="rollDice(20)">
+                    <span class="dice-icon">⬢</span>d20
+                </button>
+                <button class="dice-btn" onclick="rollDice(100)">
+                    <span class="dice-icon">💯</span>d100
+                </button>
+            </div>
+
+            <div class="section-title">ПРОВЕРКИ ХАРАКТЕРИСТИК</div>
+            <div class="ability-checks">
+                {% for key, ability in abilities.items() %}
+                <button class="check-btn" onclick="rollAbilityCheck('{{ key }}', {{ ability.modifier }})">
+                    <span>{{ ability.name }}</span>
+                    <span class="mod">{{ '+' if ability.modifier >= 0 else '' }}{{ ability.modifier }}</span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <div class="section-title">ПРОВЕРКИ НАВЫКОВ</div>
+            <div class="skill-checks">
+                {% for skill in skills %}
+                <button class="check-btn {% if skill.proficient %}proficient{% endif %}"
+                        onclick="rollSkillCheck('{{ skill.name }}', {{ skill.total }})">
+                    <span>{{ skill.name }}</span>
+                    <span class="mod">{{ '+' if skill.total >= 0 else '' }}{{ skill.total }}</span>
+                </button>
+                {% endfor %}
+            </div>
+
+            <div class="custom-roll">
+                <div class="section-title">ИНДИВИДУАЛЬНЫЙ БРОСОК</div>
+                <div class="form-group">
+                    <label class="form-label">Формула броска</label>
+                    <input type="text" id="customFormula" class="form-control" placeholder="Например: 2d6+3 или 1d20+5-2">
+                    <small style="color: var(--text-muted); display: block; margin-top: 5px;">
+                        Поддерживаются: NdM+X-Y (где N - количество, M - грани, X/Y - модификаторы)
+                    </small>
+                </div>
+                <button class="btn-roll" onclick="rollCustom()">🎲 Бросить</button>
+            </div>
+
+            <div id="resultContainer"></div>
+
+            <div class="section-title">ИСТОРИЯ БРОСКОВ</div>
+            <div class="roll-history" id="rollHistory">
+                <div style="text-align: center; color: var(--text-muted); padding: 20px;">
+                    История пуста. Сделайте первый бросок!
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            D&D 5e Dice Roller | Современное Средиземье
+        </footer>
+    </div>
+
+    <script src="/static/js/dice_roller.js"></script>
+    <script>
+        // Initialize with abilities data from template
+        initDiceRoller({{ abilities|tojson }});
+    </script>
+</body>
+</html>

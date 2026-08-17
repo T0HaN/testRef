@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ char.name }} | Лист персонажа</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/character_view.css">
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="main-content">
+            <div class="character-sheet">
+                <!-- Шапка -->
+                <header class="sheet-header">
+                    <div>
+                        <h1 class="realm-title">Средиземье</h1>
+                        <p class="sheet-title">Лист персонажа D&D 5e</p>
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: center;">
+                        <a href="{{ back_url if back_url else '/chars' }}" class="back-link">← {{ back_text if back_text else 'Назад к списку' }}</a>
+
+                        <div class="char-identity">
+                            <div class="char-name-block">
+                                <div class="char-name">{{ char.name }}</div>
+                                <span class="char-level-badge">Уровень {{ char.level }}</span>
+                            </div>
+
+                            <!-- Прогресс-бар опыта -->
+                            <div class="xp-progress-container">
+                                <div class="xp-progress-label">
+                                    <span>Опыт</span>
+                                    <span>{{ char.xp }} / {{ next_level_xp if next_level_xp else 'MAX' }} XP</span>
+                                </div>
+                                <div class="xp-progress-bar">
+                                    <div class="xp-progress-fill" style="width: {{ xp_progress }}%;"></div>
+                                </div>
+                                <div class="xp-text">
+                                    {% if char.level < 20 %}
+                                        До {{ char.level + 1 }} уровня: {{ next_level_xp - char.xp if next_level_xp and next_level_xp != 'MAX' else 0 }} XP
+                                    {% else %}
+                                        Максимальный уровень достигнут!
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Инфо -->
+                <div class="char-info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Имя</div>
+                        <div class="info-value">{{ char.name }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Класс / Уровень</div>
+                        <div class="info-value">{{ char.char_class }} {{ char.level }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Подкласс</div>
+                        <div class="info-value">{{ char.subclass }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Раса</div>
+                        <div class="info-value">{{ char.race }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Опыт</div>
+                        <div class="info-value">{{ char.xp }} XP</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Мировоззрение</div>
+                        <div class="info-value">{{ char.alignment }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Рост</div>
+                        <div class="info-value">{{ char.physical.height }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Вес</div>
+                        <div class="info-value">{{ char.physical.weight }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Волосы</div>
+                        <div class="info-value">{{ char.physical.hair }}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Глаза</div>
+                        <div class="info-value">{{ char.physical.eyes }}</div>
+                    </div>
+                </div>
+
+                <div class="sheet-grid">
+                    <!-- Левая колонка -->
+                    <div class="column">
+                        <!-- Характеристики -->
+                        <section class="section">
+                            <h2 class="section-title">Характеристики (клик для броска)</h2>
+                            <div class="stats-grid">
+                                {% for stat_key, stat_name in [('STR','СИЛА'),('DEX','ЛОВКОСТЬ'),('CON','ТЕЛОСЛОЖЕНИЕ'),('INT','ИНТЕЛЛЕКТ'),('WIS','МУДРОСТЬ'),('CHA','ХАРИЗМА')] %}
+                                    {% set s = char.stats[stat_key] %}
+                                    {% set score = s.score if s is mapping else s %}
+                                    {% set mod = s.modifier if s is mapping else (score - 10) // 2 %}
+                                    <div class="stat-box" onclick="rollStatCheck('{{ stat_name }}', {{ mod }})">
+                                        <div class="stat-name">{{ stat_name }}</div>
+                                        <div class="stat-score">{{ score }}</div>
+                                        <div class="stat-mod">{% if mod >= 0 %}+{% endif %}{{ mod }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </section>
+
+                        <!-- Спасброски -->
+                        <section class="section">
+                            <h2 class="section-title">Спасброски (клик для броска)</h2>
+                            <div class="skill-list">
+                                {% for save in saves %}
+                                <div class="skill-item {% if save.proficient %}proficient{% endif %}"
+                                     onclick="rollSave('{{ save.name }}', {{ save.mod }}, {{ save.proficient|tojson }}, {{ save.total }})">
+                                    <span class="skill-name">{{ save.name }}</span>
+                                    <span class="skill-mod">{% if save.total >= 0 %}+{% endif %}{{ save.total }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </section>
+
+                        <!-- Навыки -->
+                        <section class="section">
+                            <h2 class="section-title">Навыки (клик для броска)</h2>
+                            <div class="skill-list">
+                                {% for skill in skills %}
+                                <div class="skill-item {% if skill.proficient %}proficient{% endif %}"
+                                     onclick="rollSkill('{{ skill.name }}', {{ skill.mod }}, {{ skill.proficient|tojson }}, {{ skill.total }})">
+                                    <span class="skill-name">{{ skill.name }} ({{ skill.abbr }})</span>
+                                    <span class="skill-mod">{% if skill.total >= 0 %}+{% endif %}{{ skill.total }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Правая колонка -->
+                    <div class="column">
+                        <!-- Здоровье -->
+                        <section class="section">
+                            <h2 class="section-title">Здоровье</h2>
+                            <div class="hp-box">
+                                <div class="hp-current">{{ char.hp.current }}</div>
+                                <div class="hp-label">текущие хиты</div>
+                                <div class="hp-label" style="color: var(--accent-gold); margin-top: 0.5rem;">{{ char.hp.max }} максимум</div>
+                                {% if char.hp.temp > 0 %}
+                                <div class="hp-temp">+{{ char.hp.temp }} временные хиты</div>
+                                {% endif %}
+                            </div>
+                        </section>
+
+                        <!-- Атрибуты -->
+                        <!-- Атрибуты -->
+                        <section class="section">
+                            <h2 class="section-title">Атрибуты</h2>
+                            <div class="ac-card">
+                                <div class="ac-value">{{ char._calculated_ac }}</div>
+                                <div class="ac-label">Класс брони</div>
+                                {% set equipped_armor = char.inventory.armor | selectattr('equipped', 'equalto', true) | list %}
+                                {% if equipped_armor %}
+                                <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); font-style: italic;">({{ equipped_armor[0].name }})</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="attr-grid">
+                                <div class="attr-item">
+                                    <div class="attr-label">Инициатива</div>
+                                    <div class="attr-value">{{ char.attributes.initiative }}</div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="attr-label">Скорость</div>
+                                    <div class="attr-value">
+                                        {{ char.attributes.effective_speed if char.attributes.effective_speed is defined else char.attributes.speed }}
+                                        {% if char._carry and char._carry.speed_penalty > 0 and char._carry.speed_penalty < 999 %}
+                                            <span style="font-size: 0.7rem; color: var(--accent-red); display: block;">(−{{ char._carry.speed_penalty }})</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="attr-item">
+                                    <div class="attr-label">Мастерство</div>
+                                    <div class="attr-value">{{ char.attributes.prof_bonus }}</div>
+                                </div>
+                            </div>
+
+                            <!-- 🔥 Блок грузоподъёмности -->
+                            {% if char._carry %}
+                            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                    <div style="font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+                                        ⚖️ Нагрузка
+                                    </div>
+                                    <div style="font-size: 0.9rem; font-weight: bold;
+                                                {% if char._carry.encumbrance_level == 0 %}color: var(--accent-green);
+                                                {% elif char._carry.encumbrance_level == 1 %}color: #d4a94a;
+                                                {% elif char._carry.encumbrance_level == 2 %}color: #d47a4a;
+                                                {% else %}color: var(--accent-red);{% endif %}">
+                                        {{ char._carry.encumbrance_name }}
+                                    </div>
+                                </div>
+
+                                <!-- Прогресс-бар -->
+                                <div style="position: relative; height: 14px; background: var(--bg-tertiary); border-radius: 7px; overflow: hidden; border: 1px solid var(--border-color);">
+                                    <!-- Пороги -->
+                                    {% set max_w = char._carry.thresholds.max %}
+                                    {% set pct_light = (char._carry.thresholds.light / max_w * 100) if max_w > 0 else 0 %}
+                                    {% set pct_medium = (char._carry.thresholds.medium / max_w * 100) if max_w > 0 else 0 %}
+                                    {% set pct_heavy = (char._carry.thresholds.heavy / max_w * 100) if max_w > 0 else 0 %}
+                                    {% set pct_current = (char._carry.current_weight / max_w * 100) if max_w > 0 else 0 %}
+                                    {% set pct_current = [pct_current, 100] | min %}
+
+                                    <!-- Заполнение -->
+                                    <div style="position: absolute; top: 0; left: 0; height: 100%; width: {{ pct_current }}%;
+                                                {% if char._carry.encumbrance_level == 0 %}background: linear-gradient(90deg, var(--accent-green), #6a9b6a);
+                                                {% elif char._carry.encumbrance_level == 1 %}background: linear-gradient(90deg, #d4a94a, #c9944a);
+                                                {% elif char._carry.encumbrance_level == 2 %}background: linear-gradient(90deg, #d47a4a, #c9604a);
+                                                {% else %}background: linear-gradient(90deg, var(--accent-red), #6b2a2a);{% endif %}
+                                                transition: width 0.3s ease;">
+                                    </div>
+
+                                    <!-- Маркеры порогов -->
+                                    <div style="position: absolute; left: {{ pct_light }}%; top: 0; height: 100%; width: 1px; background: rgba(255,255,255,0.3);"></div>
+                                    <div style="position: absolute; left: {{ pct_medium }}%; top: 0; height: 100%; width: 1px; background: rgba(255,255,255,0.3);"></div>
+                                    <div style="position: absolute; left: {{ pct_heavy }}%; top: 0; height: 100%; width: 1px; background: rgba(255,255,255,0.3);"></div>
+                                </div>
+
+                                <!-- Числовые значения -->
+                                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">
+                                    <span><strong style="color: var(--text-primary);">{{ char._carry.current_weight }}</strong> / {{ char._carry.max_capacity }} фнт.</span>
+                                    <span>Макс. подъём: <strong style="color: var(--accent-gold);">{{ char._carry.push_drag_lift }}</strong> фнт.</span>
+                                </div>
+
+                                <!-- Предупреждения -->
+                                {% if char._carry.encumbrance_level == 1 %}
+                                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #d4a94a;">
+                                    ⚠️ Скорость снижена на 10 футов
+                                </div>
+                                {% elif char._carry.encumbrance_level == 2 %}
+                                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: #d47a4a;">
+                                    ⚠️ Скорость −20 фт., помеха на проверки Силы/Ловкости/Телосложения
+                                </div>
+                                {% elif char._carry.encumbrance_level == 3 %}
+                                <div style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--accent-red); font-weight: bold;">
+                                    ⛔ Превышен максимум! Персонаж не может двигаться
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </section>
+
+                        <!-- ===== АКТИВНЫЙ ИНВЕНТАРЬ ===== -->
+                        <!-- Токен персонажа -->
+                        <section class="section">
+                            <h2 class="section-title">🎭 Токен на карте</h2>
+                            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                                <div id="token-preview" style="
+                                    width: 80px; height: 80px;
+                                    background: var(--bg-primary);
+                                    border: 2px dashed var(--border-color);
+                                    border-radius: 8px;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    overflow: hidden;
+                                    flex-shrink: 0;
+                                    {% if char.token_image %}border-style: solid; border-color: var(--accent-gold);{% endif %}
+                                ">
+                                    {% if char.token_image %}
+                                        <img src="{{ char.token_image }}" alt="Token" style="width: 100%; height: 100%; object-fit: cover;">
+                                    {% else %}
+                                        <span style="color: var(--text-secondary); font-size: 0.75rem; text-align: center;">Нет<br>токена</span>
+                                    {% endif %}
+                                </div>
+                                <div style="flex: 1;">
+                                    <label for="token-upload" class="nav-btn" style="display: inline-block; margin-bottom: 0.5rem; cursor: pointer;">
+                                        📤 Загрузить токен
+                                    </label>
+                                    <input type="file" id="token-upload" accept="image/*" style="display: none;" onchange="uploadToken(event)">
+                                    {% if char.token_image %}
+                                    <form method="POST" action="/char/{{ char.id }}/token/remove" style="display: inline;">
+                                        <button type="submit" class="nav-btn" style="background: rgba(139,58,58,0.2); border-color: var(--accent-red); color: #f5c6cb;">
+                                            🗑️ Удалить
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                                        Рекомендуемый размер: 100×100 px. Формат: PNG, JPG.
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="section active-inventory">
+                            <h2 class="section-title">Активный инвентарь</h2>
+
+                            {% set prof_bonus = char.attributes.prof_bonus | replace('+', '') | int %}
+
+                            <!-- Оружие -->
+                            {% if char.inventory.weapons %}
+                                {% for w in char.inventory.weapons %}
+                                    {# ✅ Вычисляем параметры ВНУТРИ цикла, когда w уже определён #}
+                                    {% set w_type = w.type | default('standard') %}
+                                    {% set stat_key = 'DEX' if w_type in ['finesse', 'thrown', 'ammunition'] else 'STR' %}
+                                    {% set stat_name = 'ЛОВКОСТЬ' if stat_key == 'DEX' else 'СИЛА' %}
+                                    {% set stat_mod = char.stats[stat_key].modifier %}
+                                    {% set attack_bonus = stat_mod + (prof_bonus if w.proficient else 0) %}
+
+                                    <div class="weapon-item">
+                                        <div class="weapon-header">
+                                            <span class="weapon-name">{{ w.name }}</span>
+                                            {% if w.proficient %}<span class="weapon-proficient">✅ Владение</span>{% endif %}
+                                        </div>
+                                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                                            {{ w.damage }} • {{ stat_name }} {% if w.description %}• {{ w.description }}{% endif %}
+                                        </div>
+                                        <div class="weapon-stats">
+                                            <div class="roll-block" onclick="rollAttack('{{ w.name }}', {{ attack_bonus }})">
+                                                <div class="roll-label">Бонус атаки</div>
+                                                <div class="roll-value">{% if attack_bonus >= 0 %}+{% endif %}{{ attack_bonus }}</div>
+                                            </div>
+                                            <div class="roll-block" onclick="rollDamage('{{ w.name }}', '{{ w.damage }}', {{ stat_mod }})">
+                                                <div class="roll-label">Урон</div>
+                                                <div class="roll-value">{{ w.damage }}{% if stat_mod != 0 %}{% if stat_mod > 0 %}+{{ stat_mod }}{% else %}{{ stat_mod }}{% endif %}{% endif %}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <p style="color: var(--text-secondary); text-align: center; padding: 0.6rem; font-size: 0.9rem;">Оружие не экипировано</p>
+                            {% endif %}
+
+                            <!-- Броня -->
+                            {% set equipped_armor = char.inventory.armor | selectattr('equipped', 'equalto', true) | list %}
+                            {% if equipped_armor %}
+                                {% for a in equipped_armor %}
+                                <div class="armor-item" style="margin-top: 0.75rem;">
+                                    <div class="armor-name">🛡️ {{ a.name }}</div>
+                                    <div class="armor-stats">
+                                        КД: {{ a.ac }}
+                                        {% if a.strength_req %} • Требуется: {{ a.strength_req }}{% endif %}
+                                        {% if a.stealth %} • <span style="color: var(--accent-red);">⚠️ {{ a.stealth }}</span>{% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% endif %}
+                        </section>
+
+                        <!-- Навигация -->
+                        <section class="section">
+                            <h2 class="section-title">Навигация</h2>
+                            <div class="nav-buttons">
+                                <a href="/char/{{ char.id }}/description" class="nav-btn">📜 Описание</a>
+                                <a href="/char/{{ char.id }}/inventory" class="nav-btn">🎒 Инвентарь</a>
+                                <a href="/char/{{ char.id }}/features" class="nav-btn">⚔️ Навыки</a>
+                                <a href="/char/{{ char.id }}/spells" class="nav-btn">📚 Заклинания</a>
+                                <!-- В блоке "Навигация" добавь эту кнопку -->
+                                <a href="/char/{{ char.id }}/edit" class="nav-btn">✏️ Редактировать</a>
+                                {% if current_user and current_user.role == 'player' %}
+                                <a href="/player/join?char_id={{ char.id }}" class="nav-btn primary" style="grid-column: span 2;">🔗 Подключиться к комнате</a>
+                                {% endif %}
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <footer class="sheet-footer">
+                    «Не все бродящие по свету потеряны» — <em>Дж. Р. Р. Толкин</em>
+                </footer>
+            </div>
+        </div>
+
+        <!-- ===== ПАНЕЛЬ БРОСКОВ СПРАВА ===== -->
+        <aside class="dice-panel" id="dicePanel">
+            <div class="dice-panel-header">
+                <div class="dice-panel-title">🎲 Броски</div>
+                <div class="dice-panel-subtitle">Кликай по блокам для броска</div>
+            </div>
+            <div class="dice-log" id="diceLog">
+                <div class="dice-empty">
+                    <div class="icon">🎲</div>
+                    <div>Кликни по характеристике,<br>навыку или оружию<br>для совершения броска</div>
+                </div>
+            </div>
+            <button class="dice-clear-btn" onclick="clearDiceLog()">🗑️ Очистить историю</button>
+        </aside>
+    </div>
+
+    <script src="/static/js/character_view.js"></script>
+</body>
+</html>

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500 • Тень на сервере</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0c; --bg-secondary: #141418; --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8; --text-secondary: #a89f8a;
+            --accent-gold: #c9a961; --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a; --accent-green: #4a6b4a;
+            --border-color: #3a352a; --shadow-color: rgba(0,0,0,0.6);
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-runic: 'Courier New', monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-main);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh; padding: 2rem; line-height: 1.5;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .container {
+            max-width: 700px; width: 100%;
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color); border-radius: 12px;
+            padding: 3rem 2rem; box-shadow: 0 20px 60px var(--shadow-color);
+            text-align: center;
+        }
+        .error-code {
+            font-size: 6rem; font-weight: bold;
+            font-family: var(--font-runic);
+            color: var(--accent-red);
+            text-shadow: 0 0 30px rgba(139,58,58,0.4);
+            line-height: 1; margin-bottom: 0.5rem;
+            animation: flicker 4s ease-in-out infinite;
+        }
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            30% { opacity: 0.9; }
+            50% { opacity: 0.7; }
+            70% { opacity: 0.95; }
+        }
+        .error-icon {
+            font-size: 3rem; margin-bottom: 1rem;
+            display: block;
+        }
+        .error-title {
+            font-size: 1.5rem; color: var(--accent-red);
+            letter-spacing: 0.15em; text-transform: uppercase;
+            font-family: var(--font-runic); margin-bottom: 1rem;
+        }
+        .error-desc {
+            color: var(--text-secondary); font-size: 1.05rem;
+            line-height: 1.7; margin-bottom: 2rem;
+            max-width: 500px; margin-left: auto; margin-right: auto;
+        }
+        .divider {
+            width: 120px; height: 1px; margin: 1.5rem auto;
+            background: linear-gradient(90deg, transparent, var(--accent-gold-dim), transparent);
+            position: relative;
+        }
+        .divider::after {
+            content: "✦"; position: absolute; top: -10px; left: 50%;
+            transform: translateX(-50%); color: var(--accent-gold);
+            font-size: 0.9rem; background: var(--bg-tertiary); padding: 0 0.5rem;
+        }
+        .quote {
+            font-style: italic; color: var(--text-secondary);
+            font-size: 0.95rem; margin-bottom: 0.5rem;
+            padding: 1rem; border-left: 2px solid var(--accent-red);
+            text-align: left; max-width: 450px; margin-left: auto; margin-right: auto;
+        }
+        .quote-author {
+            color: var(--accent-gold-dim); font-size: 0.85rem;
+            text-align: right; margin-top: 0.5rem;
+        }
+        .btn-row {
+            display: flex; gap: 1rem; justify-content: center;
+            margin-top: 2rem; flex-wrap: wrap;
+        }
+        .btn-link {
+            padding: 0.85rem 2rem; text-decoration: none; display: inline-block;
+            text-align: center; border-radius: 6px;
+            font-family: var(--font-main); font-weight: 600; font-size: 0.95rem;
+            letter-spacing: 0.05em; text-transform: uppercase;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+            color: var(--bg-primary); border: none;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 25px rgba(201,169,97,0.4); }
+        .btn-secondary {
+            background: linear-gradient(145deg, var(--bg-tertiary), var(--bg-secondary));
+            border: 1px solid var(--border-color); color: var(--text-primary);
+        }
+        .btn-secondary:hover { border-color: var(--accent-gold-dim); transform: translateY(-1px); }
+
+        .details {
+            margin-top: 1.5rem; padding: 1rem;
+            background: var(--bg-primary); border: 1px solid var(--accent-red);
+            border-radius: 6px; font-family: var(--font-runic);
+            font-size: 0.8rem; color: var(--text-secondary);
+            word-break: break-all; text-align: left;
+        }
+        .details strong { color: var(--accent-red); }
+
+        @media (max-width: 600px) {
+            body { padding: 1rem; }
+            .container { padding: 2rem 1.5rem; }
+            .error-code { font-size: 4rem; }
+            .btn-row { flex-direction: column; }
+            .btn-link { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <span class="error-icon">🌋</span>
+        <div class="error-code">500</div>
+        <h1 class="error-title">Тень на сервере</h1>
+
+        <div class="divider"></div>
+
+        <p class="error-desc">
+            Что-то пробудилось в глубинах — древнее и могущественное.
+            Кузнецы уже работают над заклинанием восстановления.
+            Прошу, вернитесь позже, когда пламя будет усмирено.
+        </p>
+
+        {% if detail %}
+        <div class="details">
+            <strong>Причина:</strong> {{ detail }}
+        </div>
+        {% endif %}
+
+        <div class="quote">
+            «Даже тьма должна пройти. Наступит новый день,
+            и когда солнце засияет, оно будет светить ещё ярче.»
+            <div class="quote-author">— Сэмвайз Гэмджи</div>
+        </div>
+
+        <div class="btn-row">
+            <a href="/" class="btn-link btn-primary">🏠 В Шир</a>
+            <a href="javascript:location.reload()" class="btn-link btn-secondary">🔄 Попытать счастья</a>
+        </div>
+    </div>
+</body>
+</html>

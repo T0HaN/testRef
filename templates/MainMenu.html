@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Панель управления | Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/MainMenu.css">
+
+</head>
+<body>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+        <div class="top-brand">
+            <!-- Заменили текст "Folio" на изображение -->
+            <h1 class="logo-title">
+                <img src="/static/images/Folio.png" alt="Folio" />
+            </h1>
+            <button class="mobile-menu-btn" id="menu-toggle">☰</button>
+        </div>
+
+        <header class="page-header">
+            <h2 class="page-title">С возвращением, {{ username|default("Путник") }}</h2>
+            <p class="page-subtitle">Ваши приключения, миры и инструменты — всё в одном месте.</p>
+        </header>
+
+        <div class="dashboard-grid">
+            <!-- ПАНЕЛЬ ПЕРСОНАЖЕЙ (Фокус на героях) -->
+            <div class="card interactive">
+                <div class="card-header">
+                    <div class="card-icon">⚔️</div>
+                    <h3 class="card-title">Путь Игрока</h3>
+                </div>
+                <p class="card-desc">Создавайте новых героев, настраивайте листы персонажей и готовьтесь к предстоящим сессиям.</p>
+                <div class="action-list">
+                    <a href="/chars" class="btn-action highlight">
+                        <span>🛡️ Открыть листы персонажей</span>
+                        <span>→</span>
+                    </a>
+                    <button class="btn-action" onclick="openModal('modal-join')">
+                        <span>🚪 Войти в комнату по коду</span>
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ПАНЕЛЬ КАМПАНИЙ (Новый роут /games) -->
+            <div class="card interactive">
+                <div class="card-header">
+                    <div class="card-icon">🗺️</div>
+                    <h3 class="card-title">Мои кампании</h3>
+                </div>
+                <p class="card-desc">Единый хаб. Управляйте мирами, которые вы создали, и приключениями, к которым присоединились.</p>
+                <div class="action-list">
+                    <a href="/games" class="btn-action highlight">
+                        <span>🧭 Открыть список игр</span>
+                        <span>→</span>
+                    </a>
+                    <button class="btn-action" onclick="openModal('modal-create')">
+                        <span>📜 Создать новую игру</span>
+                        <span>→</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- РЕДАКТОР КОНТЕНТА -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">⚒️</div>
+                    <h3 class="card-title">Кузня контента</h3>
+                    <span class="badge">В разработке</span>
+                </div>
+                <p class="card-desc">Встроенный Homebrew-редактор. Создавайте кастомные заклинания, уникальных монстров и свои собственные классы.</p>
+                <div class="action-list">
+                    <div class="btn-action" style="opacity: 0.5; cursor: not-allowed;">
+                        <span>🐉 Бестиарий</span>
+                        <span>🔒</span>
+                    </div>
+                    <div class="btn-action" style="opacity: 0.5; cursor: not-allowed;">
+                        <span>✨ Книга заклинаний</span>
+                        <span>🔒</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- МАГАЗИН -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon">💎</div>
+                    <h3 class="card-title">Лавка древностей</h3>
+                    <span class="badge">В разработке</span>
+                </div>
+                <p class="card-desc">Маркетплейс ассетов для ваших игр. Покупайте новые скины для кубиков, токены персонажей и готовые приключения.</p>
+                <div class="action-list">
+                    <div class="btn-action" style="opacity: 0.5; cursor: not-allowed;">
+                        <span>🎲 Наборы кубиков</span>
+                        <span>🔒</span>
+                    </div>
+                    <div class="btn-action" style="opacity: 0.5; cursor: not-allowed;">
+                        <span>🖼️ Пакеты токенов и карт</span>
+                        <span>🔒</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="user-profile">
+            <div class="user-avatar">🎭</div>
+            <div class="user-info">
+                <div class="user-name">{{ username|default("Путник") }}</div>
+                <a href="/logout" class="user-logout">Покинуть таверну</a>
+            </div>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="/dashboard" class="nav-item active">
+                <span class="nav-icon">🧭</span>
+                <span>Сводка</span>
+            </a>
+            <a href="/chars" class="nav-item">
+                <span class="nav-icon">⚔️</span>
+                <span>Мои персонажи</span>
+            </a>
+            <!-- Ссылка обновлена на /games -->
+            <a href="/games" class="nav-item">
+                <span class="nav-icon">🗺️</span>
+                <span>Мои игры</span>
+            </a>
+            <a href="#" class="nav-item" style="opacity: 0.5; pointer-events: none;">
+                <span class="nav-icon">⚒️</span>
+                <span>Кузня (Скоро)</span>
+            </a>
+            <a href="#" class="nav-item" style="opacity: 0.5; pointer-events: none;">
+                <span class="nav-icon">💎</span>
+                <span>Лавка (Скоро)</span>
+            </a>
+        </nav>
+    </aside>
+
+    <!-- MODALS -->
+
+    <!-- Join Room Modal -->
+    <div class="modal-overlay" id="modal-join">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('modal-join')">×</button>
+            <h3 class="modal-title">Присоединиться к игре</h3>
+            <form action="/room/join" method="POST">
+                <div class="form-group">
+                    <label for="invite_code">Код приглашения</label>
+                    <input type="text" id="invite_code" name="invite_code" placeholder="Например: aB3xY9" required autocomplete="off">
+                </div>
+                <!-- 🆕 ДОБАВЛЕН ВЫБОР ПЕРСОНАЖА -->
+                <div class="form-group">
+                    <label for="char_id">Ваш герой</label>
+                    <select id="char_id" name="char_id" required>
+                        <option value="" disabled selected>Выберите персонажа...</option>
+                        {% for char in chars %}
+                            <option value="{{ char.id }}">{{ char.name }} ({{ char.char_class }} {{ char.level }})</option>
+                        {% else %}
+                            <option value="" disabled>У вас пока нет героев. Создайте!</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">Войти в комнату</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Room Modal -->
+    <div class="modal-overlay" id="modal-create">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('modal-create')">×</button>
+            <h3 class="modal-title">Создать новую игру</h3>
+            <!-- 🆕 ИСПРАВЛЕН ПУТЬ НА /master/room/create -->
+            <form action="/master/room/create" method="POST">
+                <div class="form-group">
+                    <label for="room_name">Название кампании</label>
+                    <input type="text" id="room_name" name="name" placeholder="Проклятие Страда..." required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="max_players">Количество игроков (макс. 10)</label>
+                    <input type="number" id="max_players" name="max_players" value="6" min="1" max="10" required>
+                </div>
+                <button type="submit" class="btn-submit">Создать чертог</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="/static/js/MainMenu.js"></script>
+</body>
+</html>

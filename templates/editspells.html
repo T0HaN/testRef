@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавление заклинания | Folio</title>
+    <link rel="stylesheet" href="/static/css/editspells.css">
+</head>
+<body>
+<div class="container">
+    <header class="prep-header">
+        <h1>Редактор Заклинаний</h1>
+        <div class="header-actions">
+            <a href="/" class="btn">Вернуться в систему</a>
+        </div>
+    </header>
+
+    <div id="notification"></div>
+
+    <div class="panel">
+        <form id="spellForm">
+            <div class="form-grid">
+                <!-- Базовая информация -->
+                <div class="form-group">
+                    <label for="name_ru">Название (RU)</label>
+                    <input type="text" id="name_ru" name="name_ru" class="input-box" required placeholder="Огненный шар">
+                </div>
+                <div class="form-group">
+                    <label for="name_en">Название (EN)</label>
+                    <input type="text" id="name_en" name="name_en" class="input-box" required placeholder="Fireball">
+                </div>
+
+                <div class="form-group">
+                    <label for="level">Уровень</label>
+                    <input type="number" id="level" name="level" class="input-box" min="0" max="9" required placeholder="3">
+                </div>
+                <div class="form-group">
+                    <label for="school">Школа магии</label>
+                    <input type="text" id="school" name="school" class="input-box" required placeholder="Воплощение">
+                </div>
+
+                <!-- Механики -->
+                <div class="form-group">
+                    <label for="casting_time">Время накладывания</label>
+                    <input type="text" id="casting_time" name="casting_time" class="input-box" required placeholder="1 действие">
+                </div>
+                <div class="form-group">
+                    <label for="range">Дистанция</label>
+                    <input type="text" id="range" name="range" class="input-box" required placeholder="150 футов">
+                </div>
+
+                <div class="form-group">
+                    <label for="components">Компоненты</label>
+                    <input type="text" id="components" name="components" class="input-box" required placeholder="В, С, М">
+                </div>
+                <div class="form-group">
+                    <label for="duration">Длительность</label>
+                    <input type="text" id="duration" name="duration" class="input-box" required placeholder="Мгновенная">
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="source">Источник</label>
+                    <input type="text" id="source" name="source" class="input-box" placeholder="Книга Игрока">
+                </div>
+
+                <!-- Классы чекбоксами -->
+                <div class="form-group full-width">
+                    <label>Классы</label>
+                    <div class="checkbox-grid">
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Бард"> Бард</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Жрец"> Жрец</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Друид"> Друид</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Паладин"> Паладин</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Следопыт"> Следопыт</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Чародей"> Чародей</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Колдун"> Колдун</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Волшебник"> Волшебник</label>
+                        <label class="checkbox-label"><input type="checkbox" name="classes" value="Изобретатель"> Изобретатель</label>
+                    </div>
+                </div>
+
+                <div class="form-group full-width">
+                    <label for="description">Описание</label>
+                    <textarea id="description" name="description" class="input-box" required placeholder="Светящийся крошечный шарик вылетает из вашего пальца..."></textarea>
+                </div>
+
+                <div class="form-group full-width" style="margin-top: 1rem;">
+                    <button type="submit" class="btn btn-success" style="padding: 1rem; font-size: 1.1rem;">
+                        ✦ Добавить в гримуар ✦
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <footer class="footer">
+        <p>«Магия требует точности. Одна неверная руна, и от вас останется лишь пепел.»</p>
+    </footer>
+</div>
+
+<script src="/static/js/editspells.js"></script>
+</body>
+</html>

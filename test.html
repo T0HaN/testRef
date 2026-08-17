@@ -1,0 +1,1731 @@
+
+Gemini
+Новый чат
+Поиск по чатам
+Видео
+Библиотека
+Новый блокнот
+сайт для проведения партий днд
+Арт-художник создает референсы для 3D
+Скрипт очистки и страница заклинаний
+ты - fullstack разработчик с большим опытом работы. проанализируй мое приложение. import os import re import random import string import uuid from datetime import datetime, timedelta from typing import Optional, List, Dict, Any from contextlib import asynccontextmanager from fastapi import FastAPI, Request, Depends, HTTPException, status, Form, Cookie from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse from fastapi.staticfiles import StaticFiles from fastapi.templating import Jinja2Templates from werkzeug.security import generate_password_hash, check_password_hash import json from config import settings from models import ( UserLogin, RoomCreate, RewardRequest, RollRequest, AmmoUseRequest, CharacterCreate, CharacterUpdate ) from dependencies import ( get_current_user, require_player, require_master, require_in_room ) from utils import * from sse import add_sse_listener, remove_sse_listener, broadcast_room_event, sse_generator from fastapi import UploadFile, File import base64 from utils import CLASSES_DATA, EQUIPMENT_DATA, SPELLS_DATA import asyncio from fastapi import WebSocket, WebSocketDisconnect from typing import Set, Dict import json import time # Глобальное хранилище активных комнат active_rooms: Dict[str, Dict] = {} async def broadcast_to_room(room_id: str, message: dict, exclude: WebSocket = None): room = get_room_ws_data(room_id) dead = [] for ws in room['clients']: if ws == exclude: continue try: await ws.send_json(message) except Exception: dead.append(ws) for ws in dead: del room['clients'][ws] EQUIPMENT_DATA = load_equipment() print(f" EQUIPMENT_DATA загружен. Ключи: {list(EQUIPMENT_DATA.keys())}") # === Lifespan === @asynccontextmanager async def lifespan(app: FastAPI): # === Startup === print("\n" + "=" * 50) print("🚀 Запуск D&D Character Manager") print("=" * 50) # Загрузка статических данных print("\n Загрузка данных...") init_static_data() # АВТОМАТИЧЕСКИЕ МИГРАЦИИ print("\n🔧 Запуск миграций...") migrate_equipment() migrate_all_chars() print("\n" + "=" * 50) print(" Приложение готово к работе") print("=" * 50 + "\n") yield # === Shutdown === print("\n Завершение работы приложения") # === App === app = FastAPI( title="D&D Character Manager", description="Приложение для управления персонажами D&D 5e", version="1.0.0", lifespan=lifespan ) # Static files & templates app.mount("/static", StaticFiles(directory=str(settings.STATIC_DIR)), name="static") templates = Jinja2Templates(directory=str(settings.TEMPLATES_DIR)) # Custom filter for templates # После создания templates: def nl2br_filter(s: str): """Заменяет переносы строк на <br>""" from markupsafe import Markup return Markup(s.replace('\n', '<br>\n')) if s else '' templates.env.filters['nl2br'] = nl2br_filter # === Фильтры Jinja2 === from datetime import datetime def timestamp_to_date(ts): """Преобразует Unix-timestamp в читаемую дату""" try: return datetime.fromtimestamp(int(ts)).strftime('%d.%m.%Y %H:%M') except (ValueError, TypeError, OSError): return '—' templates.env.filters['timestamp_to_date'] = timestamp_to_date from pydantic import BaseModel class TokenUpload(BaseModel): image: str # base64 data URL @app.post("/char/{char_id}/token/upload") async def upload_token( char_id: int, token_data: TokenUpload, current_user: dict = Depends(require_player) ): print(f"🔥 [UPLOAD] Запрос на загрузку токена. char_id={char_id}, user={current_user['username']}") chars = load_chars(current_user['username']) # ✅ Прямое сравнение чисел (оба int) char = next((c for c in chars if c['id'] == char_id), None) if not char: print(f"❌ [UPLOAD] Персонаж с id={char_id} НЕ НАЙДЕН в списке!") return {"status": "error", "error": "Персонаж не найден"} if len(token_data.image) > 3 * 1024 * 1024: print(f"❌ [UPLOAD] Изображение слишком большое: {len(token_data.image)} байт") return {"status": "error", "error": "Изображение слишком большое"} char['token_image'] = token_data.image print(f" [UPLOAD] Токен присвоен персонажу. Длина base64: {len(token_data.image)} символов") save_chars(current_user['username'], chars) print(f" [UPLOAD] Функция save_chars выполнена") return {"status": "ok", "message": "Токен загружен"} @app.post("/char/{char_id}/token/remove") async def remove_token( char_id: int, current_user: dict = Depends(require_player) ): """Удаление токена персонажа""" chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char['token_image'] = None save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}", status_code=303) # === Middleware for sessions (cookie-based) === @app.middleware("http") async def session_middleware(request: Request, call_next): response = await call_next(request) # Здесь можно добавить логику обновления cookie-сессии return response # === Login page === @app.get("/login", response_class=HTMLResponse) async def login_page(request: Request): session_cookie = request.cookies.get('session') if session_cookie: try: user = json.loads(session_cookie) if user.get('expires', 0) > time.time(): return RedirectResponse( url="/master" if user.get('role') == 'master' else "/chars", status_code=303 ) except: pass # Используем context= keyword argument return templates.TemplateResponse(request, "login.html", context={}) @app.post("/login") async def login( request: Request, username: str = Form(...), password: str = Form(...), action: str = Form(...), role: str = Form("player") ): username = username.strip().lower() users = load_users() if action == 'register': if username in users: return templates.TemplateResponse(request, "login.html", context={ "error": "Пользователь уже существует", "role": role }) # 🔑 Используем 'password_hash' вместо 'password' users[username] = { 'password_hash': generate_password_hash(password), 'role': role } save_users(users) return templates.TemplateResponse(request, "login.html", context={ "success": "Аккаунт создан! Войдите в систему.", "role": role }) else: # 🔑 Защита от отсутствия ключа (на случай старых данных) user_data = users.get(username, {}) stored_hash = user_data.get('password_hash') or user_data.get('password') if not stored_hash or not check_password_hash(stored_hash, password): return templates.TemplateResponse(request, "login.html", context={ "error": "Неверный логин или пароль", "role": role }) session = json.dumps({ 'username': username, 'role': user_data.get('role', 'player'), 'expires': (datetime.now() + timedelta(days=1)).timestamp() }) response = RedirectResponse( url="/chars" if user_data.get('role') == 'player' else "/master", status_code=303 ) response.set_cookie("session", session, httponly=True, max_age=86400, samesite="lax") return response @app.get("/logout") async def logout(): response = RedirectResponse(url="/login", status_code=303) response.delete_cookie("session") return response # === Routes: Master === @app.get("/master", response_class=HTMLResponse) async def master_dashboard( request: Request, current_user: dict = Depends(require_master) ): """Панель управления мастера""" rooms_data = load_rooms() # 🔍 Отладка: смотрим, что возвращает load_rooms print(f"\n🔍 [DEBUG] Текущий пользователь: {current_user['username']}") print(f"🔍 [DEBUG] Всего комнат: {len(rooms_data.get('rooms', []))}") for r in rooms_data.get('rooms', []): print( f" - Комната '{r.get('name')}': master_id={r.get('master_id')} (тип: {type(r.get('master_id')).__name__})") # Показываем только комнаты этого мастера my_rooms = [r for r in rooms_data.get('rooms', []) if r.get('master_id') == current_user['username']] print(f"🔍 [DEBUG] Комнат мастера: {len(my_rooms)}") return templates.TemplateResponse(request, "master_dashboard.html", context={ "rooms": my_rooms, "username": current_user['username'], "error": None, "success": None }) @app.post("/master/room/create") async def create_room( request: Request, name: str = Form(...), description: Optional[str] = Form(""), max_players: int = Form(6), current_user: dict = Depends(require_master) ): name = name.strip() if not name: return templates.TemplateResponse(request, "master_dashboard.html", { "request": request, "error": "Название комнаты обязательно", "rooms": [r for r in load_rooms()['rooms'] if r.get('master') == current_user['username']] }) rooms_data = load_rooms() # ✅ Адаптировано под БД: # - Убрали 'id' (БД генерирует автоматически) # - Используем 'master' вместо 'master_id' (save_rooms сконвертирует username в числовой ID) # - Убрали 'current_players' (это отдельная таблица room_players) # - Убрали 'created_at' (в БД есть DEFAULT NOW()) new_room = { 'master': current_user['username'], # ← save_rooms найдёт числовой ID 'name': name, 'description': description.strip(), 'invite_code': generate_invite_code(), 'max_players': max(1, min(max_players, 10)), 'active': True } rooms_data['rooms'].append(new_room) save_rooms(rooms_data) # ← После этого new_room['id'] будет реальным числовым ID из БД # ✅ Опционально: можно показать flash-сообщение с кодом # (используем query-параметр вместо cookie, чтобы избежать проблем с кодировкой) return RedirectResponse( url=f"/master?room_created={new_room['invite_code']}", status_code=303 ) @app.post("/master/room/delete/{room_id}") async def delete_room( room_id: str, request: Request, current_user: dict = Depends(require_master) ): # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return RedirectResponse(url="/master", status_code=303) rooms_data = load_rooms() rooms_data['rooms'] = [ r for r in rooms_data['rooms'] if not (r['id'] == room_id_int and r['master_id'] == current_user['username']) ] save_rooms(rooms_data) return RedirectResponse(url="/master", status_code=303) @app.get("/master/room/{room_id}/events") async def master_room_events( room_id: str, request: Request, current_user: dict = Depends(require_master) ): """SSE endpoint для мастера""" # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return StreamingResponse(iter([]), status_code=404) rooms_data = load_rooms() room = next( (r for r in rooms_data['rooms'] if r['id'] == room_id_int and r['master_id'] == current_user['username']), None ) if not room: return StreamingResponse(iter([]), status_code=404) # ✅ Используем строковое представление для очереди событий queue = add_sse_listener(str(room_id_int)) async def event_stream(): try: while True: if queue: event = queue.pop(0) yield f"event: {event['event']}\ndata: {json.dumps(event['data'], ensure_ascii=False)}\n\n" else: await asyncio.sleep(0.5) finally: remove_sse_listener(str(room_id_int), queue) return StreamingResponse( event_stream(), media_type="text/event-stream", headers={ "Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no" # Для nginx } ) @app.get("/master/room/{room_id}/char/{char_id}", response_class=HTMLResponse) async def master_char_view( room_id: str, char_id: int, request: Request, current_user: dict = Depends(require_master) ): """Просмотр листа персонажа игрока из комнаты мастера""" # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return RedirectResponse(url="/master", status_code=303) # Проверяем, что комната принадлежит мастеру rooms_data = load_rooms() room = next( (r for r in rooms_data['rooms'] if r['id'] == room_id_int and r['master_id'] == current_user['username']), None ) if not room: return RedirectResponse(url="/master", status_code=303) # Ищем игрока в комнате # ✅ Преобразуем char_id для сравнения player_entry = next( (p for p in room.get('current_players', []) if int(p.get('char_id', 0)) == char_id), None ) if not player_entry: return RedirectResponse(url=f"/master/room/{room_id}", status_code=303) # Загружаем персонажа user_chars = load_chars(player_entry['username']) char = next((c for c in user_chars if c['id'] == char_id), None) if not char: return RedirectResponse(url=f"/master/room/{room_id}", status_code=303) char = normalize_char(char) char['_calculated_ac'] = calculate_ac(char) # Подготавливаем данные saves, skills = prepare_skills_and_saves(char) features = get_class_features( char.get('char_class', ''), char.get('subclass', 'Нет'), char.get('level', 1) ) # Прогресс опыта current_level = char.get('level', 1) current_xp = char.get('xp', 0) xp_progress = get_level_progress(current_xp, current_level) next_level_xp = XP_THRESHOLDS[current_level] if current_level < 20 else "MAX" return templates.TemplateResponse(request, "character_view.html", context={ "char": char, "saves": saves, "skills": skills, "class_features": features, "back_url": f"/master/room/{room_id}", "back_text": "← Назад в комнату", "current_user": current_user, "xp_progress": xp_progress, "next_level_xp": next_level_xp, "error": None, "success": None }) # === Routes: Player === @app.get("/chars", response_class=HTMLResponse) async def player_chars( request: Request, current_user: dict = Depends(require_player) ): """Список персонажей игрока""" chars = load_chars(current_user['username']) # Нормализуем каждого персонажа для безопасного доступа к полям normalized_chars = [] for char in chars: c = normalize_char(char) # Добавляем вычисленные поля для отображения c['_ac_calculated'] = calculate_ac(c) normalized_chars.append(c) return templates.TemplateResponse(request, "CharList1.html", context={ "chars": normalized_chars, "username": current_user['username'], "role": current_user.get('role', 'player'), "error": None, "success": None, "info": None }) @app.get("/player/join", response_class=HTMLResponse) async def player_join_page( request: Request, code: Optional[str] = None, char_id: Optional[int] = None, current_user: dict = Depends(require_player) ): """Страница подключения к комнате""" chars = load_chars(current_user['username']) # Загружаем профиль игрока с историей комнат profile = load_user_profile(current_user['username']) joined_room_ids = profile.get('joined_rooms', []) # Получаем данные о сохранённых комнатах rooms_data = load_rooms() my_rooms = [] for room_id in joined_room_ids: # ✅ Преобразуем room_id в число для сравнения try: room_id_int = int(room_id) except (ValueError, TypeError): continue room = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if room: my_rooms.append({ 'id': room['id'], 'name': room['name'], 'invite_code': room['invite_code'], 'active': room.get('active', True), 'master_id': room.get('master_id', ''), 'current_players': len(room.get('current_players', [])), 'max_players': room.get('max_players', 6) }) # Если передан char_id — предзаполняем preselected_char = None if char_id: preselected_char = next((c for c in chars if c['id'] == char_id), None) if preselected_char: preselected_char = normalize_char(preselected_char) return templates.TemplateResponse(request, "player_join.html", context={ "chars": [normalize_char(c) for c in chars], "preselected_char": preselected_char, "code": code or '', "my_rooms": my_rooms, # ← список сохранённых комнат "username": current_user['username'], "error": None, "success": None }) @app.post("/player/join") async def player_join( request: Request, code: str = Form(...), char_id: int = Form(...), current_user: dict = Depends(require_player) ): """Подключение игрока к комнате по коду""" code = code.strip().upper() chars = load_chars(current_user['username']) # char_id из формы уже int (спасибо FastAPI) char = next((c for c in chars if c['id'] == char_id), None) if not char: return templates.TemplateResponse(request, "player_join.html", context={ "chars": [normalize_char(c) for c in chars], "preselected_char": None, "code": code, "my_rooms": [], "username": current_user['username'], "error": "Персонаж не найден", "success": None }) rooms_data = load_rooms() # Ищем комнату по invite_code (это строка, не числовой ID) room = next((r for r in rooms_data['rooms'] if r.get('invite_code') == code), None) if not room: return templates.TemplateResponse(request, "player_join.html", context={ "chars": [normalize_char(c) for c in chars], "preselected_char": None, "code": code, "my_rooms": [], "username": current_user['username'], "error": "Комната с таким кодом не найдена", "success": None }) if not room.get('active', True): return templates.TemplateResponse(request, "player_join.html", context={ "chars": [normalize_char(c) for c in chars], "preselected_char": None, "code": code, "my_rooms": [], "username": current_user['username'], "error": "Комната закрыта", "success": None }) # Проверяем, не подключён ли уже for p in room.get('current_players', []): if p.get('username') == current_user['username']: return RedirectResponse(url=f"/player/room/{room['id']}", status_code=303) if len(room.get('current_players', [])) >= room.get('max_players', 6): return templates.TemplateResponse(request, "player_join.html", context={ "chars": [normalize_char(c) for c in chars], "preselected_char": None, "code": code, "my_rooms": [], "username": current_user['username'], "error": "Комната заполнена", "success": None }) # Подключаем игрока room.setdefault('current_players', []).append({ 'username': current_user['username'], 'char_id': char_id, # Сохраняем как число 'char_name': char['name'], 'joined_at': datetime.now().isoformat(), 'last_active': time.time() }) save_rooms(rooms_data) # Сохраняем комнату в историю игрока (передаем ID как строку) add_room_to_player_history(current_user['username'], str(room['id'])) return RedirectResponse(url=f"/player/room/{room['id']}", status_code=303) @app.get("/player/join/{room_id}") async def quick_join( room_id: str, request: Request, current_user: dict = Depends(require_player) ): """Быстрое подключение к сохранённой комнате""" print(f"\n🔍 [DEBUG] quick_join вызван с room_id={room_id}") try: room_id_int = int(room_id) except (ValueError, TypeError): return RedirectResponse(url="/player/join", status_code=303) rooms_data = load_rooms() room = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if not room: return RedirectResponse(url="/player/join", status_code=303) if not room.get('active', True): return RedirectResponse(url="/player/join?error=room_closed", status_code=303) chars = load_chars(current_user['username']) if not chars: return RedirectResponse(url="/chars", status_code=303) for p in room.get('current_players', []): if p.get('username') == current_user['username']: return RedirectResponse(url=f"/player/room/{room_id}", status_code=303) if len(room.get('current_players', [])) >= room.get('max_players', 6): return RedirectResponse(url="/player/join?error=room_full", status_code=303) char = chars[0] # 🔍 ОТЛАДКА print( f"🔍 [DEBUG quick_join] Выбираем персонажа: id={char['id']} (тип: {type(char['id']).__name__}), name={char.get('name')}") # Подключаем room.setdefault('current_players', []).append({ 'username': current_user['username'], 'char_id': char['id'], 'char_name': char['name'], 'joined_at': datetime.now().isoformat() }) print(f"🔍 [DEBUG quick_join] Добавлен игрок в current_players: {room['current_players'][-1]}") save_rooms(rooms_data) print(f"🔍 [DEBUG quick_join] Вызван save_rooms") add_room_to_player_history(current_user['username'], str(room_id_int)) return RedirectResponse(url=f"/player/room/{room_id}", status_code=303) @app.get("/player/room/{room_id}", response_class=HTMLResponse) async def player_room( room_id: str, request: Request, current_user: dict = Depends(require_player) ): """Страница комнаты для игрока""" # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return RedirectResponse(url="/player/join", status_code=303) rooms_data = load_rooms() room = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if not room: return RedirectResponse(url="/player/join", status_code=303) # 🔍 ОТЛАДКА: смотрим, что вернул load_rooms print(f"\n{'=' * 60}") print(f"🔍 [player_room] room_id={room_id_int}") print(f"🔍 [player_room] current_user={current_user['username']}") print(f"🔍 [player_room] current_players в комнате:") for p in room.get('current_players', []): print( f" - username={p.get('username')}, char_id={p.get('char_id')} (тип: {type(p.get('char_id')).__name__}), char_name={p.get('char_name')}") # Проверяем, что игрок подключён player_entry = next( (p for p in room.get('current_players', []) if p.get('username') == current_user['username']), None ) if not player_entry: print(f"❌ [player_room] Игрок {current_user['username']} не найден в current_players") return RedirectResponse(url="/player/join?error=not_connected", status_code=303) print(f"🔍 [player_room] player_entry={player_entry}") # Загружаем персонажа chars = load_chars(current_user['username']) print(f"🔍 [player_room] Загружено персонажей для {current_user['username']}: {len(chars)}") for c in chars: print(f" - char id={c['id']} (тип: {type(c['id']).__name__}), name={c.get('name')}") # ✅ Преобразуем char_id для сравнения player_char_id = player_entry.get('char_id') print(f"🔍 [player_room] Ищем персонажа с char_id={player_char_id} (тип: {type(player_char_id).__name__})") try: player_char_id_int = int(player_char_id) except (ValueError, TypeError): print(f"❌ [player_room] Не удалось преобразовать char_id в число: {player_char_id}") return RedirectResponse(url="/player/join?error=no_char", status_code=303) char = next((c for c in chars if c['id'] == player_char_id_int), None) print(f"🔍 [player_room] Персонаж найден: {char is not None}") if not char: print(f"❌ [player_room] Персонаж с id={player_char_id_int} не найден в списке персонажей игрока") return RedirectResponse(url="/player/join?error=no_char", status_code=303) char = normalize_char(char) # Подготавливаем данные для проверок saves, skills = prepare_skills_and_saves(char) # Проверяем, заклинатель ли персонаж char_class = char.get('char_class', '') is_spellcaster = char_class in ['Волшебник', 'Жрец', 'Бард', 'Колдун', 'Чародей', 'Друид', 'Паладин', 'Следопыт', 'Изобретатель'] # Загружаем известные заклинания known_spells = [] if is_spellcaster: known_spells_names = char.get('inventory', {}).get('known_spells', []) _, known_spells, _ = get_spells_for_class(char_class, char.get('level', 1), known_spells_names) print( f"🔍 [DEBUG PLAYER] char.id={char.get('id')}, token_image есть? {'ДА (длина: ' + str(len(str(char.get('token_image', '')))) + ')' if char.get('token_image') else 'НЕТ (ПУСТО)'}") return templates.TemplateResponse(request, "player_room.html", context={ "room": room, "char": char, "saves": saves, "skills": skills, "is_spellcaster": is_spellcaster, "known_spells": known_spells, "username": current_user['username'], "error": None, "success": None }) @app.get("/player/room/{room_id}/events") async def player_room_events( room_id: str, request: Request, current_user: dict = Depends(require_player) ): """SSE для игроков (только броски)""" # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return StreamingResponse(iter([]), status_code=404) rooms_data = load_rooms() room = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if not room: return StreamingResponse(iter([]), status_code=404) if not any(p['username'] == current_user['username'] for p in room.get('current_players', [])): return StreamingResponse(iter([]), status_code=403) # ✅ Используем строковое представление для очереди событий queue = add_sse_listener(str(room_id_int)) async def event_stream(): try: while True: if queue: event = queue.pop(0) if event['event'] == 'roll_added': yield f"event: {event['event']}\ndata: {json.dumps(event['data'], ensure_ascii=False)}\n\n" else: await asyncio.sleep(0.5) finally: remove_sse_listener(str(room_id_int), queue) return StreamingResponse( event_stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"} ) @app.post("/player/room/ammo/use") async def use_ammo( ammo: AmmoUseRequest, current_user: dict = Depends(require_player) ): room_id = current_user.get('current_room') if not room_id: raise HTTPException(status_code=400, detail="Not in room") # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): raise HTTPException(status_code=400, detail="Invalid room_id") rooms_data = load_rooms() room = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if not room: raise HTTPException(status_code=404, detail="Room not found") player_entry = next( (p for p in room['current_players'] if p['username'] == current_user['username']), None ) if not player_entry: raise HTTPException(status_code=404, detail="Player not found") user_chars = load_chars(current_user['username']) # ✅ Преобразуем char_id для сравнения player_char_id = player_entry.get('char_id') try: player_char_id_int = int(player_char_id) except (ValueError, TypeError): raise HTTPException(status_code=404, detail="Invalid char_id") char = next((c for c in user_chars if c['id'] == player_char_id_int), None) if not char: raise HTTPException(status_code=404, detail="Character not found") char = normalize_char(char) ammo_list = char['inventory'].get(ammo.ammo_type, []) remaining = ammo.qty for item in ammo_list: if remaining <= 0: break if item.get('qty', 0) > 0: use_amount = min(remaining, item['qty']) item['qty'] -= use_amount remaining -= use_amount save_chars(current_user['username'], user_chars) return {'status': 'ok', 'remaining': char['inventory'].get(ammo.ammo_type, [])} @app.post("/room/{room_id}/roll/history") async def save_roll_history( room_id: str, roll: RollRequest, request: Request, current_user: dict = Depends(get_current_user) ): # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): raise HTTPException(status_code=400, detail="Invalid room_id") rooms_data = load_rooms() room = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if not room: raise HTTPException(status_code=404, detail="Room not found") is_master = (current_user.get('role') == 'master' and room['master_id'] == current_user['username']) is_player = any(p['username'] == current_user['username'] for p in room.get('current_players', [])) if not (is_master or is_player): raise HTTPException(status_code=403, detail="Access denied") roll_entry = { 'id': f"roll_{int(time.time() * 1000)}", 'timestamp': time.time(), 'player': current_user['username'], **roll.dict() } room.setdefault('roll_history', []) room['roll_history'].insert(0, roll_entry) room['roll_history'] = room['roll_history'][:100] save_rooms(rooms_data) # ✅ Используем строковое представление для broadcast broadcast_room_event(str(room_id_int), 'roll_added', roll_entry) return {'status': 'ok', 'roll': roll_entry} @app.get("/player/room/{room_id}/leave") async def leave_room( room_id: str, request: Request, current_user: dict = Depends(require_player) ): """Выход игрока из комнаты""" print(f"\n🔍 [leave_room] Игрок {current_user['username']} выходит из комнаты {room_id}") try: room_id_int = int(room_id) except (ValueError, TypeError): return RedirectResponse(url="/chars", status_code=303) rooms_data = load_rooms() room = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if room: # Удаляем игрока из current_players room['current_players'] = [ p for p in room.get('current_players', []) if p.get('username') != current_user['username'] ] print(f"🔍 [leave_room] current_players после удаления: {room['current_players']}") save_rooms(rooms_data) # Уведомляем остальных через WebSocket broadcast_room_event(str(room_id_int), 'player_left', { 'username': current_user['username'] }) return RedirectResponse(url="/chars", status_code=303) @app.post("/player/heartbeat") async def player_heartbeat(current_user: dict = Depends(require_player)): """Обновляет время последней активности игрока во всех комнатах, где он есть""" # ⚠️ В БД current_players хранится в таблице room_players # Нужно обновлять last_active в этой таблице from utils import get_db_connection from psycopg2.extras import RealDictCursor with get_db_connection() as conn: with conn.cursor() as cur: # Получаем ID пользователя cur.execute("SELECT id FROM users WHERE username = %s", (current_user['username'],)) user_row = cur.fetchone() if not user_row: return {'status': 'ok'} user_id = user_row[0] if isinstance(user_row, tuple) else user_row['id'] # Обновляем last_active во всех комнатах, где игрок подключён cur.execute(""" UPDATE room_players SET last_active = NOW() WHERE user_id = %s """, (user_id,)) conn.commit() return {'status': 'ok'} # === Character routes === @app.get("/char/{char_id}", response_class=HTMLResponse) async def view_char( char_id: int, request: Request, current_user: dict = Depends(require_player) ): chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) # 🔥 Теперь автоматически пересчитает level и prof_bonus char['_calculated_ac'] = calculate_ac(char) saves, skills = prepare_skills_and_saves(char) features = get_class_features(char.get('char_class', ''), char.get('subclass', 'Нет'), char.get('level', 1)) # 🔥 Прогресс опыта current_level = char.get('level', 1) current_xp = char.get('xp', 0) xp_progress = get_level_progress(current_xp, current_level) next_level_xp = XP_THRESHOLDS[current_level] if current_level < 20 else "MAX" return templates.TemplateResponse(request, "character_view.html", context={ "char": char, "saves": saves, "skills": skills, "class_features": features, "back_url": "/chars", "back_text": "← Назад к списку", "current_user": current_user, "xp_progress": xp_progress, "next_level_xp": next_level_xp, "error": None, "success": None }) async def broadcast_ws_event(room_id: str, message: dict): """Отправляет сообщение всем WebSocket-клиентам комнаты""" room = get_room_ws_data(room_id) dead = [] for ws in room['clients']: try: await ws.send_json(message) except Exception: dead.append(ws) for ws in dead: if ws in room['clients']: del room['clients'][ws] @app.post("/char/{char_id}/hp") async def update_hp( char_id: int, username: str = Form(...), current_hp: int = Form(...), temp_hp: int = Form(0), room_id: Optional[str] = Form(None), current_user: dict = Depends(get_current_user) ): """Обновление текущего и временного здоровья персонажа""" if current_user['role'] == 'player' and current_user['username'] != username: raise HTTPException(status_code=403, detail="Нет прав на изменение этого персонажа") user_chars = load_chars(username) char = next((c for c in user_chars if c['id'] == char_id), None) if not char: raise HTTPException(status_code=404, detail="Персонаж не найден") char.setdefault('hp', {'current': 10, 'max': 10, 'temp': 0}) char['hp']['current'] = max(0, current_hp) char['hp']['temp'] = max(0, temp_hp) save_chars(username, user_chars) # 🆕 Отправляем через WebSocket (вместо SSE) if room_id: try: room_id_int = int(room_id) # Используем broadcast_to_room из WebSocket-логики await broadcast_ws_event(str(room_id_int), { 'type': 'hp_update', 'char_id': char_id, 'username': username, 'hp_current': char['hp']['current'], 'hp_temp': char['hp']['temp'], 'hp_max': char['hp']['max'], 'updated_by': current_user['username'] }) print(f"📡 [HP_UPDATE] Отправлено через WS для комнаты {room_id_int}") except Exception as e: print(f"⚠️ Ошибка отправки HP_UPDATE: {e}") return { "status": "ok", "current_hp": char['hp']['current'], "temp_hp": char['hp']['temp'], "max_hp": char['hp']['max'] } @app.post("/char/{char_id}/armor/delete/{idx}") async def delete_armor( char_id: int, idx: int, current_user: dict = Depends(require_player) ): """Удаление брони из инвентаря""" chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) armor_list = char.get('inventory', {}).get('armor', []) if 0 <= idx < len(armor_list): armor_list.pop(idx) save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) @app.post("/char/{char_id}/gear/delete/{idx}") async def delete_gear( char_id: int, idx: int, current_user: dict = Depends(require_player) ): """Полное удаление предмета из инвентаря""" chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) gear_list = char.get('inventory', {}).get('gear', []) if 0 <= idx < len(gear_list): gear_list.pop(idx) save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) @app.post("/char/{char_id}/gear/decrease/{idx}") async def decrease_gear( char_id: int, idx: int, current_user: dict = Depends(require_player) ): """Уменьшить количество предмета на 1""" chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) gear_list = char.get('inventory', {}).get('gear', []) if 0 <= idx < len(gear_list): item = gear_list[idx] current_qty = item.get('qty', 1) or 1 if current_qty > 1: item['qty'] = current_qty - 1 else: gear_list.pop(idx) save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) # 🔗 Описание персонажа (GET + POST) @app.get("/char/{char_id}/description", response_class=HTMLResponse) async def view_description( char_id: int, request: Request, current_user: dict = Depends(require_player) ): """Страница описания персонажа""" chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) # 🔥 Отладка: смотрим, что загружаем print(f" Загрузка описания для char_id={char_id}") print(f" appearance: '{char.get('description_appearance', 'NOT SET')[:50]}'") print(f" background: '{char.get('description_background', 'NOT SET')[:50]}'") print(f" image: {'YES' if char.get('description_image') else 'NO'}") char = normalize_char(char) # Теперь это безопасно, т.к. поля есть в normalize_char return templates.TemplateResponse(request, "char_description.html", context={ "char": char, "error": None, "success": None }) @app.post("/char/{char_id}/description") async def save_description( char_id: int, request: Request, char_image: Optional[UploadFile] = File(None), remove_image: Optional[str] = Form(None), appearance: str = Form(""), background: str = Form(""), allies: str = Form(""), personality: str = Form(""), ideals: str = Form(""), bonds: str = Form(""), flaws: str = Form(""), current_user: dict = Depends(require_player) ): """Сохранение описания персонажа и изображения""" chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) # 🔥 Отладка: смотрим, что пришло print(f"🔍 Сохранение описания для char_id={char_id}") print(f" appearance: '{appearance[:50]}...' if len(appearance) > 50 else appearance") print(f" background: '{background[:50]}...' if len(background) > 50 else background") # НЕ вызываем normalize_char здесь, чтобы не затереть данные # char = normalize_char(char) # ❌ Убери эту строку try: # Обработка текстовых полей char['description_appearance'] = appearance.strip() char['description_background'] = background.strip() char['description_allies'] = allies.strip() char['description_personality'] = personality.strip() char['description_ideals'] = ideals.strip() char['description_bonds'] = bonds.strip() char['description_flaws'] = flaws.strip() # 🔥 Отладка: проверяем, что записали print(f" После записи: appearance='{char['description_appearance'][:50]}'") # Обработка изображения if remove_image == "1": char['description_image'] = None elif char_image and char_image.filename: content = await char_image.read() if len(content) > 5 * 1024 * 1024: return templates.TemplateResponse(request, "char_description.html", context={ "char": char, "error": "Файл слишком большой! Максимум 5MB.", "success": None }) if char_image.content_type not in ['image/jpeg', 'image/png', 'image/gif', 'image/webp']: return templates.TemplateResponse(request, "char_description.html", context={ "char": char, "error": "Неподдерживаемый формат изображения.", "success": None }) image_base64 = base64.b64encode(content).decode('utf-8') char['description_image'] = f"data:{char_image.content_type};base64,{image_base64}" print(f" Изображение сохранено, размер: {len(char['description_image'])} символов") # 🔥 Отладка: проверяем перед сохранением print(f" Перед save_chars: appearance='{char.get('description_appearance', 'NOT SET')}'") save_chars(current_user['username'], chars) # 🔥 Отладка: проверяем после сохранения chars_check = load_chars(current_user['username']) char_check = next((c for c in chars_check if c['id'] == char_id), None) if char_check: print(f" После save_chars: appearance='{char_check.get('description_appearance', 'NOT SET')}'") except Exception as e: print(f"❌ Ошибка сохранения: {e}") import traceback traceback.print_exc() return templates.TemplateResponse(request, "char_description.html", context={ "char": char, "error": f"Ошибка сохранения: {str(e)}", "success": None }) return RedirectResponse(url=f"/char/{char_id}/description", status_code=303) @app.get("/char/{char_id}/inventory", response_class=HTMLResponse) async def view_inventory( char_id: int, request: Request, action: Optional[str] = None, idx: Optional[int] = None, current_user: dict = Depends(require_player) ): chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) char['_calculated_ac'] = calculate_ac(char) # Экипировка / снятие брони if action == 'equip_armor' and idx is not None: for i, a in enumerate(char['inventory']['armor']): a['equipped'] = (i == idx) save_chars(current_user['username'], chars) elif action == 'unequip_armor' and idx is not None: if 0 <= idx < len(char['inventory']['armor']): char['inventory']['armor'][idx]['equipped'] = False save_chars(current_user['username'], chars) # Безопасная структура каталога print(f"🔍 EQUIPMENT_DATA keys: {list(EQUIPMENT_DATA.keys())}") equip_catalog = { 'weapons': EQUIPMENT_DATA.get('weapons', {}), 'armor': EQUIPMENT_DATA.get('armor', {}), 'gear': EQUIPMENT_DATA.get('gear', []) } return templates.TemplateResponse(request, "inventory.html", context={ "char": char, "equipment": equip_catalog, "error": None, "success": None }) @app.post("/char/{char_id}/equipment/buy") async def buy_equipment( char_id: int, request: Request, current_user: dict = Depends(require_player) ): form = await request.form() chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) item_name = form.get('item_name', '').strip() cost_str = form.get('cost', '0 зм') eq_type = form.get('eq_type', 'gear') if not item_name: return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) try: if eq_type == 'weapon': # Ищем предмет в каталоге found_item = None weapon_category = '' for cat_name, items in EQUIPMENT_DATA.get('weapons', {}).items(): for item in items: if item.get('name') == item_name: found_item = item weapon_category = cat_name # simple_melee, martial_ranged и т.д. break if found_item: break if found_item: from utils import parse_damage, map_weapon_type, determine_weapon_proficiency dmg = parse_damage(found_item.get('damage', '1d4')) w_type = map_weapon_type(found_item.get('properties', [])) # Автоматическое определение владения char_class = char.get('char_class', '') is_proficient = determine_weapon_proficiency(char_class, weapon_category, item_name) ammo_type = None if w_type == 'ammunition': name_lower = item_name.lower() if 'арбалет' in name_lower: ammo_type = 'bolts' elif 'лук' in name_lower or 'праща' in name_lower: ammo_type = 'arrows' else: ammo_type = 'arrows' char['inventory']['weapons'].append({ 'name': found_item['name'], 'type': w_type, 'damage': dmg, 'ammo_type': ammo_type, 'description': ', '.join(found_item.get('properties', [])), 'proficient': is_proficient, # Авто-владение 'cost': found_item.get('cost'), 'weight': found_item.get('weight') }) else: char['inventory']['weapons'].append({ 'name': item_name, 'type': 'standard', 'damage': '1d4', 'description': '', 'proficient': True, # Кастомное оружие — по умолчанию владеет 'cost': cost_str }) elif eq_type == 'armor': # ... (без изменений) found_item = None for cat_name, items in EQUIPMENT_DATA.get('armor', {}).items(): for item in items: if item.get('name') == item_name: found_item = item break if found_item: break if found_item: ac_raw = found_item.get('ac', '10') ac_clean = ac_raw.replace(' + модификатор Лов', '').replace('(макс. 2)', '').strip() if not ac_clean.isdigit(): ac_clean = '10' char['inventory']['armor'].append({ 'name': found_item['name'], 'ac': ac_clean, 'stealth': found_item.get('stealth'), 'strength_req': found_item.get('strength_requirement'), 'equipped': False, 'cost': found_item.get('cost'), 'weight': found_item.get('weight') }) else: char['inventory']['armor'].append({ 'name': item_name, 'ac': '10', 'equipped': False, 'cost': cost_str }) else: # gear # ... (без изменений) name_lower = item_name.lower() if 'стрел' in name_lower or 'arrow' in name_lower: existing = next((a for a in char['inventory']['arrows'] if a['name'] == item_name), None) if existing: existing['qty'] += 1 else: char['inventory']['arrows'].append({ 'name': item_name, 'extra_dmg': 0, 'qty': 20 }) elif 'болт' in name_lower or 'bolt' in name_lower: existing = next((b for b in char['inventory']['bolts'] if b['name'] == item_name), None) if existing: existing['qty'] += 1 else: char['inventory']['bolts'].append({ 'name': item_name, 'extra_dmg': 0, 'qty': 20 }) else: existing = next((g for g in char['inventory']['gear'] if g['name'] == item_name), None) if existing: existing['qty'] += 1 else: char['inventory']['gear'].append({ 'name': item_name, 'cost': cost_str, 'qty': 1 }) save_chars(current_user['username'], chars) except Exception as e: print(f"️ Ошибка покупки: {e}") return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) @app.get("/char/{char_id}/spells", response_class=HTMLResponse) async def view_spells( char_id: int, request: Request, current_user: dict = Depends(require_player) ): chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) char_class = char.get('char_class', '') char_level = char.get('level', 1) print(f"\n🔍 [DEBUG] char_class = {char_class}") print(f"🔍 [DEBUG] char_level = {char_level}") print(f"🔍 [DEBUG] CLASSES_DATA keys = {list(CLASSES_DATA.keys())}") if char_class in CLASSES_DATA: cls_data = CLASSES_DATA[char_class] print(f"🔍 [DEBUG] cls_data keys = {list(cls_data.keys())}") print(f"🔍 [DEBUG] level_table = {cls_data.get('level_table', [])}") else: print(f"❌ [DEBUG] {char_class} не найден в CLASSES_DATA") # Для spells.json используем имя класса в нижнем регистре char_class_lower = char_class.lower() known_spells_names = char.get('inventory', {}).get('known_spells', []) available_spells, known_spells, is_prepared_caster = get_spells_for_class( char_class_lower, char_level, known_spells_names ) # Вспомогательная функция для безопасного получения уровня как числа def get_level(spell): try: return int(spell.get('level', 0)) except (ValueError, TypeError): return 0 # Разделяем известные на заговоры и заклинания known_cantrips = [s for s in known_spells if get_level(s) == 0] known_spells_only = [s for s in known_spells if get_level(s) > 0] # Разделяем доступные на заговоры и заклинания available_cantrips = [s for s in available_spells if get_level(s) == 0] available_spells_only = [s for s in available_spells if get_level(s) > 0] # Ищем лимиты в level_table (только если поля существуют) max_cantrips = None max_spells = None if char_class in CLASSES_DATA: cls_data = CLASSES_DATA[char_class] for entry in cls_data.get('level_table', []): if entry.get('level', 0) <= char_level: if 'cantrips_known' in entry: max_cantrips = max(max_cantrips or 0, entry['cantrips_known']) if 'spells_known' in entry: max_spells = max(max_spells or 0, entry['spells_known']) return templates.TemplateResponse(request, "spells.html", context={ "char": char, "available_spells": available_spells, "known_spells": known_spells, "known_cantrips": known_cantrips, "known_spells_only": known_spells_only, "available_cantrips": available_cantrips, "available_spells_only": available_spells_only, "max_cantrips": max_cantrips, "max_spells": max_spells, "is_prepared_caster": is_prepared_caster, "error": None, "success": None, "info": None }) from pydantic import BaseModel from typing import Dict class RewardRequest(BaseModel): xp: int = 0 coins: Dict[str, int] = {} target: str = 'all' # 'all' или char_id (строка) reason: str = '' @app.post("/master/room/{room_id}/reward") async def master_reward( room_id: str, reward: RewardRequest, current_user: dict = Depends(require_master) ): """Выдача наград с гарантированной точностью""" # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return {"status": "error", "error": "Неверный ID комнаты"} rooms_data = load_rooms() room = next( (r for r in rooms_data['rooms'] if r['id'] == room_id_int and r['master_id'] == current_user['username']), None ) if not room: return {"status": "error", "error": "Комната не найдена"} current_players = room.get('current_players', []) print(f"\n🎁 ЗАПРОС НАГРАДЫ: target='{reward.target}' (тип: {type(reward.target)})") print(f"👥 Игроки в комнате: {current_players}") targets = [] # Строгое сравнение со строкой 'all' if str(reward.target).strip().lower() == 'all': for p in current_players: targets.append({ 'username': p.get('username'), 'char_id': p.get('char_id'), 'char_name': p.get('char_name', 'Неизвестно') }) else: try: target_char_id = int(reward.target) print(f"🎯 Ищем персонажа с char_id={target_char_id}") for p in current_players: # Строгое сравнение int с int if int(p.get('char_id', 0)) == target_char_id: targets.append({ 'username': p.get('username'), 'char_id': target_char_id, 'char_name': p.get('char_name', 'Неизвестно') }) break except (ValueError, TypeError): print(f"❌ Неверный char_id: {reward.target}") return {"status": "error", "error": "Неверный ID персонажа"} print(f" ИТОГОВЫЕ ЦЕЛИ ({len(targets)}): {targets}") if not targets: return {"status": "error", "error": "Нет игроков для награды"} rewarded_count = 0 for t in targets: username = t['username'] char_id = t['char_id'] char_name = t['char_name'] print(f"\n📝 Обработка: {char_name} (user={username}, char_id={char_id})") # ✅ Используем load_chars вместо прямой работы с файлами user_chars = load_chars(username) # ✅ Преобразуем char_id в число для сравнения try: char_id_int = int(char_id) except (ValueError, TypeError): continue char = next((c for c in user_chars if c.get('id') == char_id_int), None) if not char: continue # Начисление XP if reward.xp > 0: old_xp = char.get('xp', 0) old_level = char.get('level', 1) char['xp'] = old_xp + reward.xp new_level = calc_level_from_xp(char['xp']) char['level'] = new_level char.setdefault('attributes', {}) char['attributes']['prof_bonus'] = f"+{calc_prof_bonus(new_level)}" print(f" ✨ XP: {old_xp} → {char['xp']} (+{reward.xp})") # Начисление монет if reward.coins: char.setdefault('inventory', {}) char['inventory'].setdefault('coins', {'cp': 0, 'sp': 0, 'ep': 0, 'gp': 0, 'pp': 0}) for coin_type, amount in reward.coins.items(): if amount and amount > 0 and coin_type in char['inventory']['coins']: char['inventory']['coins'][coin_type] += amount # ✅ Используем save_chars вместо прямой записи в файл save_chars(username, user_chars) rewarded_count += 1 # Запись в историю if rewarded_count > 0: room.setdefault('roll_history', []).append({ 'type': 'reward', 'master': current_user['username'], 'targets': [t['char_name'] for t in targets], 'xp': reward.xp, 'coins': reward.coins, 'reason': reward.reason, 'timestamp': time.time() }) save_rooms(rooms_data) return { "status": "ok", "message": f"Награда выдана {rewarded_count} игрокам", "rewarded_count": rewarded_count } def cleanup_stale_players(room_id: str, timeout_seconds: int = 300): """Удаляет игроков, не подававших пульс более timeout_seconds""" # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return # ✅ Работаем с таблицей room_players в БД from utils import get_db_connection with get_db_connection() as conn: with conn.cursor() as cur: # Удаляем неактивных игроков из таблицы room_players cur.execute(""" DELETE FROM room_players WHERE room_id = %s AND last_active < NOW() - INTERVAL '%s seconds' """, (room_id_int, timeout_seconds)) deleted_count = cur.rowcount conn.commit() if deleted_count > 0: print(f"🧹 Очищено {deleted_count} неактивных игроков из комнаты {room_id}") @app.post("/char/{char_id}/spells/learn") async def learn_spell( char_id: int, spell_name: str = Form(...), current_user: dict = Depends(require_player) ): chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) char.setdefault('inventory', {}).setdefault('known_spells', []) if spell_name not in char['inventory']['known_spells']: char['inventory']['known_spells'].append(spell_name) save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/spells", status_code=303) @app.post("/char/{char_id}/spells/forget") async def forget_spell( char_id: int, spell_name: str = Form(...), current_user: dict = Depends(require_player) ): chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) if 'inventory' in char and 'known_spells' in char['inventory']: if spell_name in char['inventory']['known_spells']: char['inventory']['known_spells'].remove(spell_name) save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/spells", status_code=303) @app.get("/new_char", response_class=HTMLResponse) async def new_char_form( request: Request, current_user: dict = Depends(require_player) ): subclasses_map = { cls_name: [s.get('name', '').strip() for s in cls_data.get('subclasses', [])] for cls_name, cls_data in CLASSES_DATA.items() } return templates.TemplateResponse(request, "char_form.html", context={ "races": [ "Ааракокра", "Аасимар", "Автогном", "Астральный эльф", "Багбир", "Ведьмовская кровь", "Ведалкен", "Вердан", "Возрождённый", "Гибрид Симиков", "Гитцерай", "Гитъянки", "Гифф", "Гном", "Гоблин", "Голиаф", "Грунг", "Дампир", "Дварф", "Дженази", "Драконорожденный", "Дуэргар", "Зайцегон", "Калаштар", "Кендер", "Кенку", "Кентавр", "Кобольд", "Кованый", "Леонин", "Локата", "Локсодон", "Людоящер", "Минотавр", "Орк", "Полуорк", "Полурослик", "Полуэльф", "Сатир", "Совлин", "Табакси", "Тифлинг", "Тортл", "Три-крин", "Тритон", "Фирболг", "Фэйри", "Хадози", "Хобгоблин", "Хобгоблин из Страны Фей", "Чейнджлинг", "Человек", "Шадар-кай", "Шифтер", "Эладрин", "Эльф", "Юань-ти" ], "classes": ["Воин", "Волшебник", "Плут", "Жрец", "Бард", "Следопыт", "Паладин", "Варвар", "Друид", "Монах", "Чародей", "Колдун", "Изобретатель"], "subclasses": subclasses_map, "alignments": ["Законопослушный добрый", "Нейтральный добрый", "Хаотичный добрый", "Законопослушный нейтральный", "Истинно нейтральный", "Хаотичный нейтральный", "Законопослушный злой", "Нейтральный злой", "Хаотичный злой"], "stats": ["STR", "DEX", "CON", "INT", "WIS", "CHA"], "stats_ru": { "STR": "Сила", "DEX": "Ловкость", "CON": "Телосложение", "INT": "Интеллект", "WIS": "Мудрость", "CHA": "Харизма" }, "skills": [ ("athletics", "Атлетика", "STR"), ("acrobatics", "Акробатика", "DEX"), ("sleight_of_hand", "Ловкость рук", "DEX"), ("stealth", "Скрытность", "DEX"), ("arcana", "Магия", "INT"), ("history", "История", "INT"), ("investigation", "Расследование", "INT"), ("religion", "Религия", "INT"), ("nature", "Природа", "INT"), ("animal_handling", "Уход за животными", "WIS"), ("insight", "Проницательность", "WIS"), ("medicine", "Медицина", "WIS"), ("perception", "Внимательность", "WIS"), ("survival", "Выживание", "WIS"), ("deception", "Обман", "CHA"), ("intimidation", "Запугивание", "CHA"), ("performance", "Выступление", "CHA"), ("persuasion", "Убеждение", "CHA"), ], "saving_throws": [ ("str_save", "Сила"), ("dex_save", "Ловкость"), ("con_save", "Телосложение"), ("int_save", "Интеллект"), ("wis_save", "Мудрость"), ("cha_save", "Харизма"), ], "username": current_user['username'], "error": None, "success": None, "info": None }) @app.post("/new_char") async def create_character(request: Request, current_user: dict = Depends(require_player)): form = await request.form() try: name = form.get('name', '').strip() race = form.get('race', '') char_class = form.get('char_class', '') subclass = form.get('subclass', 'Нет') alignment = form.get('alignment', 'Истинно нейтральный') xp = int(form.get('xp', 0) or 0) level = calc_level_from_xp(xp) physical = { 'height': form.get('height', ''), 'weight': form.get('weight', ''), 'hair': form.get('hair', ''), 'eyes': form.get('eyes', '') } stats = {} for stat_key in ["STR", "DEX", "CON", "INT", "WIS", "CHA"]: try: score = int(form.get(stat_key, 10) or 10) score = max(1, min(30, score)) except (ValueError, TypeError): score = 10 stats[stat_key] = { 'score': score, 'modifier': calc_modifier(score) } saving_throws = form.getlist('saving_throws') skills = form.getlist('skills') ac = form.get('ac', '10') speed = form.get('speed', '30 фт') dex_mod = stats['DEX']['modifier'] initiative = f"+{dex_mod}" if dex_mod >= 0 else str(dex_mod) hp_current = int(form.get('hp_current', 10) or 10) hp_max = int(form.get('hp_max', 10) or 10) hp_temp = int(form.get('hp_temp', 0) or 0) if not name: return _render_char_form_error(request, "Имя персонажа обязательно") if not race: return _render_char_form_error(request, "Выберите расу") if not char_class: return _render_char_form_error(request, "Выберите класс") chars = load_chars(current_user['username']) # ✅ Убираем ручную генерацию ID — БД сделает это автоматически new_char = { # 'id': new_id, # ❌ УДАЛИТЬ — БД генерирует автоматически 'name': name, 'race': race, 'char_class': char_class, 'subclass': subclass, 'alignment': alignment, 'level': level, 'xp': xp, 'physical': physical, 'stats': stats, 'saving_throws': saving_throws, 'skills': skills, 'attributes': { 'ac': ac, 'initiative': initiative, 'speed': speed, 'prof_bonus': '+2' }, 'hp': { 'current': hp_current, 'max': hp_max, 'temp': hp_temp }, 'description': '', 'inventory': { 'weapons': [], 'armor': [], 'gear': [], 'arrows': [], 'bolts': [], 'coins': {'cp': 0, 'sp': 0, 'ep': 0, 'gp': 0, 'pp': 0}, 'known_spells': [] }, 'features_spells': '' } chars.append(new_char) save_chars(current_user['username'], chars) # ← БД присвоит ID автоматически return RedirectResponse(url="/chars", status_code=303) except Exception as e: import traceback print(f"⚠️ Ошибка создания персонажа: {e}") traceback.print_exc() return _render_char_form_error(request, f"Ошибка: {str(e)}", form_data=form) # Глобальное хранилище — теперь с информацией о клиентах active_rooms: Dict[str, Dict] = {} def get_room_ws_data(room_id: str) -> dict: if room_id not in active_rooms: active_rooms[room_id] = { 'clients': {}, 'map_image': None, 'map_width': 0, 'map_height': 0, 'tokens': {}, 'selected_monsters': [], 'combatants': [] } else: active_rooms[room_id].setdefault('combatants', []) active_rooms[room_id].setdefault('selected_monsters', []) active_rooms[room_id].setdefault('tokens', {}) return active_rooms[room_id] async def broadcast_to_room(room_id: str, message: dict, exclude: WebSocket = None): room = get_room_ws_data(room_id) dead = [] for ws in room['clients']: if ws == exclude: continue try: await ws.send_json(message) except Exception: dead.append(ws) for ws in dead: del room['clients'][ws] @app.websocket("/ws/room/{room_id}") async def room_websocket(websocket: WebSocket, room_id: str): await websocket.accept() # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) room_id_str = str(room_id_int) except (ValueError, TypeError): await websocket.close(code=4004, reason="Invalid room_id") return rooms_data = load_rooms() room_data = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if not room_data: await websocket.close(code=4004, reason="Room not found") return try: auth = await asyncio.wait_for(websocket.receive_json(), timeout=5.0) except Exception: await websocket.close(code=4001, reason="No auth") return username = auth.get('username', 'unknown') char_name = auth.get('char_name', username) is_master = room_data.get('master_id') == username room = get_room_ws_data(room_id_str) room['clients'][websocket] = { 'username': username, 'char_name': char_name, 'is_master': is_master } await websocket.send_json({ 'type': 'init', 'is_master': is_master, 'username': username, 'char_name': char_name }) if room.get('map_image'): await websocket.send_json({ 'type': 'map_update', 'image': room['map_image'], 'width': room.get('map_width', 0), 'height': room.get('map_height', 0), 'is_master': is_master }) if room.get('tokens'): await websocket.send_json({ 'type': 'tokens_init', 'tokens': list(room['tokens'].values()) }) await broadcast_to_room(room_id_str, { 'type': 'player_join', 'username': username, 'char_name': char_name, 'is_master': is_master }) try: while True: data = await websocket.receive_json() msg_type = data.get('type') client = room['clients'].get(websocket) if not client: continue if msg_type == 'dice_roll': message = { 'type': 'dice_roll', 'username': client['username'], 'char_name': client['char_name'], 'is_master': client['is_master'], 'name': data.get('name', ''), 'roll': data.get('roll'), 'sides': data.get('sides'), 'modifier': data.get('modifier', 0), 'total': data.get('total'), 'is_crit': data.get('is_crit', False), 'is_fail': data.get('is_fail', False), 'timestamp': time.time() } await broadcast_to_room(room_id_str, message) elif msg_type == 'map_update' and is_master: room['map_image'] = data.get('image') room['map_width'] = data.get('width', 0) room['map_height'] = data.get('height', 0) await broadcast_to_room(room_id_str, { 'type': 'map_update', 'image': data.get('image'), 'width': data.get('width', 0), 'height': data.get('height', 0), 'username': username, 'char_name': char_name }) elif msg_type == 'map_clear' and is_master: room['map_image'] = None room['map_width'] = 0 room['map_height'] = 0 await broadcast_to_room(room_id_str, { 'type': 'map_clear', 'username': username, 'char_name': char_name }) elif msg_type == 'token_update': action = data.get('action') token_data = data.get('token', {}) print(f"\n{'=' * 60}") print(f"🔍 [TOKEN_UPDATE] Получен запрос. Action: {action}") token_id = str( token_data.get('char_id') or token_data.get('token_id') or data.get('char_id') or data.get('token_id') or f"token_{uuid.uuid4().hex}" ) token_data['char_id'] = token_id token_data['token_id'] = token_id if 'combatants' not in room: room['combatants'] = [] if action == 'add': room.setdefault('tokens', {})[token_id] = token_data import random initiative = token_data.get('initiative') if initiative is None: dex_mod = token_data.get('dex_mod', 0) initiative = random.randint(1, 20) + dex_mod token_data['initiative'] = initiative combatant = { 'token_id': token_id, 'name': token_data.get('name') or token_data.get('char_name', 'Неизвестно'), 'initiative': initiative, 'ac': token_data.get('ac') or token_data.get('armor_class') or '?', 'hp_current': token_data.get('hp_current'), 'hp_max': token_data.get('hp_max'), 'image': token_data.get('image'), 'is_monster': token_data.get('is_monster', False) } room['combatants'] = [c for c in room['combatants'] if c['token_id'] != token_id] room['combatants'].append(combatant) room['combatants'].sort(key=lambda x: x['initiative'], reverse=True) print(f" [TOKEN_UPDATE] Добавлен в бой: {combatant['name']} (Иниц: {initiative})") await broadcast_to_room(room_id_str, { 'type': 'combat_update', 'combatants': room['combatants'] }) await broadcast_to_room(room_id_str, { 'type': 'token_add', 'token': token_data }) elif action == 'remove': if token_id in room.get('tokens', {}): # 🆕 Сохраняем информацию о токене перед удалением removed_token = room['tokens'][token_id] is_monster = removed_token.get('is_monster', False) token_name = removed_token.get('name') or removed_token.get('char_name', 'Неизвестно') del room['tokens'][token_id] if 'combatants' in room: room['combatants'] = [c for c in room['combatants'] if c['token_id'] != token_id] await broadcast_to_room(room_id_str, { 'type': 'combat_update', 'combatants': room['combatants'] }) # 🆕 Отправляем расширенную информацию об удалении await broadcast_to_room(room_id_str, { 'type': 'token_remove', 'char_id': token_id, 'token_id': token_id, 'is_monster': is_monster, # 🆕 Был ли это монстр 'name': token_name # 🆕 Имя удалённого токена }) elif action == 'move': if token_id in room.get('tokens', {}): room['tokens'][token_id]['x'] = token_data.get('x') room['tokens'][token_id]['y'] = token_data.get('y') await broadcast_to_room(room_id_str, { 'type': 'token_move', 'token': token_data }) elif msg_type == 'combatant_hp_update': token_id = data.get('token_id') new_hp = data.get('hp_current') if token_id and new_hp is not None and 'combatants' in room: for combatant in room['combatants']: if combatant['token_id'] == token_id: combatant['hp_current'] = new_hp print(f" [COMBAT] {combatant['name']}: HP -> {new_hp}") break await broadcast_to_room(room_id_str, { 'type': 'combat_update', 'combatants': room['combatants'] }) except WebSocketDisconnect: if websocket in room['clients']: del room['clients'][websocket] print(f"🔌 [{room_id}] {username} отключился (WebSocket)") # 🆕 Автоматически удаляем игрока из комнаты в БД if not is_master: try: rooms_data = load_rooms() room_db = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if room_db: # Удаляем игрока из current_players room_db['current_players'] = [ p for p in room_db.get('current_players', []) if p.get('username') != username ] save_rooms(rooms_data) print(f"✅ [{room_id}] Игрок {username} удалён из комнаты в БД") except Exception as e: print(f"❌ Ошибка удаления игрока из БД: {e}") await broadcast_to_room(room_id_str, { 'type': 'player_leave', 'username': username, 'char_name': char_name }) except Exception as e: print(f"❌ WebSocket error [{room_id}]: {e}") if websocket in room['clients']: del room['clients'][websocket] # 🆕 Автоматически удаляем игрока из комнаты в БД при любой ошибке if not is_master: try: rooms_data = load_rooms() room_db = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None) if room_db: room_db['current_players'] = [ p for p in room_db.get('current_players', []) if p.get('username') != username ] save_rooms(rooms_data) print(f"✅ [{room_id}] Игрок {username} удалён из комнаты в БД (после ошибки)") except Exception as db_error: print(f"❌ Ошибка удаления игрока из БД: {db_error}") @app.post("/master/prep/{room_id}/save") async def save_monster_prep(room_id: str, request: Request): # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) room_id_str = str(room_id_int) except (ValueError, TypeError): return JSONResponse( status_code=400, content={"error": "Invalid room_id"} ) print(f"🔥 [SAVE] Эндпоинт вызван для комнаты: {room_id}") try: content_type = request.headers.get('content-type', '') print(f"🔍 [SAVE] Content-Type: {content_type}") if 'multipart/form-data' in content_type or 'application/x-www-form-urlencoded' in content_type: form = await request.form() monsters_json = form.get("monsters_data") print(f"🔍 [SAVE] Получено из формы: {monsters_json[:100] if monsters_json else 'ПУСТО'}...") else: body = await request.body() print(f"🔍 [SAVE] Raw body: {body[:100]}...") data = await request.json() monsters_json = data.get("monsters_data") print(f"🔍 [SAVE] Получено из JSON: {monsters_json[:100] if monsters_json else 'ПУСТО'}...") try: selected_monsters = json.loads(monsters_json) if monsters_json else [] print(f" [SAVE] Распарсили {len(selected_monsters)} монстров") except Exception as e: print(f"❌ [SAVE] Ошибка парсинга JSON: {e}") selected_monsters = [] # ✅ Используем строковое представление для active_rooms room = get_room_ws_data(room_id_str) room['selected_monsters'] = selected_monsters print(f" [SAVE] Сохранено {len(selected_monsters)} монстров для комнаты {room_id}") return RedirectResponse(url=f"/master/room/{room_id}", status_code=303) except Exception as e: print(f"❌ [SAVE] Критическая ошибка: {e}") import traceback traceback.print_exc() return JSONResponse( status_code=500, content={"error": str(e)} ) MONSTERS_FILE = Path("data/monsters.json") def load_monsters(): if not MONSTERS_FILE.exists(): return [ { "name": "Волк", "challenge_rating": "1/4", "armor_class": "13 (природный доспех)", "hit_points": "11 (2к8 + 2)", "speed": "40 футов", "stats": {"STR": 12, "DEX": 15, "CON": 12, "INT": 3, "WIS": 12, "CHA": 6}, "actions": [ "Рукопашная атака: +4 к попаданию, досягаемость 5 футов, одна цель.", "Попадание: Колющий урон 7 (2к4 + 2). Если цель — существо, она должна преуспеть в спасброске Силы Сл 11, иначе она сбивается с ног." ], "description": "Волки встречаются в субарктических и умеренных регионах..." }, { "name": "Гоблин", "challenge_rating": "1/4", "armor_class": "15 (кожаный доспех, щит)", "hit_points": "7 (2к6)", "speed": "30 футов", "stats": {"STR": 8, "DEX": 14, "CON": 10, "INT": 10, "WIS": 8, "CHA": 8}, "actions": [ "Кинжал: +4 к попаданию, досягаемость 5 футов, одна цель. Попадание: Колющий урон 4 (1к4 + 2)." ], "description": "Маленькие, хитрые и жестокие гуманоиды." } ] with open(MONSTERS_FILE, "r", encoding="utf-8") as f: return json.load(f) def clean_text(text: str) -> str: """Убирает лишние переносы строк из hit_points и прочего""" if not isinstance(text, str): return text return " ".join(text.replace("\n", " ").split()) @app.get("/master/prep/{room_id}") async def master_prep(room_id: str, request: Request): monsters = load_monsters() for m in monsters: if "hit_points" in m: m["hit_points_clean"] = clean_text(m["hit_points"]) if "actions" in m and isinstance(m["actions"], list): m["actions_clean"] = " ".join(clean_text(a) for a in m["actions"]) else: m["actions_clean"] = "" if "stats" in m: m["stats_list"] = [f"{k}: {v}" for k, v in m["stats"].items()] return templates.TemplateResponse(request, "master_prep.html", context={ "monsters": monsters, "room_id": room_id }) @app.exception_handler(404) async def not_found_handler(request: Request, exc): return templates.TemplateResponse( request, # <-- первым идёт request "errors/404.html", context={"request": request, "detail": str(request.url)}, status_code=404, ) @app.exception_handler(500) async def server_error_handler(request: Request, exc): return templates.TemplateResponse( request, "errors/500.html", context={"request": request, "detail": str(exc)}, status_code=500, ) @app.exception_handler(403) async def forbidden_handler(request: Request, exc): return templates.TemplateResponse( request, "errors/403.html", context={"request": request}, status_code=403, ) @app.exception_handler(401) async def unauthorized_handler(request: Request, exc): return templates.TemplateResponse( request, "errors/401.html", context={"request": request}, status_code=401, ) @app.exception_handler(503) async def service_unavailable_handler(request: Request, exc): return templates.TemplateResponse( request, "errors/503.html", context={"request": request}, status_code=503, ) @app.get("/master/room/{room_id}", response_class=HTMLResponse) async def master_room( room_id: str, request: Request, current_user: dict = Depends(require_master) ): print(f'\n🔍 [DEBUG] room_id из URL: {room_id} (тип: {type(room_id).__name__})') try: room_id_int = int(room_id) except (ValueError, TypeError): print(f'❌ [DEBUG] room_id не является числом: {room_id}') return RedirectResponse(url="/master", status_code=303) rooms_data = load_rooms() print(f'🔍 [DEBUG] Всего комнат: {len(rooms_data["rooms"])}') for r in rooms_data['rooms']: print( f' - Комната "{r.get("name")}": id={r["id"]} (тип: {type(r["id"]).__name__}), master_id={r.get("master_id")}') room = next( (r for r in rooms_data['rooms'] if r['id'] == room_id_int and r['master_id'] == current_user['username']), None ) print(f'🔍 [DEBUG] Найдена комната: {room is not None}') if not room: return RedirectResponse(url="/master", status_code=303) cleanup_stale_players(str(room_id_int), timeout_seconds=300) players_data = [] for p in room.get('current_players', []): username = p.get('username') char_id = p.get('char_id') if username and char_id: user_chars = load_chars(username) try: char_id_int = int(char_id) except (ValueError, TypeError): continue char = next((c for c in user_chars if c['id'] == char_id_int), None) if char: char = normalize_char(char) lvl = char.get('level', 1) xp_prog = get_level_progress(char.get('xp', 0), lvl) next_xp = XP_THRESHOLDS[lvl] if lvl < 20 else "MAX" players_data.append({ 'username': username, 'char': char, 'xp_progress': xp_prog, 'next_level_xp': next_xp }) ws_room = get_room_ws_data(str(room_id_int)) selected_monsters = ws_room.get('selected_monsters', []) print(f"📦 В master_room передаём {len(selected_monsters)} монстров") return templates.TemplateResponse(request, "master_room.html", context={ "room": room, "players": players_data, "selected_monsters": selected_monsters, "username": current_user['username'], "error": None, "success": None }) @app.get("/char/{char_id}/edit", response_class=HTMLResponse) async def edit_char_page( char_id: int, request: Request, current_user: dict = Depends(require_player) ): """Страница редактирования персонажа""" chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) return templates.TemplateResponse(request, "edit_char.html", context={ "char": char, "classes": list(CLASSES_DATA.keys()), "races": ["Человек", "Эльф", "Дварф", "Полурослик", "Полуорк", "Тифлинг", "Гном", "Драконорождённый", "Полуэльф"], "alignments": [ "Законопослушный добрый", "Нейтральный добрый", "Хаотичный добрый", "Законопослушный нейтральный", "Истинно нейтральный", "Хаотичный нейтральный", "Законопослушный злой", "Нейтральный злой", "Хаотичный злой" ], "error": None, "success": None }) @app.post("/char/{char_id}/edit") async def save_char_edit( char_id: int, request: Request, current_user: dict = Depends(require_player) ): """Сохранение изменений персонажа""" form = await request.form() chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) try: char['name'] = form.get('name', '').strip() or char['name'] char['race'] = form.get('race', '').strip() or 'Человек' char['char_class'] = form.get('char_class', '').strip() or 'Воин' char['subclass'] = form.get('subclass', '').strip() or 'Нет' char['alignment'] = form.get('alignment', '').strip() or 'Истинно нейтральный' try: char['level'] = max(1, min(20, int(form.get('level', 1)))) except (ValueError, TypeError): char['level'] = 1 try: char['xp'] = max(0, int(form.get('xp', 0))) except (ValueError, TypeError): char['xp'] = 0 for stat_key in ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']: try: score = max(1, min(30, int(form.get(f'stat_{stat_key}', 10)))) char['stats'][stat_key] = { 'score': score, 'modifier': calc_modifier(score) } except (ValueError, TypeError): pass char.setdefault('physical', {}) char['physical']['height'] = form.get('height', '').strip() char['physical']['weight'] = form.get('weight', '').strip() char['physical']['hair'] = form.get('hair', '').strip() char['physical']['eyes'] = form.get('eyes', '').strip() try: char['hp']['current'] = max(0, int(form.get('hp_current', char['hp']['current']))) char['hp']['max'] = max(1, int(form.get('hp_max', char['hp']['max']))) char['hp']['temp'] = max(0, int(form.get('hp_temp', 0))) except (ValueError, TypeError): pass char.setdefault('attributes', {}) char['attributes']['prof_bonus'] = f"+{calc_prof_bonus(char['level'])}" try: char['attributes']['speed'] = int(form.get('speed', char['attributes'].get('speed', 30))) except (ValueError, TypeError): pass char['attributes']['initiative'] = char['stats']['DEX']['modifier'] save_chars(current_user['username'], chars) return RedirectResponse( url=f"/char/{char_id}?success=Персонаж обновлён", status_code=303 ) except Exception as e: return templates.TemplateResponse(request, "edit_char.html", context={ "char": normalize_char(char), "classes": list(CLASSES_DATA.keys()), "races": ["Человек", "Эльф", "Дварф", "Полурослик", "Полуорк", "Тифлинг", "Гном", "Драконорождённый", "Полуэльф"], "alignments": [ "Законопослушный добрый", "Нейтральный добрый", "Хаотичный добрый", "Законопослушный нейтральный", "Истинно нейтральный", "Хаотичный нейтральный", "Законопослушный злой", "Нейтральный злой", "Хаотичный злой" ], "error": f"Ошибка сохранения: {str(e)}", "success": None }) @app.get("/master/room/{room_id}/rewards", response_class=HTMLResponse) async def master_rewards_page( room_id: str, request: Request, current_user: dict = Depends(require_master) ): """Отдельная страница наград""" # ✅ Преобразуем room_id в число try: room_id_int = int(room_id) except (ValueError, TypeError): return RedirectResponse(url="/master", status_code=303) rooms_data = load_rooms() # ✅ Ищем по числовому ID room = next( (r for r in rooms_data['rooms'] if r['id'] == room_id_int and r['master_id'] == current_user['username']), None ) if not room: return RedirectResponse(url="/master", status_code=303) cleanup_stale_players(str(room_id_int), timeout_seconds=300) # Собираем игроков для селекта players_data = [] for p in room.get('current_players', []): username = p.get('username') char_id = p.get('char_id') if username and char_id: user_chars = load_chars(username) # ✅ Преобразуем char_id в число для сравнения try: char_id_int = int(char_id) except (ValueError, TypeError): continue char = next((c for c in user_chars if c['id'] == char_id_int), None) if char: players_data.append({ 'username': username, 'char': normalize_char(char) }) return templates.TemplateResponse(request, "master_rewards.html", context={ "room": room, "players": players_data, "username": current_user['username'], "error": None, "success": None }) def _render_char_form_error(request: Request, error_msg: str, form_data=None): """Возврат формы с ошибкой и сохранёнными данными""" return templates.TemplateResponse(request, "char_form.html", context={ "races": ["Человек", "Эльф", "Дварф", "Халфлинг", "Гном", "Полуорк", "Тифлинг", "Драконорожденный"], "classes": ["Воин", "Волшебник", "Плут", "Жрец", "Бард", "Следопыт", "Паладин", "Варвар", "Друид", "Монах", "Чародей", "Колдун", "Изобретатель"], "subclasses": {cls: [] for cls in ["Воин", "Волшебник", "Плут", "Жрец", "Бард", "Следопыт", "Паладин", "Варвар", "Друид", "Монах", "Чародей", "Колдун", "Изобретатель"]}, "alignments": ["Законопослушный добрый", "Нейтральный добрый", "Хаотичный добрый", "Законопослушный нейтральный", "Истинно нейтральный", "Хаотичный нейтральный", "Законопослушный злой", "Нейтральный злой", "Хаотичный злой"], "stats": ["STR", "DEX", "CON", "INT", "WIS", "CHA"], "stats_ru": {"STR": "Сила", "DEX": "Ловкость", "CON": "Телосложение", "INT": "Интеллект", "WIS": "Мудрость", "CHA": "Харизма"}, "skills": [ ("athletics", "Атлетика", "STR"), ("acrobatics", "Акробатика", "DEX"), ("sleight_of_hand", "Ловкость рук", "DEX"), ("stealth", "Скрытность", "DEX"), ("arcana", "Магия", "INT"), ("history", "История", "INT"), ("investigation", "Расследование", "INT"), ("religion", "Религия", "INT"), ("nature", "Природа", "INT"), ("animal_handling", "Уход за животными", "WIS"), ("insight", "Проницательность", "WIS"), ("medicine", "Медицина", "WIS"), ("perception", "Внимательность", "WIS"), ("survival", "Выживание", "WIS"), ("deception", "Обман", "CHA"), ("intimidation", "Запугивание", "CHA"), ("performance", "Выступление", "CHA"), ("persuasion", "Убеждение", "CHA"), ], "saving_throws": [ ("str_save", "Сила"), ("dex_save", "Ловкость"), ("con_save", "Телосложение"), ("int_save", "Интеллект"), ("wis_save", "Мудрость"), ("cha_save", "Харизма"), ], "error": error_msg, "success": None, "info": None, "prefill": form_data, }) @app.post("/char/{char_id}/equipment/custom") async def add_custom_equipment( char_id: int, request: Request, current_user: dict = Depends(require_player) ): form = await request.form() chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) item_type = form.get('item_type') try: if item_type == 'weapon': dmg_x = form.get('dmg_x', '1') dmg_y = form.get('dmg_y', '8') dmg_z = int(form.get('dmg_z', 0) or 0) dmg_str = f"{dmg_x}d{dmg_y}" + (f"+{dmg_z}" if dmg_z > 0 else "") props = form.getlist('weapon_props') w_type = 'ammunition' if 'ammunition' in props else ( 'thrown' if 'thrown' in props else ('finesse' if 'finesse' in props else 'standard')) desc_parts = [p for p in props if p] custom_desc = form.get('weapon_desc', '').strip() if custom_desc: desc_parts.append(custom_desc) # 🔥 Для кастомного оружия по умолчанию считаем, что персонаж владеет # (можно усложнить: проверять proficiencies по свойствам) char_class = char.get('char_class', '') # Для кастомного оружия category = 'custom', proficient = True is_proficient = True new_weapon = { 'name': form.get('weapon_name', 'Кастомное оружие').strip() or 'Безымянное', 'type': w_type, 'damage': dmg_str, 'description': ', '.join(desc_parts), 'proficient': is_proficient, 'ammo_type': form.get('weapon_ammo_type', 'arrows') if ( 'ammunition' in props or 'thrown' in props) else None, 'weight': form.get('weapon_weight', '0 фнт.') } char['inventory']['weapons'].append(new_weapon) elif item_type == 'armor': # ... (без изменений) base_ac = form.get('armor_ac', '10') mod = form.get('armor_mod', 'None') ac_str = base_ac if mod == 'None' else f"{base_ac} + модификатор {mod}" new_armor = { 'name': form.get('armor_name', 'Кастомная броня').strip() or 'Безымянная', 'ac': ac_str, 'weight': form.get('armor_weight', '0 фнт.'), 'equipped': False, 'stealth': None, 'strength_req': None, 'description': form.get('armor_desc', '').strip() } char['inventory']['armor'].append(new_armor) else: # gear # ... (без изменений) new_gear = { 'name': form.get('gear_name', 'Кастомный предмет').strip() or 'Безымянный', 'description': form.get('gear_desc', '').strip(), 'weight': form.get('gear_weight', '0 фнт.'), 'qty': 1, 'cost': '—' } char['inventory']['gear'].append(new_gear) save_chars(current_user['username'], chars) except Exception as e: print(f"⚠️ Ошибка создания кастомного предмета: {e}") return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) @app.post("/char/{char_id}/coins/update") async def update_coins( char_id: int, request: Request, current_user: dict = Depends(require_player) ): """Трата монет персонажа""" form = await request.form() chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) # Получаем сумму к трате gp_spend = int(form.get('gp', 0) or 0) sp_spend = int(form.get('sp', 0) or 0) cp_spend = int(form.get('cp', 0) or 0) # Проверяем, хватает ли монет if gp_spend > 0 and gp_spend > char['inventory']['coins']['gp']: return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) if sp_spend > 0 and sp_spend > char['inventory']['coins']['sp']: return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) if cp_spend > 0 and cp_spend > char['inventory']['coins']['cp']: return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) # Вычитаем монеты if gp_spend > 0: char['inventory']['coins']['gp'] -= gp_spend if sp_spend > 0: char['inventory']['coins']['sp'] -= sp_spend if cp_spend > 0: char['inventory']['coins']['cp'] -= cp_spend save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) # === Equipment management === @app.post("/char/{char_id}/weapon/add") async def add_weapon( char_id: int, request: Request, current_user: dict = Depends(require_player) ): form = await request.form() chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) new_weapon = { 'name': form.get('name', 'Безымянное оружие'), 'type': form.get('type', 'standard'), 'damage': form.get('damage', '1d4'), 'ammo_type': form.get('ammo_type') if form.get('type') == 'ammunition' else None, 'description': form.get('description', ''), 'proficient': form.get('proficient') == 'on' } char['inventory']['weapons'].append(new_weapon) save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) @app.post("/char/{char_id}/weapon/delete/{idx}") async def delete_weapon( char_id: int, idx: int, current_user: dict = Depends(require_player) ): chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if char and 0 <= idx < len(char['inventory']['weapons']): char['inventory']['weapons'].pop(idx) save_chars(current_user['username'], chars) return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303) # === Index redirect === @app.get("/", response_class=HTMLResponse) async def index(request: Request): session_cookie = request.cookies.get('session') if session_cookie: import json try: user = json.loads(session_cookie) if user.get('expires', 0) > time.time(): return RedirectResponse( url="/master" if user.get('role') == 'master' else "/chars", status_code=303 ) except: pass return RedirectResponse(url="/login", status_code=303) @app.get("/char/{char_id}/features", response_class=HTMLResponse) async def view_class_features( char_id: int, request: Request, current_user: dict = Depends(require_player) ): chars = load_chars(current_user['username']) char = next((c for c in chars if c['id'] == char_id), None) if not char: return RedirectResponse(url="/chars", status_code=303) char = normalize_char(char) features = get_class_features( char.get('char_class', ''), char.get('subclass', 'Нет'), char.get('level', 1) ) return templates.TemplateResponse(request, "class_features.html", context={ "char": char, "features": features, "error": None, "success": None }) # === Run === if __name__ == "__main__": import uvicorn uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+3D Low-Poly Дракон Референс
+Скрипт для перевода Markdown на русский
+Запрос причёски Шарля Леклера
+Оцени как профессиональный литератор ‎Мой добрый друг, зачем же ты ‎Присел за стол из бузины? ‎Ведь ты же знал кто там сидит, ‎К чему тебя приговорит. ‎Да, ты низвергнут был во мрак, Гулял среди больных бродяг. ‎И ты, не вытерпев, пошел, ‎Оставив подпись, приобрёл ‎Большую силу, власть, доход ‎Как будто это был обход. ‎Тебе вначале очень повезло ‎Ты мог расторгнуть это зло, ‎Но ты пошел на новый круг, ‎Забыв оплату вечных мук. ‎Настал момент, пора платить ‎И милость можешь не просить. ‎Ты вновь сидишь за тем столом, ‎Но в кандалах и пред судом. ‎Не знаешь - жизнь ли завершить ‎Иль в руки дьявола вручить? ‎
+D&D 5e Fighter Class Data ## Class: Воин (Fighter) **Source:** Player's Handbook (2014
+Задачи по основам электрических цепей
+Получение заклинаний D&D SRD 5.1
+Улучшение качества и контрастности изображений
+Парсер DOCX документов на Python
+Ошибка Mixamo: Сопоставление скелета
+Проблема с координатами спавна игрока
+Хранение координат игрока в Unreal Engine
+Запрос на фото с ограничениями
+Исправление ресайза канваса VTT
+VTT UI: Компактная боковая панель
+UI-ревью VTT: сильные и слабые стороны
+Анализ сюжета: Игры и Фильмы
+Структура данных предметов для UE5
+Мультяшный сундук в low poly стиле
+Есть 101 монета, из которых 50 фальшивых, отличающихся по весу на 1 грамм от настоящих. Петя взял одну монету и за одно взвешивание на весах со стрелкой, показывающей разность весов на чашках, хочет определить фальшивая ли она. Сможет ли он это сделать?
+UV-развертка сундука в стиле low-poly
+UV-развёртка сундука с деталями
+Анализ и рефакторинг D&D приложения
+Разработка игры: стыки программистов
+Генерация уровней в Unreal Engine 5
+
+История
+Великобритания
+По IP-адресу
+Обновить
+Чат с Gemini
+ты - fullstack-разработчик с большим опытом работы. мне нужно чтобы ты создал скрипт, который отчистит все записи в таблице spells. затем создай страницу, в которой можно будет вручную вбивать все столбцы представленые на изображении. страницу сделай в такой же стилистике как и эта страница
+
+
+
+<!DOCTYPE html>
+
+<html lang="ru">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Бестиарий и Отряд | Folio</title>
+
+<style>
+
+:root {
+
+--bg-primary: #0a0a0c;
+
+--bg-secondary: #141418;
+
+--bg-tertiary: #1e1e24;
+
+--text-primary: #e0d4b8;
+
+--text-secondary: #a89f8a;
+
+--accent-gold: #c9a961;
+
+--accent-gold-dim: #8b7542;
+
+--accent-red: #8b3a3a;
+
+--accent-green: #4a6b4a;
+
+--border-color: #3a352a;
+
+--shadow-color: rgba(0,0,0,0.6);
+
+--font-main: 'Georgia', 'Times New Roman', serif;
+
+--font-ui: 'Segoe UI', Tahoma, sans-serif;
+
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+
+font-family: var(--font-ui);
+
+background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+
+color: var(--text-primary);
+
+min-height: 100vh;
+
+display: flex;
+
+flex-direction: column;
+
+padding: 1.5rem;
+
+}
+
+.container {
+
+max-width: 1400px;
+
+margin: 0 auto;
+
+flex-grow: 1;
+
+width: 100%;
+
+display: flex;
+
+flex-direction: column;
+
+}
+
+
+
+/* Общие кнопки в стиле Folio */
+
+.btn {
+
+padding: 0.6rem 1.2rem;
+
+background: var(--bg-primary);
+
+border: 1px solid var(--border-color);
+
+border-radius: 6px;
+
+color: var(--text-primary);
+
+text-decoration: none;
+
+font-size: 0.9rem;
+
+transition: all 0.2s;
+
+cursor: pointer;
+
+text-align: center;
+
+font-family: var(--font-ui);
+
+}
+
+.btn:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); }
+
+.btn-primary { background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim)); color: var(--bg-primary); font-weight: 600; border: none; }
+
+.btn-primary:hover { background: var(--accent-gold); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(201, 169, 97, 0.2); border-color: transparent;}
+
+.btn-danger { background: rgba(139,58,58,0.2); border-color: var(--accent-red); color: #f5c6cb; }
+
+.btn-danger:hover { background: var(--accent-red); color: var(--bg-primary); }
+
+.btn-success { background: linear-gradient(145deg, var(--accent-green), #3a5a3a); color: #fff; font-weight: bold; border: none;}
+
+.btn-success:hover { background: linear-gradient(145deg, #5a8b5a, #4a6b4a); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 107, 74, 0.2); }
+
+
+
+/* Заголовок */
+
+.prep-header {
+
+background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+
+border: 2px solid var(--border-color);
+
+border-radius: 12px;
+
+padding: 1.2rem 1.8rem;
+
+margin-bottom: 1.5rem;
+
+display: flex;
+
+justify-content: space-between;
+
+align-items: center;
+
+}
+
+.prep-header h1 {
+
+font-family: var(--font-main);
+
+color: var(--accent-gold);
+
+font-size: 1.6rem;
+
+letter-spacing: 0.1em;
+
+text-transform: uppercase;
+
+}
+
+
+
+/* Сетка */
+
+.two-columns {
+
+display: grid;
+
+grid-template-columns: 1fr 1.2fr;
+
+gap: 1.5rem;
+
+flex-grow: 1;
+
+}
+
+@media (max-width: 900px) {
+
+.two-columns { grid-template-columns: 1fr; }
+
+}
+
+
+
+/* Общие стили панелей */
+
+.panel {
+
+background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+
+border: 2px solid var(--border-color);
+
+border-radius: 12px;
+
+padding: 1.5rem;
+
+display: flex;
+
+flex-direction: column;
+
+gap: 1rem;
+
+}
+
+.panel-title {
+
+font-family: var(--font-main);
+
+font-size: 1.2rem;
+
+color: var(--accent-gold);
+
+border-bottom: 2px solid var(--border-color);
+
+padding-bottom: 0.8rem;
+
+margin-bottom: 0.5rem;
+
+text-transform: uppercase;
+
+letter-spacing: 0.05em;
+
+}
+
+
+
+/* Левая панель */
+
+.party-panel { height: fit-content; max-height: 80vh; overflow-y: auto; }
+
+.selected-list { display: flex; flex-direction: column; gap: 0.8rem; flex-grow: 1; }
+
+.selected-card {
+
+background: var(--bg-primary);
+
+border: 1px solid var(--border-color);
+
+border-radius: 8px;
+
+padding: 1rem;
+
+transition: border-color 0.2s;
+
+}
+
+.selected-card:hover { border-color: var(--accent-gold-dim); }
+
+.selected-header {
+
+display: flex;
+
+justify-content: space-between;
+
+align-items: center;
+
+margin-bottom: 0.8rem;
+
+flex-wrap: wrap;
+
+gap: 0.5rem;
+
+}
+
+.selected-name {
+
+font-size: 1.1rem;
+
+font-weight: bold;
+
+color: var(--accent-gold);
+
+font-family: var(--font-main);
+
+display: flex;
+
+align-items: center;
+
+gap: 0.5rem;
+
+}
+
+.token-preview {
+
+width: 32px;
+
+height: 32px;
+
+border-radius: 50%;
+
+object-fit: cover;
+
+border: 1px solid var(--accent-gold);
+
+}
+
+.token-btn {
+
+position: relative;
+
+overflow: hidden;
+
+display: inline-block;
+
+font-size: 0.8rem;
+
+padding: 0.4rem 0.8rem;
+
+}
+
+.token-btn input[type="file"] {
+
+position: absolute;
+
+left: 0;
+
+top: 0;
+
+opacity: 0;
+
+width: 100%;
+
+height: 100%;
+
+cursor: pointer;
+
+}
+
+.empty-party {
+
+color: var(--text-secondary);
+
+text-align: center;
+
+padding: 2rem 1rem;
+
+font-style: italic;
+
+border: 1px dashed var(--border-color);
+
+border-radius: 8px;
+
+background: rgba(0,0,0,0.2);
+
+}
+
+
+
+/* Правая панель */
+
+.filters-row {
+
+display: flex;
+
+gap: 0.8rem;
+
+}
+
+.search-box, .filter-box {
+
+background: var(--bg-primary);
+
+border: 1px solid var(--border-color);
+
+border-radius: 6px;
+
+color: var(--text-primary);
+
+font-size: 0.95rem;
+
+font-family: var(--font-ui);
+
+padding: 0.7rem;
+
+transition: border-color 0.2s;
+
+}
+
+.search-box { flex-grow: 1; width: 100%; }
+
+.filter-box { min-width: 130px; cursor: pointer; }
+
+.search-box:focus, .filter-box:focus { outline: none; border-color: var(--accent-gold); }
+
+
+
+.monster-list-container {
+
+max-height: 250px;
+
+overflow-y: auto;
+
+border: 1px solid var(--border-color);
+
+border-radius: 8px;
+
+background: var(--bg-primary);
+
+}
+
+.monster-list-item {
+
+padding: 0.7rem 1rem;
+
+border-bottom: 1px solid var(--border-color);
+
+cursor: pointer;
+
+transition: background 0.1s;
+
+display: flex;
+
+justify-content: space-between;
+
+align-items: center;
+
+}
+
+.monster-list-item:last-child { border-bottom: none; }
+
+.monster-list-item:hover { background: var(--bg-tertiary); }
+
+.monster-list-item.selected {
+
+background: rgba(201, 169, 97, 0.15);
+
+border-left: 3px solid var(--accent-gold);
+
+}
+
+.monster-list-name { font-weight: 600; color: var(--text-primary); }
+
+.monster-list-cr { font-size: 0.85rem; color: var(--text-secondary); }
+
+.monster-list-item.selected .monster-list-name { color: var(--accent-gold); }
+
+
+
+.monster-detail-card {
+
+background: var(--bg-primary);
+
+border: 1px solid var(--border-color);
+
+border-radius: 8px;
+
+padding: 1.2rem;
+
+max-height: 380px;
+
+overflow-y: auto;
+
+}
+
+.monster-name {
+
+font-size: 1.4rem;
+
+font-family: var(--font-main);
+
+color: var(--accent-gold);
+
+border-bottom: 1px solid var(--border-color);
+
+margin-bottom: 1rem;
+
+padding-bottom: 0.5rem;
+
+}
+
+.monster-meta {
+
+display: flex;
+
+gap: 1.2rem;
+
+flex-wrap: wrap;
+
+font-size: 0.9rem;
+
+color: var(--text-secondary);
+
+margin-bottom: 1.2rem;
+
+background: var(--bg-tertiary);
+
+padding: 0.8rem;
+
+border-radius: 6px;
+
+}
+
+.monster-meta span strong { color: var(--text-primary); font-weight: normal; }
+
+
+
+.monster-stats {
+
+display: grid;
+
+grid-template-columns: repeat(3, 1fr);
+
+gap: 0.6rem;
+
+background: var(--bg-tertiary);
+
+border-radius: 6px;
+
+padding: 0.8rem;
+
+margin-bottom: 1.2rem;
+
+}
+
+.stat { text-align: center; font-size: 0.85rem; color: var(--text-secondary); }
+
+.stat-value { font-weight: bold; color: var(--accent-gold); font-size: 1.1rem; margin-top: 0.2rem; }
+
+
+
+.detail-section-title {
+
+font-weight: bold;
+
+color: var(--accent-gold);
+
+margin: 1.2rem 0 0.5rem 0;
+
+font-size: 1rem;
+
+border-bottom: 1px solid var(--border-color);
+
+padding-bottom: 0.3rem;
+
+text-transform: uppercase;
+
+letter-spacing: 0.05em;
+
+}
+
+.monster-desc {
+
+font-size: 0.9rem;
+
+color: var(--text-secondary);
+
+line-height: 1.5;
+
+}
+
+
+
+/* 🆕 Стили для отдельных действий (карточек) */
+
+.action-block {
+
+background: var(--bg-tertiary);
+
+border: 1px solid var(--border-color);
+
+border-radius: 6px;
+
+padding: 0.6rem 0.8rem;
+
+margin-bottom: 0.5rem;
+
+font-size: 0.85rem;
+
+}
+
+.action-name {
+
+font-family: var(--font-main);
+
+color: var(--accent-gold);
+
+font-weight: bold;
+
+margin-bottom: 0.2rem;
+
+font-size: 0.95rem;
+
+}
+
+
+
+/* Scrollbars */
+
+::-webkit-scrollbar { width: 6px; }
+
+::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: 3px; }
+
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+
+::-webkit-scrollbar-thumb:hover { background: var(--accent-gold-dim); }
+
+
+
+/* Footer */
+
+.footer {
+
+margin-top: 2rem;
+
+padding-top: 1.5rem;
+
+text-align: center;
+
+font-size: 0.85rem;
+
+color: var(--text-secondary);
+
+font-style: italic;
+
+border-top: 1px solid var(--border-color);
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+
+
+<header class="prep-header">
+
+<h1>Бестиарий и Отряд</h1>
+
+<a href="/master/room/{{ room_id }}" class="btn">Вернуться в кампанию</a>
+
+</header>
+
+
+
+<div class="two-columns">
+
+
+
+<!-- ЛЕВАЯ ПАНЕЛЬ: выбранные монстры -->
+
+<div class="panel party-panel">
+
+<div class="panel-title">
+
+Отряд и выбранные монстры
+
+<span id="selectedCount" style="color: var(--text-secondary); font-size: 0.9rem;">(0)</span>
+
+</div>
+
+
+
+<div id="selectedMonstersList" class="selected-list">
+
+<div class="empty-party">Пусто. Выберите монстра из бестиария и добавьте его в отряд.</div>
+
+</div>
+
+
+
+<button id="saveAndGoBtn" class="btn btn-success" style="padding: 0.9rem; margin-top: 0.5rem;">Сохранить и продолжить</button>
+
+</div>
+
+
+
+<!-- ПРАВАЯ ПАНЕЛЬ: поиск, фильтры, список, детали -->
+
+<div class="panel monster-panel">
+
+<div class="filters-row">
+
+<input type="text" id="monsterSearch" class="search-box" placeholder="Поиск по названию (например, 'гоблин')...">
+
+<select id="crFilter" class="filter-box">
+
+<option value="all">Любая сложность</option>
+
+<!-- Опции сложности генерируются через JS -->
+
+</select>
+
+</div>
+
+
+
+<div class="monster-list-container" id="monsterListContainer">
+
+<!-- Список отфильтрованных монстров -->
+
+</div>
+
+
+
+<button id="addToPartyBtn" class="btn btn-primary">Добавить выбранного монстра</button>
+
+
+
+<div id="monsterDetail" class="monster-detail-card">
+
+<div class="empty-party">Выберите сущность для просмотра характеристик</div>
+
+</div>
+
+</div>
+
+</div>
+
+
+
+<footer class="footer">
+
+<p>«{{ quote_text if quote_text else "Подготовка к битве важна не менее самой битвы." }}»</p>
+
+</footer>
+
+
+
+</div>
+
+
+
+<script>
+
+// Получаем сырые данные из БД
+
+const rawMonstersData = {{ monsters | tojson }};
+
+const roomId = '{{ room_id }}';
+
+let selectedMonsters = [];
+
+let currentMonster = null;
+
+
+
+// Сохраняем оригинальные массивы (не "схлопываем" их в один текст)
+
+const monstersData = rawMonstersData.map(m => {
+
+return {
+
+...m,
+
+hit_points_clean: m.hit_points || '?',
+
+armor_class: m.armor_class || '?',
+
+stats: m.attributes || m.stats || {},
+
+challenge_rating: m.challenge_rating || '0',
+
+actions: m.actions || [],
+
+traits: m.traits || [],
+
+legendary_actions: m.legendary_actions || [],
+
+description: m.description || '',
+
+meta: m.meta || ''
+
+};
+
+});
+
+
+
+let filteredMonsters = [...monstersData];
+
+
+
+function parseCR(crString) {
+
+if (!crString) return -1;
+
+const str = String(crString).trim();
+
+if (str.includes('/')) {
+
+const [num, den] = str.split('/');
+
+return parseInt(num) / parseInt(den);
+
+}
+
+return parseFloat(str) || 0;
+
+}
+
+
+
+function populateCRFilter() {
+
+const crSelect = document.getElementById('crFilter');
+
+const uniqueCRs = [...new Set(monstersData.map(m => m.challenge_rating))].filter(Boolean);
+
+
+
+uniqueCRs.sort((a, b) => parseCR(a) - parseCR(b));
+
+
+
+uniqueCRs.forEach(cr => {
+
+const opt = document.createElement('option');
+
+opt.value = cr;
+
+opt.textContent = `Сложность: ${cr}`;
+
+crSelect.appendChild(opt);
+
+});
+
+}
+
+
+
+function renderParty() {
+
+const container = document.getElementById('selectedMonstersList');
+
+const countSpan = document.getElementById('selectedCount');
+
+
+
+if (selectedMonsters.length === 0) {
+
+container.innerHTML = '<div class="empty-party">Пусто. Выберите монстра из бестиария и добавьте его в отряд.</div>';
+
+countSpan.innerText = '(0)';
+
+return;
+
+}
+
+
+
+let html = '';
+
+selectedMonsters.forEach((monster, idx) => {
+
+const tokenPreview = monster.token_image
+
+? `<img src="${monster.token_image}" class="token-preview" alt="token">`
+
+: '';
+
+const tokenBtnText = monster.token_image ? 'Сменить токен' : 'Загрузить токен';
+
+
+
+html += `
+
+<div class="selected-card" data-idx="${idx}">
+
+<div class="selected-header">
+
+<span class="selected-name">${tokenPreview} ${escapeHtml(monster.name)}</span>
+
+<div style="display: flex; gap: 0.5rem; align-items: center;">
+
+<label class="btn token-btn">
+
+${tokenBtnText}
+
+<input type="file" accept="image/*" onchange="handleTokenUpload(this, ${idx})">
+
+</label>
+
+<button class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" data-idx="${idx}">Убрать</button>
+
+</div>
+
+</div>
+
+<div style="font-size:0.85rem; color: var(--text-secondary);">
+
+КД: <strong style="color: var(--text-primary);">${monster.armor_class || '?'}</strong> &nbsp;|&nbsp;
+
+Хиты: <strong style="color: var(--text-primary);">${monster.hit_points_clean || '?'}</strong>
+
+</div>
+
+</div>
+
+`;
+
+});
+
+
+
+container.innerHTML = html;
+
+countSpan.innerText = `(${selectedMonsters.length})`;
+
+
+
+document.querySelectorAll('.btn-danger').forEach(btn => {
+
+btn.addEventListener('click', () => {
+
+const idx = parseInt(btn.getAttribute('data-idx'));
+
+if (!isNaN(idx)) {
+
+selectedMonsters.splice(idx, 1);
+
+renderParty();
+
+}
+
+});
+
+});
+
+}
+
+
+
+function handleTokenUpload(input, idx) {
+
+if (input.files && input.files[0]) {
+
+const reader = new FileReader();
+
+reader.onload = function(e) {
+
+selectedMonsters[idx].token_image = e.target.result;
+
+renderParty();
+
+};
+
+reader.readAsDataURL(input.files[0]);
+
+}
+
+}
+
+
+
+function saveAndGo() {
+
+if (selectedMonsters.length === 0) {
+
+alert('Добавьте хотя бы одного монстра перед сохранением.');
+
+return;
+
+}
+
+
+
+const formData = new FormData();
+
+formData.append('monsters_data', JSON.stringify(selectedMonsters));
+
+
+
+fetch(`/master/prep/${roomId}/save`, {
+
+method: 'POST',
+
+body: formData
+
+}).then(response => {
+
+if (response.redirected) {
+
+window.location.href = response.url;
+
+} else {
+
+window.location.href = `/master/room/${roomId}`;
+
+}
+
+}).catch(err => {
+
+console.error('Ошибка сохранения:', err);
+
+alert('Ошибка сохранения: ' + err.message);
+
+});
+
+}
+
+
+
+function addCurrentMonster() {
+
+if (!currentMonster) {
+
+alert("Сначала выберите сущность из списка.");
+
+return;
+
+}
+
+
+
+const alreadyExists = selectedMonsters.some(m => m.name === currentMonster.name);
+
+if (alreadyExists) {
+
+alert(`Сущность "${currentMonster.name}" уже находится в отряде.`);
+
+return;
+
+}
+
+
+
+// Сохраняем в отряд ПОЛНЫЕ массивы (чтобы в модалке тоже было красиво)
+
+const toAdd = {
+
+name: currentMonster.name,
+
+armor_class: currentMonster.armor_class,
+
+hit_points_clean: currentMonster.hit_points_clean,
+
+challenge_rating: currentMonster.challenge_rating,
+
+token_image: null,
+
+stats: currentMonster.stats,
+
+speed: currentMonster.speed || '',
+
+actions: currentMonster.actions || [],
+
+traits: currentMonster.traits || [],
+
+legendary_actions: currentMonster.legendary_actions || [],
+
+description: currentMonster.description || '',
+
+meta: currentMonster.meta || ''
+
+};
+
+
+
+selectedMonsters.push(toAdd);
+
+renderParty();
+
+}
+
+
+
+// 🆕 Генератор красивых списков/колонок для действий
+
+function renderActionList(title, list) {
+
+if (!list || list.length === 0) return '';
+
+
+
+let html = `<div class="detail-section-title">${title}</div><div style="display: flex; flex-direction: column; gap: 0.4rem;">`;
+
+
+
+list.forEach(item => {
+
+if (typeof item === 'string') {
+
+html += `<div class="action-block"><div style="color: var(--text-secondary);">${escapeHtml(item)}</div></div>`;
+
+} else {
+
+let name = item.name ? escapeHtml(item.name) : '';
+
+let desc = item.raw_text || item.description || '';
+
+
+
+// Удаляем дублирующееся имя из начала описания (с учетом точек и пробелов)
+
+if (name && desc.startsWith(item.name)) {
+
+desc = desc.substring(item.name.length).replace(/^[\.\:\s]+/, '');
+
+}
+
+
+
+html += `<div class="action-block">`;
+
+if (name) html += `<div class="action-name">${name}</div>`;
+
+html += `<div style="color: var(--text-secondary); line-height: 1.4;">${escapeHtml(desc)}</div></div>`;
+
+}
+
+});
+
+
+
+html += `</div>`;
+
+return html;
+
+}
+
+
+
+function displayMonsterDetail(monster) {
+
+const container = document.getElementById('monsterDetail');
+
+if (!monster) {
+
+container.innerHTML = '<div class="empty-party">Выберите сущность для просмотра характеристик</div>';
+
+return;
+
+}
+
+
+
+// Отрисовка статов
+
+let statsHtml = '';
+
+if (monster.stats && Object.keys(monster.stats).length > 0) {
+
+const statNames = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
+
+statsHtml = '<div class="monster-stats">';
+
+for (let stat of statNames) {
+
+let val = monster.stats[stat] || '?';
+
+if (typeof val === 'object' && val !== null) val = val.score || '?';
+
+statsHtml += `<div class="stat">${stat}<div class="stat-value">${val}</div></div>`;
+
+}
+
+statsHtml += '</div>';
+
+}
+
+
+
+// 🆕 Генерируем блоки массивов (колонки карточек)
+
+let traitsHtml = renderActionList('Особенности', monster.traits);
+
+let actionsHtml = renderActionList('Действия', monster.actions);
+
+let legActionsHtml = renderActionList('Легендарные действия', monster.legendary_actions);
+
+
+
+let descHtml = monster.description
+
+? `<div class="detail-section-title">Описание</div><div class="monster-desc">${escapeHtml(monster.description).replace(/\n/g, '<br><br>')}</div>`
+
+: '';
+
+
+
+const html = `
+
+<div class="monster-name">${escapeHtml(monster.name)}</div>
+
+<div class="monster-meta">
+
+<span>Сложность: <strong>${escapeHtml(monster.challenge_rating || '?')}</strong></span>
+
+<span>КД: <strong>${monster.armor_class || '?'}</strong></span>
+
+<span>Хиты: <strong>${monster.hit_points_clean || '?'}</strong></span>
+
+${monster.speed ? `<span>Скорость: <strong>${escapeHtml(monster.speed)}</strong></span>` : ''}
+
+${monster.meta ? `<span style="width: 100%; margin-top: 0.3rem;"><em>${escapeHtml(monster.meta)}</em></span>` : ''}
+
+</div>
+
+${statsHtml}
+
+${descHtml}
+
+${traitsHtml}
+
+${actionsHtml}
+
+${legActionsHtml}
+
+`;
+
+container.innerHTML = html;
+
+}
+
+
+
+function renderMonsterList() {
+
+const container = document.getElementById('monsterListContainer');
+
+if (filteredMonsters.length === 0) {
+
+container.innerHTML = '<div class="empty-party" style="border: none;">Монстры не найдены</div>';
+
+return;
+
+}
+
+
+
+let html = '';
+
+filteredMonsters.forEach((monster, idx) => {
+
+const isSelected = (currentMonster && currentMonster.name === monster.name);
+
+html += `
+
+<div class="monster-list-item ${isSelected ? 'selected' : ''}" data-idx="${idx}">
+
+<span class="monster-list-name">${escapeHtml(monster.name)}</span>
+
+<span class="monster-list-cr">Сл. ${monster.challenge_rating || '?'}</span>
+
+</div>
+
+`;
+
+});
+
+container.innerHTML = html;
+
+
+
+document.querySelectorAll('.monster-list-item').forEach(el => {
+
+el.addEventListener('click', () => {
+
+const idx = parseInt(el.getAttribute('data-idx'));
+
+if (!isNaN(idx) && filteredMonsters[idx]) {
+
+currentMonster = filteredMonsters[idx];
+
+displayMonsterDetail(currentMonster);
+
+
+
+document.querySelectorAll('.monster-list-item').forEach(item => item.classList.remove('selected'));
+
+el.classList.add('selected');
+
+}
+
+});
+
+});
+
+}
+
+
+
+function filterMonsters() {
+
+const query = document.getElementById('monsterSearch').value.trim().toLowerCase();
+
+const crFilter = document.getElementById('crFilter').value;
+
+
+
+filteredMonsters = monstersData.filter(m => {
+
+const matchesName = m.name.toLowerCase().includes(query);
+
+const matchesCR = (crFilter === 'all') || (m.challenge_rating === crFilter);
+
+return matchesName && matchesCR;
+
+});
+
+
+
+if (currentMonster && !filteredMonsters.some(m => m.name === currentMonster.name)) {
+
+currentMonster = null;
+
+displayMonsterDetail(null);
+
+}
+
+
+
+if (filteredMonsters.length > 0 && !currentMonster) {
+
+currentMonster = filteredMonsters[0];
+
+displayMonsterDetail(currentMonster);
+
+}
+
+
+
+renderMonsterList();
+
+}
+
+
+
+document.addEventListener('DOMContentLoaded', () => {
+
+populateCRFilter();
+
+
+
+if (filteredMonsters.length > 0) {
+
+currentMonster = filteredMonsters[0];
+
+displayMonsterDetail(currentMonster);
+
+}
+
+renderMonsterList();
+
+
+
+let debounceTimer;
+
+document.getElementById('monsterSearch').addEventListener('input', () => {
+
+clearTimeout(debounceTimer);
+
+debounceTimer = setTimeout(filterMonsters, 200);
+
+});
+
+
+
+document.getElementById('crFilter').addEventListener('change', filterMonsters);
+
+document.getElementById('addToPartyBtn').addEventListener('click', addCurrentMonster);
+
+document.getElementById('saveAndGoBtn').addEventListener('click', saveAndGo);
+
+
+
+renderParty();
+
+});
+
+
+
+function escapeHtml(str) {
+
+if (!str) return '';
+
+return String(str).replace(/[&<>]/g, function(m) {
+
+if (m === '&') return '&amp;';
+
+if (m === '<') return '&lt;';
+
+if (m === '>') return '&gt;';
+
+return m;
+
+});
+
+}
+
+</script>
+
+</body>
+
+</html>
+
+Скрипт для очистки таблицы и страница для добавления заклинаний готовы.
+
+Структура данных из изображения (типы int4 и _text) указывает на использование PostgreSQL, поэтому скрипт очистки использует синтаксис TRUNCATE с полным сбросом счетчиков (идентификаторов).
+
+Ваши файлы готовы:
+Значок PY-файла
+clear_spells
+ PY 
+Открыть
+ — Python-скрипт (clear_spells.py), использующий psycopg2 для обнуления таблицы заклинаний.
+Значок HTML-файла
+add_spell
+ HTML 
+Открыть
+ — HTML-страница (add_spell.html), созданная в полном соответствии с визуальным стилем Folio.
+
+Страница адаптирована для ввода каждого столбца. В JavaScript-блоке страницы уже предусмотрена логика автоматического преобразования введенных через запятую классов в массив, который будет корректно передан на бэкенд и сохранен в поле с типом _text. Уровень (level) также автоматически конвертируется в числовое значение (int4).
+
+
+
+
+Gemini – это ИИ. Он может ошибаться, в том числе давать неверную информацию о людях. Gemini и ваша конфиденциальностьОткроется в новом окне
+
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавление Заклинания | Folio</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #141418;
+            --bg-tertiary: #1e1e24;
+            --text-primary: #e0d4b8;
+            --text-secondary: #a89f8a;
+            --accent-gold: #c9a961;
+            --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a;
+            --accent-green: #4a6b4a;
+            --border-color: #3a352a;
+            --shadow-color: rgba(0,0,0,0.6);
+            --font-main: 'Georgia', 'Times New Roman', serif;
+            --font-ui: 'Segoe UI', Tahoma, sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: var(--font-ui);
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Общие кнопки в стиле Folio */
+        .btn {
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            cursor: pointer;
+            text-align: center;
+            font-family: var(--font-ui);
+        }
+        .btn:hover { background: var(--bg-tertiary); border-color: var(--accent-gold-dim); }
+        .btn-success { background: linear-gradient(145deg, var(--accent-green), #3a5a3a); color: #fff; font-weight: bold; border: none;}
+        .btn-success:hover { background: linear-gradient(145deg, #5a8b5a, #4a6b4a); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74, 107, 74, 0.2); }
+
+        /* Заголовок */
+        .prep-header {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.2rem 1.8rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .prep-header h1 {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 1.6rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* Панель и форма */
+        .panel {
+            background: linear-gradient(145deg, var(--bg-secondary), var(--bg-tertiary));
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            flex-grow: 1;
+        }
+        .panel-title {
+            font-family: var(--font-main);
+            font-size: 1.3rem;
+            color: var(--accent-gold);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.8rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem 2rem;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        label {
+            font-family: var(--font-main);
+            color: var(--accent-gold);
+            font-size: 0.95rem;
+        }
+
+        .input-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            font-family: var(--font-ui);
+            padding: 0.7rem;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+        
+        .input-box:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+        }
+
+        textarea.input-box {
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.5;
+        }
+        
+        .help-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: -0.3rem;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header class="prep-header">
+        <h1>Книга Магии</h1>
+        <a href="#" class="btn">Вернуться к списку</a>
+    </header>
+
+    <div class="panel">
+        <div class="panel-title">Добавление нового заклинания</div>
+        
+        <form id="addSpellForm" class="form-grid">
+            <!-- Названия -->
+            <div class="form-group">
+                <label for="name_ru">Название (RU)</label>
+                <input type="text" id="name_ru" name="name_ru" class="input-box" placeholder="Огненный шар" required>
+            </div>
+            <div class="form-group">
+                <label for="name_en">Название (EN)</label>
+                <input type="text" id="name_en" name="name_en" class="input-box" placeholder="Fireball" required>
+            </div>
+
+            <!-- Базовые характеристики -->
+            <div class="form-group">
+                <label for="level">Уровень</label>
+                <input type="number" id="level" name="level" class="input-box" min="0" max="9" placeholder="0-9 (0 для заговоров)" required>
+            </div>
+            <div class="form-group">
+                <label for="school">Школа</label>
+                <input type="text" id="school" name="school" class="input-box" placeholder="Воплощение" required>
+            </div>
+
+            <!-- Применение -->
+            <div class="form-group">
+                <label for="casting_time">Время накладывания</label>
+                <input type="text" id="casting_time" name="casting_time" class="input-box" placeholder="1 действие" required>
+            </div>
+            <div class="form-group">
+                <label for="range">Дистанция</label>
+                <input type="text" id="range" name="range" class="input-box" placeholder="150 футов" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="components">Компоненты</label>
+                <input type="text" id="components" name="components" class="input-box" placeholder="В, С, М (крошечный шарик из гуано...)" required>
+            </div>
+            <div class="form-group">
+                <label for="duration">Длительность</label>
+                <input type="text" id="duration" name="duration" class="input-box" placeholder="Мгновенная" required>
+            </div>
+
+            <!-- Классы (PostgreSQL _text) -->
+            <div class="form-group full-width">
+                <label for="classes">Классы</label>
+                <input type="text" id="classes" name="classes" class="input-box" placeholder="Волшебник, Чародей">
+                <div class="help-text">Укажите классы через запятую. Бэкенд преобразует это в массив (_text).</div>
+            </div>
+
+            <!-- Описание -->
+            <div class="form-group full-width">
+                <label for="description">Описание</label>
+                <textarea id="description" name="description" class="input-box" placeholder="Яркий луч устремляется из вашего указательного пальца..." required></textarea>
+            </div>
+
+            <!-- Источник -->
+            <div class="form-group full-width">
+                <label for="source">Источник</label>
+                <input type="text" id="source" name="source" class="input-box" placeholder="Книга Игрока, стр. 260" required>
+            </div>
+
+            <!-- Сабмит -->
+            <div class="form-group full-width" style="margin-top: 1rem; align-items: flex-end;">
+                <button type="submit" class="btn btn-success" style="padding: 0.9rem 2rem; font-size: 1rem;">Сохранить в базу</button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    document.getElementById('addSpellForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const data = Object.fromEntries(formData.entries());
+        
+        // Преобразуем строку классов в массив, так как в БД ожидается тип _text (массив строк)
+        if (data.classes) {
+            data.classes = data.classes.split(',').map(c => c.trim()).filter(Boolean);
+        } else {
+            data.classes = [];
+        }
+
+        // Преобразуем уровень в число (int4)
+        data.level = parseInt(data.level, 10);
+
+        console.log('Подготовленные данные для отправки:', data);
+        alert('Данные собраны! Посмотрите консоль (F12) для проверки объекта перед отправкой на сервер.');
+        
+        /* 
+        // Пример отправки через fetch на бэкенд
+        fetch('/api/spells', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(res => {
+            if (res.ok) alert('Успешно добавлено!');
+        });
+        */
+    });
+</script>
+</body>
+</html>

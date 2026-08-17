@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Описание | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/char_description.css">
+</head>
+<body>
+    <div class="container">
+
+        <header class="inv-header">
+            <h1> Описание: {{ char.name }}</h1>
+            <nav class="nav-links">
+                <a href="/char/{{ char.id }}" class="nav-btn">← Лист персонажа</a>
+            </nav>
+        </header>
+
+        <div class="messages">
+            {% if error %}<div class="msg error">⚔️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+        </div>
+
+        <form method="POST" action="/char/{{ char.id }}/description" enctype="multipart/form-data">
+
+            <!-- Изображение персонажа -->
+            <section class="section">
+                <h2 class="section-title">🖼️ Изображение персонажа</h2>
+                <div class="image-upload-container">
+                    <div class="image-preview" id="charImagePreview"
+                         {% if char.description_image %}onclick="openImageModal('{{ char.description_image }}')"{% endif %}
+                         style="{% if char.description_image %}cursor: zoom-in;{% endif %}">
+                        {% if char.description_image %}
+                            <img src="{{ char.description_image }}" alt="{{ char.name }}">
+                        {% else %}
+                            <div class="placeholder">Нет изображения<br>Загрузите портрет</div>
+                        {% endif %}
+                    </div>
+                    <div class="image-upload-controls">
+                        <label for="char_image" class="upload-btn"> Выбрать файл</label>
+                        <input type="file" id="char_image" name="char_image" accept="image/*">
+                        {% if char.description_image %}
+                            <label style="display: inline-flex; align-items: center; gap: 0.3rem; margin-left: 0.5rem;">
+                                <input type="checkbox" name="remove_image" value="1">
+                                <span class="remove-img-btn">Удалить</span>
+                            </label>
+                            <p style="font-size: 0.75rem; color: var(--accent-gold-dim); margin-top: 0.4rem;">
+                                💡 Нажмите на изображение, чтобы увеличить
+                            </p>
+                        {% endif %}
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                            Поддерживаются: JPG, PNG, GIF, WebP. Максимум 5MB.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+<!-- Модальное окно просмотра изображения -->
+<div id="imageModal" class="image-modal">
+    <span class="modal-close" onclick="closeImageModal()">&times;</span>
+    <img class="modal-content" id="modalImage" alt="{{ char.name }}">
+    <div class="modal-caption" id="modalCaption">{{ char.name }}</div>
+</div>
+
+            <!-- Описание внешности -->
+            <section class="section">
+                <h2 class="section-title">👤 Описание внешности</h2>
+                <div class="form-group">
+                    <label for="appearance">Внешний вид, рост, телосложение, отличительные черты</label>
+                    <textarea id="appearance" name="appearance" placeholder="Опишите, как выглядит ваш персонаж...">{{ char.description_appearance or '' }}</textarea>
+                </div>
+            </section>
+
+            <!-- Предыстория -->
+            <section class="section">
+                <h2 class="section-title">📖 Предыстория</h2>
+                <div class="form-group">
+                    <label for="background">Прошлое персонажа, важные события, мотивация</label>
+                    <textarea id="background" name="background" placeholder="Расскажите историю вашего героя..." style="min-height: 200px;">{{ char.description_background or '' }}</textarea>
+                </div>
+            </section>
+
+            <!-- Союзники и организации -->
+            <section class="section">
+                <h2 class="section-title">🤝 Союзники и организации</h2>
+                <div class="form-group">
+                    <label for="allies">Друзья, враги, гильдии, ордена, связи</label>
+                    <textarea id="allies" name="allies" placeholder="Перечислите важных людей и организации...">{{ char.description_allies or '' }}</textarea>
+                </div>
+            </section>
+
+            <!-- Характер -->
+            <section class="section">
+                <h2 class="section-title"> Характер</h2>
+                <div class="traits-grid">
+                    <div class="trait-block">
+                        <label for="personality">Свойства личности</label>
+                        <textarea id="personality" name="personality" placeholder="Особенности характера, привычки...">{{ char.description_personality or '' }}</textarea>
+                    </div>
+                    <div class="trait-block">
+                        <label for="ideals">Идеалы</label>
+                        <textarea id="ideals" name="ideals" placeholder="Во что верит персонаж...">{{ char.description_ideals or '' }}</textarea>
+                    </div>
+                    <div class="trait-block">
+                        <label for="bonds">Узы</label>
+                        <textarea id="bonds" name="bonds" placeholder="Что связывает персонажа с миром...">{{ char.description_bonds or '' }}</textarea>
+                    </div>
+                    <div class="trait-block">
+                        <label for="flaws">Слабости</label>
+                        <textarea id="flaws" name="flaws" placeholder="Страхи, пороки, недостатки...">{{ char.description_flaws or '' }}</textarea>
+                    </div>
+                </div>
+            </section>
+
+            <button type="submit" class="btn-submit">💾 Сохранить описание</button>
+        </form>
+    </div>
+
+    <script src="/static/js/char_description.js"></script>
+</body>
+</html>

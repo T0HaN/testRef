@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Вход в Folio • D&D Manager</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <header class="header">
+            <h1 class="realm-title">Folio</h1>
+            <p class="subtitle">Врата приключений</p>
+        </header>
+
+        <div class="messages">
+            {% if error %}
+                <div class="msg error">⚔️ {{ error }}</div>
+            {% endif %}
+            {% if success %}
+                <div class="msg success">✨ {{ success }}</div>
+            {% endif %}
+            {% if info %}
+                <div class="msg info">📜 {{ info }}</div>
+            {% endif %}
+        </div>
+
+        <form method="post" action="/login" novalidate id="auth-form">
+            <!-- Скрытое поле для определения действия (login/register) -->
+            <input type="hidden" name="action" id="action-input" value="login">
+
+            <div class="form-group">
+                <label for="username">Логин</label>
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    required
+                    minlength="3"
+                    maxlength="50"
+                    placeholder="Имя путника..."
+                    autocomplete="username"
+                    pattern="[a-zA-Z0-9_]+"
+                    title="Только буквы, цифры и подчёркивание"
+                >
+            </div>
+
+            <!-- Блок для почты (появляется при регистрации) -->
+            <div class="form-group" id="email-group">
+                <label for="email">Электронная почта</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    placeholder="почта@домен.ру"
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Пароль</label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    required
+                    minlength="4"
+                    placeholder="Тайный ключ..."
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <!-- Блок согласия на обработку ПД (появляется при регистрации) -->
+            <div class="form-group" id="consent-group">
+                <label class="custom-checkbox">
+                    <input type="checkbox" id="consent-checkbox" name="consent" value="yes">
+                    <span>
+                        Я даю своё согласие на обработку
+                        <a href="/privacy" target="_blank">персональных данных</a>
+                    </span>
+                </label>
+            </div>
+
+            <div class="ornament">❖ ❖ ❖</div>
+
+            <div class="btn-row">
+                <button type="submit" id="main-submit-btn">🔐 Войти</button>
+            </div>
+        </form>
+
+        <div class="toggle-mode">
+            <span id="toggle-prompt">Ещё не ведете летопись?</span>
+            <a href="#" id="toggle-link">Зарегистрироваться</a>
+        </div>
+
+        <footer class="footer">
+            <p>«{{ quote_text if quote_text else "Не все те, кто странствуют — потеряны." }}»</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/login.js"></script>
+</body>
+</html>

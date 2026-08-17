@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Подключение к комнате | Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/player_join.css">
+</head>
+<body>
+    <div class="container">
+
+        <header class="page-header">
+            <h1 class="page-title">Подключение к комнате</h1>
+            <div class="page-subtitle">Игрок: @{{ username }}</div>
+            <a href="/chars" class="nav-back">← Назад к персонажам</a>
+        </header>
+
+        <div class="messages">
+            {% if error %}<div class="msg error">⚠️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+        </div>
+
+        <!-- Сохранённые комнаты (История) -->
+        {% if my_rooms %}
+        <section class="section">
+            <h2 class="section-title">📌 Недавние игры</h2>
+            <div class="saved-rooms-list">
+                {% for room in my_rooms %}
+                <div class="saved-room-card">
+                    <div class="saved-room-info">
+                        <div class="saved-room-name">{{ room.name }}</div>
+                        <div class="saved-room-meta">
+                            Мастер: <strong>@{{ room.master_id }}</strong> •
+                            Код: <strong>{{ room.invite_code }}</strong>
+                        </div>
+                    </div>
+
+                    <div style="text-align: right;">
+                        {% if room.active %}
+                            <div style="margin-bottom: 0.4rem;">
+                                <span class="room-status status-active">🟢 Открыта ({{ room.current_players }}/{{ room.max_players }})</span>
+                            </div>
+                            <a href="/player/join/{{ room.id }}" class="btn-quick-join">⚡ Войти</a>
+                        {% else %}
+                            <span class="room-status status-closed">🔴 Закрыта</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <div class="divider">или подключиться по новому коду</div>
+        {% endif %}
+
+        <!-- Форма подключения по коду -->
+        <section class="section">
+            <h2 class="section-title">🔑 Подключение по коду</h2>
+
+            <form method="POST" action="/player/join">
+
+                {% if preselected_char %}
+                <div class="char-preview">
+                    Выбранный персонаж: <strong>{{ preselected_char.name }}</strong><br>
+                    <span style="color: var(--text-secondary);">
+                        {{ preselected_char.char_class }} {{ preselected_char.level }} ур. • {{ preselected_char.race }}
+                    </span>
+                    <input type="hidden" name="char_id" value="{{ preselected_char.id }}">
+                </div>
+                {% else %}
+                <div class="form-group">
+                    <label for="char_id">Выберите персонажа</label>
+                    <select id="char_id" name="char_id" required>
+                        <option value="">— Выберите —</option>
+                        {% for char in chars %}
+                        <option value="{{ char.id }}">{{ char.name }} ({{ char.char_class }} {{ char.level }} ур.)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label for="code">Код приглашения</label>
+                    <input type="text" id="code" name="code" required
+                           placeholder="Введите 6-значный код"
+                           maxlength="10"
+                           value="{{ code }}"
+                           style="text-transform: uppercase; letter-spacing: 0.15em; font-family: var(--font-main); font-size: 1.1rem; text-align: center;">
+                </div>
+
+                <button type="submit" class="btn-submit">🚪 Подключиться к комнате</button>
+            </form>
+        </section>
+
+    </div>
+</body>
+</html>

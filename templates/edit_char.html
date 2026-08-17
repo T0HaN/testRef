@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/edit_char.css">
+</head>
+<body>
+    <div class="container">
+
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">✏️ Редактирование персонажа</h1>
+                <div class="page-subtitle">{{ char.name }} • {{ char.char_class }} {{ char.level }} ур.</div>
+            </div>
+            <a href="/char/{{ char.id }}" class="nav-btn">← Отмена</a>
+        </header>
+
+        <div class="messages">
+            {% if error %}<div class="msg error">⚔️ {{ error }}</div>{% endif %}
+            {% if success %}<div class="msg success">✨ {{ success }}</div>{% endif %}
+        </div>
+
+        <form method="POST" action="/char/{{ char.id }}/edit">
+
+            <!-- Основная информация -->
+            <section class="section">
+                <h2 class="section-title">📋 Основная информация</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="name">Имя персонажа *</label>
+                        <input type="text" id="name" name="name" value="{{ char.name }}" required maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="race">Раса</label>
+                        <select id="race" name="race">
+                            {% for race in races %}
+                            <option value="{{ race }}" {% if char.race == race %}selected{% endif %}>{{ race }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="char_class">Класс</label>
+                        <select id="char_class" name="char_class">
+                            {% for cls in classes %}
+                            <option value="{{ cls }}" {% if char.char_class == cls %}selected{% endif %}>{{ cls }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="subclass">Подкласс</label>
+                        <input type="text" id="subclass" name="subclass" value="{{ char.subclass if char.subclass != 'Нет' else '' }}" placeholder="Например: Путь берсерка">
+                    </div>
+                    <div class="form-group">
+                        <label for="alignment">Мировоззрение</label>
+                        <select id="alignment" name="alignment">
+                            {% for al in alignments %}
+                            <option value="{{ al }}" {% if char.alignment == al %}selected{% endif %}>{{ al }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="level">Уровень (1-20)</label>
+                        <input type="number" id="level" name="level" value="{{ char.level }}" min="1" max="20">
+                        <div class="hint">Автоматически пересчитывается по опыту</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="xp">Опыт (XP)</label>
+                        <input type="number" id="xp" name="xp" value="{{ char.xp }}" min="0">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Характеристики -->
+            <section class="section">
+                <h2 class="section-title">💪 Характеристики</h2>
+                <div class="stats-grid">
+                    {% for stat_key, stat_name in [('STR','СИЛА'),('DEX','ЛОВКОСТЬ'),('CON','ТЕЛО'),('INT','ИНТЕЛЛЕКТ'),('WIS','МУДРОСТЬ'),('CHA','ХАРИЗМА')] %}
+                        {% set score = char.stats[stat_key].score %}
+                        {% set mod = char.stats[stat_key].modifier %}
+                        <div class="stat-card">
+                            <label for="stat_{{ stat_key }}">{{ stat_name }}</label>
+                            <input type="number" id="stat_{{ stat_key }}" name="stat_{{ stat_key }}"
+                                   value="{{ score }}" min="1" max="30"
+                                   oninput="updateMod('{{ stat_key }}', this.value)">
+                            <span class="stat-mod" id="mod_{{ stat_key }}">
+                                Модификатор: {% if mod >= 0 %}+{% endif %}{{ mod }}
+                            </span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Здоровье -->
+            <section class="section">
+                <h2 class="section-title">❤️ Здоровье</h2>
+                <div class="hp-grid">
+                    <div class="form-group">
+                        <label for="hp_current">Текущие хиты</label>
+                        <input type="number" id="hp_current" name="hp_current" value="{{ char.hp.current }}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="hp_max">Максимум хитов</label>
+                        <input type="number" id="hp_max" name="hp_max" value="{{ char.hp.max }}" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="hp_temp">Временные хиты</label>
+                        <input type="number" id="hp_temp" name="hp_temp" value="{{ char.hp.temp }}" min="0">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Спасброски -->
+            <section class="section">
+                <h2 class="section-title">🛡️ Спасброски</h2>
+                <div class="checkbox-grid">
+                    {% for save_key, save_name in saving_throws %}
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="saving_throws" value="{{ save_name }}"
+                               {% if save_name in char.saving_throws %}checked{% endif %}>
+                        <span class="item-name">{{ save_name }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Навыки -->
+            <section class="section">
+                <h2 class="section-title">🎯 Навыки</h2>
+                <div class="checkbox-grid">
+                    {% for skill_key, skill_name, stat_abbr in skills %}
+                    <label class="checkbox-item">
+                        <input type="checkbox" name="skills" value="{{ skill_name }}"
+                               {% if skill_name in char.skills %}checked{% endif %}>
+                        <span class="item-name">{{ skill_name }}</span>
+                        <span class="stat-badge">{{ stat_abbr }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Физические данные -->
+            <section class="section">
+                <h2 class="section-title">👤 Внешность</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="height">Рост</label>
+                        <input type="text" id="height" name="height" value="{{ char.physical.height }}" placeholder="180 см">
+                    </div>
+                    <div class="form-group">
+                        <label for="weight">Вес</label>
+                        <input type="text" id="weight" name="weight" value="{{ char.physical.weight }}" placeholder="75 кг">
+                    </div>
+                    <div class="form-group">
+                        <label for="hair">Цвет волос</label>
+                        <input type="text" id="hair" name="hair" value="{{ char.physical.hair }}" placeholder="Чёрные">
+                    </div>
+                    <div class="form-group">
+                        <label for="eyes">Цвет глаз</label>
+                        <input type="text" id="eyes" name="eyes" value="{{ char.physical.eyes }}" placeholder="Карие">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Прочее -->
+            <section class="section">
+                <h2 class="section-title">⚙️ Прочее</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="speed">Скорость (футов)</label>
+                        <input type="number" id="speed" name="speed" value="{{ char.attributes.speed }}" min="0" max="200">
+                        <div class="hint">Обычно 30 футов для большинства рас</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Кнопки -->
+            <div class="btn-row">
+                <a href="/char/{{ char.id }}" class="btn-cancel">Отмена</a>
+                <button type="submit" class="btn-submit">💾 Сохранить изменения</button>
+            </div>
+
+        </form>
+    </div>
+
+    <script src="/static/js/edit_char.js"></script>
+</body>
+</html>

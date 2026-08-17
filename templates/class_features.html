@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Классовые навыки | {{ char.name }}</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/class_features.css">
+</head>
+<body>
+    <div class="container">
+
+        <!-- Header -->
+        <header class="page-header">
+            <div>
+                <h1 class="page-title">Классовые навыки</h1>
+                <div class="page-subtitle">
+                    {{ char.name }} • {{ char.char_class }} {{ char.level }} ур.
+                    {% if char.subclass and char.subclass != 'Нет' %}
+                        • {{ char.subclass }}
+                    {% endif %}
+                </div>
+            </div>
+            <nav class="nav-links">
+                <a href="/char/{{ char.id }}" class="nav-btn">← Лист персонажа</a>
+                <a href="/chars" class="nav-btn">Список героев</a>
+            </nav>
+        </header>
+
+        <!-- Summary strip -->
+        <div class="summary-strip">
+            <div class="summary-item">
+                <div class="summary-label">Класс</div>
+                <div class="summary-value" style="font-size: 1rem;">{{ char.char_class }}</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-label">Уровень</div>
+                <div class="summary-value">{{ char.level }}</div>
+            </div>
+            {% if char.subclass and char.subclass != 'Нет' %}
+            <div class="summary-item">
+                <div class="summary-label">Подкласс</div>
+                <div class="summary-value" style="font-size: 1rem;">{{ char.subclass }}</div>
+            </div>
+            {% endif %}
+            <div class="summary-item">
+                <div class="summary-label">Всего навыков</div>
+                <div class="summary-value">{{ features|length if features else 0 }}</div>
+            </div>
+        </div>
+
+        <!-- Features list -->
+        <section class="section">
+            <h2 class="section-title">⚔️ Классовые особенности</h2>
+
+            {% if features %}
+                {# Group by level #}
+                {% set ns = namespace(current_level=0) %}
+                {% for feat in features %}
+                    {% if feat.level != ns.current_level %}
+                        {% if ns.current_level != 0 %}
+                            </div>
+                        {% endif %}
+                        {% set ns.current_level = feat.level %}
+                        <div class="level-group">
+                            <div class="level-header">
+                                <span class="level-badge">{{ feat.level }} ур.</span>
+                                <span class="level-label">Особенности уровня</span>
+                            </div>
+                    {% endif %}
+                    <div class="feature-card">
+                        <div class="feature-header">
+                            <div class="feature-name">{{ feat.name }}</div>
+                            <div class="feature-tags">
+                                {% if feat.source == 'subclass' %}
+                                    <span class="tag tag-subclass"> Подкласс</span>
+                                {% else %}
+                                    <span class="tag tag-base">️ Базовый</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="feature-description">{{ feat.description or '' }}</div>
+                    </div>
+                {% endfor %}
+                {% if features %}
+                    </div>
+                {% endif %}
+
+            {% else %}
+                <div class="empty-state">
+                    <div class="icon">📖</div>
+                    <h3>На {{ char.level }}-м уровне нет особенностей</h3>
+                    <p>
+                        У класса <strong>{{ char.char_class }}</strong> на текущем уровне нет дополнительных способностей в базе данных.
+                        Повысьте уровень или выберите подкласс, чтобы открыть новые навыки.
+                    </p>
+                </div>
+            {% endif %}
+        </section>
+
+        <!-- Footer -->
+        <div style="text-align: center; padding: 1rem; color: var(--text-secondary); font-size: 0.85rem; font-style: italic;">
+            Современный лист персонажа D&D 5e • Стиль Средиземья
+        </div>
+    </div>
+</body>
+</html>

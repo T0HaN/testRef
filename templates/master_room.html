@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folio | Комната Мастера</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/master_room.css">
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="room-header">
+        <div class="room-title-block">
+            <div class="room-title">Folio | {{ room.name }}</div>
+            <div class="room-meta">
+                <span>Код: <strong>{{ room.invite_code }}</strong></span>
+                <span>Игроков: <strong>{{ room.current_players|length }}/{{ room.max_players }}</strong></span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <a href="/master/room/{{ room.id }}/rewards" class="header-btn primary">🎁 Выдать награды</a>
+            <a href="/games" class="header-btn">← В панель</a>
+        </div>
+    </header>
+
+    <!-- Main layout -->
+    <div class="main-layout">
+
+        <!-- COMPACT SIDEBAR -->
+        <aside class="compact-sidebar">
+            <button class="icon-tab-btn" data-tab="players" title="Игроки">👥</button>
+            <button class="icon-tab-btn" data-tab="combat" title="Трекер боя">⚔️</button>
+            <button class="icon-tab-btn" data-tab="scenes" title="Сцены (Карты)">🗺️</button>
+            <button class="icon-tab-btn" data-tab="dice" title="Броски кубов">🎲</button>
+            <button class="icon-tab-btn" data-tab="history" title="История наград">📜</button>
+            <button class="icon-tab-btn" data-tab="monsters" title="Бестиарий">👹</button>
+            <button class="icon-tab-btn" data-tab="props" title="Предметы окружения">📦</button>
+            <button class="icon-tab-btn" data-tab="rewards" title="Выдача наград">🎁</button>
+        </aside>
+
+        <!-- SLIDING PANEL -->
+        <div class="slide-panel" id="slidePanel">
+            <div class="panel-header">
+                <div class="panel-title" id="panelTitle">Панель</div>
+                <button class="close-panel-btn" onclick="closePanel()">✖</button>
+            </div>
+            <div class="panel-content">
+                <!-- Вкладки -->
+                <div id="tab-players" class="tab-content">
+                    <h3 class="section-title">
+                        Подключённые игроки
+                        <button onclick="refreshPlayersTab()" title="Обновить статусы" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:0.9rem; float:right;">🔄</button>
+                    </h3>
+                    {% if players %}
+                        {% for p in players %}
+                        <div class="player-card" {% if not p.is_online %}style="opacity: 0.7; border-color: rgba(58, 53, 42, 0.5);" title="Игрок не в сети"{% endif %}>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.3rem;">
+                                <div class="player-name" style="margin-bottom: 0;">{{ p.char.name }}</div>
+                                {% if p.is_online %}
+                                    <div title="Онлайн" style="width: 10px; height: 10px; border-radius: 50%; background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); flex-shrink: 0; margin-top: 4px;"></div>
+                                {% else %}
+                                    <div title="Офлайн" style="width: 10px; height: 10px; border-radius: 50%; background: var(--text-secondary); flex-shrink: 0; margin-top: 4px;"></div>
+                                {% endif %}
+                            </div>
+                            <div class="player-class">
+                                {{ p.char.char_class }} {{ p.char.level }} ур.
+                                {% if p.char.subclass and p.char.subclass != 'Нет' %}• {{ p.char.subclass }}{% endif %}
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                                Игрок: @{{ p.username }} {% if not p.is_online %}<span style="color: var(--accent-red); font-size: 0.7rem; font-style: italic;">(Офлайн)</span>{% endif %}
+                            </div>
+                            <a href="/master/room/{{ room.id }}/char/{{ p.char.id }}?username={{ p.username }}" class="btn-view" target="_blank">📄 Открыть лист</a>
+
+                            <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem; margin-top: 0.5rem;">
+                                <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.3rem; text-align: center;">❤️ Хиты</div>
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 0.3rem;">
+                                    <button class="hp-btn-sm damage" onclick="adjustMasterHp({{ p.char.id }}, '{{ p.username }}', -5)">-5</button>
+                                    <button class="hp-btn-sm damage" onclick="adjustMasterHp({{ p.char.id }}, '{{ p.username }}', -1)">-1</button>
+                                    <input type="number" id="master-hp-{{ p.char.id }}" value="{{ p.char.hp.current }}" min="0"
+                                           onchange="saveMasterHp({{ p.char.id }}, '{{ p.username }}', this.value)"
+                                           style="width: 45px; text-align: center; font-size: 1rem; font-weight: bold; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); padding: 0.2rem;">
+                                    <span style="color: var(--text-secondary); font-size: 0.9rem;">/ {{ p.char.hp.max }}</span>
+                                    <button class="hp-btn-sm heal" onclick="adjustMasterHp({{ p.char.id }}, '{{ p.username }}', 1)">+1</button>
+                                    <button class="hp-btn-sm heal" onclick="adjustMasterHp({{ p.char.id }}, '{{ p.username }}', 5)">+5</button>
+                                </div>
+                                {% if p.char.hp.temp > 0 %}
+                                <div style="text-align: center; font-size: 0.75rem; color: var(--accent-gold); margin-top: 0.3rem;">+{{ p.char.hp.temp }} врем.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="icon">🕸️</div>
+                            <div>Никто не подключился</div>
+                            <div style="font-size: 0.8rem; margin-top: 0.5rem;">Код: <strong style="color: var(--accent-gold);">{{ room.invite_code }}</strong></div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div id="tab-combat" class="tab-content">
+                    <h3 class="section-title">Трекер инициативы</h3>
+                    <div id="combat-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                        <div class="empty-state">Нет активных участников боя</div>
+                    </div>
+                </div>
+
+                <div id="tab-scenes" class="tab-content">
+                    <h3 class="section-title">Игровые сцены</h3>
+                    <div style="margin-bottom: 1rem;">
+                        <input type="text" id="newSceneName" placeholder="Название новой сцены..." style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
+                        <input type="file" id="sceneFileInput" accept="image/*" style="display: none;" onchange="uploadNewScene(this)">
+                        <button class="vtt-btn primary" style="width: 100%; border-color: var(--accent-gold);" onclick="document.getElementById('sceneFileInput').click()">
+                            ➕ Загрузить новую карту
+                        </button>
+                    </div>
+                    <div id="scenes-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        <div class="empty-state">Загрузка сцен...</div>
+                    </div>
+                </div>
+
+                <div id="tab-dice" class="tab-content">
+                    <h3 class="section-title">Быстрые броски</h3>
+                    <div style="margin-bottom: 0.8rem; background: var(--bg-primary); padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="hiddenRollCheck" style="width: 16px; height: 16px; accent-color: var(--accent-gold);">
+                            👁️ Скрытый бросок (результат видите только вы)
+                        </label>
+                    </div>
+                    <div class="dice-grid">
+                        <button class="vtt-btn" onclick="rollDice(4)">d4</button>
+                        <button class="vtt-btn" onclick="rollDice(6)">d6</button>
+                        <button class="vtt-btn" onclick="rollDice(8)">d8</button>
+                        <button class="vtt-btn" onclick="rollDice(10)">d10</button>
+                        <button class="vtt-btn" onclick="rollDice(12)">d12</button>
+                        <button class="vtt-btn" onclick="rollDice(20)">d20</button>
+                    </div>
+                    <input type="text" id="check-name" placeholder="Название броска..." style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
+                    <button class="vtt-btn" style="width: 100%;" onclick="rollCheck()">🎯 Бросить d20</button>
+                    <button class="vtt-btn" style="width: 100%; margin-top: 0.5rem;" onclick="rollDice(100)">d100</button>
+                </div>
+
+                <div id="tab-history" class="tab-content">
+                    <h3 class="section-title">История наград</h3>
+                    {% set reward_history = room.roll_history | selectattr('type', 'equalto', 'reward') | list %}
+                    {% if reward_history %}
+                        {% for entry in reward_history[-10:] %}
+                        <div style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem; margin-bottom: 0.5rem; font-size: 0.8rem;">
+                            <div style="color: var(--accent-gold); font-weight: 600;">Выдано мастером</div>
+                            <div style="color: var(--text-secondary); font-size: 0.75rem;">{{ entry.timestamp | int | timestamp_to_date if entry.timestamp else '—' }}</div>
+                            <div style="margin-top: 0.3rem;">
+                                {% if entry.xp %}XP: +{{ entry.xp }}{% endif %}
+                                {% if entry.coins %} {% for k, v in entry.coins.items() %}{% if v > 0 %} | {{ v }}{{ k }}{% endif %}{% endfor %}{% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="empty-state"><div class="icon">📜</div><div>Пока нет записей</div></div>
+                    {% endif %}
+                </div>
+
+                <div id="tab-monsters" class="tab-content">
+                    <h3 class="section-title">Бестиарий отряда</h3>
+                    {% if selected_monsters %}
+                    <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        {% for m in selected_monsters %}
+                        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.7rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                {% if m.token_image %}
+                                <img src="{{ m.token_image }}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-gold-dim); flex-shrink: 0;" alt="{{ m.name }}">
+                                {% else %}
+                                <div style="width: 38px; height: 38px; border-radius: 50%; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 2px solid var(--border-color);">👹</div>
+                                {% endif %}
+
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-family: var(--font-main); font-size: 0.9rem; font-weight: 700; color: var(--accent-gold); line-height: 1.2;">{{ m.name }}</div>
+                                    {% if m.challenge_rating %}
+                                    <div style="font-size: 0.6rem; color: var(--text-secondary); margin-top: 2px;">CR {{ m.challenge_rating }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="monster-stats-clickable" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem; background: var(--bg-tertiary); border-radius: 6px; padding: 0.3rem 0.2rem; border: 1px solid var(--border-color);"
+                                 data-monster="{{ {
+                                    'name': m.name,
+                                    'armor_class': m.armor_class,
+                                    'hit_points': ((m.hit_points_clean or m.hit_points or '?') | string),
+                                    'challenge_rating': m.challenge_rating,
+                                    'token_image': m.token_image,
+                                    'stats': m.stats or {},
+                                    'speed': m.speed or '',
+                                    'actions': m.actions or [],
+                                    'traits': m.traits or [],
+                                    'legendary_actions': m.legendary_actions or [],
+                                    'description': m.description or ''
+                                 } | tojson | forceescape }}"
+                                 onclick="showMonsterDetails(JSON.parse(this.getAttribute('data-monster')))"
+                                 title="Нажмите для подробной информации">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.5rem; text-transform: uppercase; color: var(--text-secondary);">КД</div>
+                                    <div style="font-size: 0.9rem; font-weight: 700; color: var(--accent-gold);">{{ m.armor_class or '?' }}</div>
+                                </div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 0.5rem; text-transform: uppercase; color: var(--text-secondary);">Хиты</div>
+                                    <div style="font-size: 0.9rem; font-weight: 700; color: var(--accent-green);">{{ ((m.hit_points_clean or m.hit_points or '?') | string)[:8] }}</div>
+                                </div>
+                            </div>
+
+                            <button class="vtt-btn" style="border-color: var(--accent-gold-dim); width: 100%; font-weight: bold; margin-top: 0.3rem;"
+                                    data-name="{{ m.name | forceescape }}"
+                                    data-img="{{ m.token_image | forceescape }}"
+                                    data-hp="{{ (m.hit_points_clean or m.hit_points or '?') | string | forceescape }}"
+                                    data-ac="{{ m.armor_class | forceescape }}"
+                                    onclick="addMonsterToMap(this.getAttribute('data-name'), this.getAttribute('data-img'), this.getAttribute('data-hp'), this.getAttribute('data-ac'), 0)">
+                                ➕ На карту
+                            </button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="icon">👹</div>
+                        <div>Монстры не выбраны</div>
+                        <a href="/master/prep/{{ room.id }}" class="btn-view" style="display: inline-block; width: auto; margin-top: 0.5rem;">В бестиарий →</a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Вкладка "Предметы окружения" -->
+                <div id="tab-props" class="tab-content">
+                    <h3 class="section-title">Предметы окружения</h3>
+
+                    <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
+                        <input type="text" id="newPropName" placeholder="Название (напр. Сундук)..." style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
+                        <select id="newPropCategory" style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
+                            <option value="Разное">Разное</option>
+                            <option value="Мебель">Мебель</option>
+                            <option value="Природа">Природа</option>
+                            <option value="Строения">Строения</option>
+                            <option value="Ловушки">Ловушки</option>
+                        </select>
+                        <input type="file" id="propFileInput" accept="image/*" style="display: none;" onchange="uploadNewProp(this)">
+                        <button class="vtt-btn primary" style="width: 100%; border-color: var(--accent-gold);" onclick="document.getElementById('propFileInput').click()">
+                            ➕ Загрузить предмет
+                        </button>
+                    </div>
+
+                    <div id="props-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
+                        {% if props %}
+                            {% for p in props %}
+                            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.7rem; display: flex; flex-direction: column; gap: 0.4rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    {% if p.image_url %}
+                                    <img src="{{ p.image_url }}" style="width: 38px; height: 38px; border-radius: 4px; object-fit: contain; background: var(--bg-primary); border: 1px solid var(--border-color); flex-shrink: 0;" alt="{{ p.name }}">
+                                    {% else %}
+                                    <div style="width: 38px; height: 38px; border-radius: 4px; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid var(--border-color);">📦</div>
+                                    {% endif %}
+
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div style="font-family: var(--font-main); font-size: 0.9rem; font-weight: 700; color: var(--accent-gold); line-height: 1.2;">{{ p.name }}</div>
+                                        <div style="font-size: 0.6rem; color: var(--text-secondary); margin-top: 2px;">{{ p.category }} • {{ p.default_size }}px</div>
+                                    </div>
+                                </div>
+                                <button class="vtt-btn" style="border-color: var(--accent-gold-dim); width: 100%; font-weight: bold; margin-top: 0.3rem;"
+                                        data-name="{{ p.name | forceescape }}"
+                                        data-img="{{ p.image_url | forceescape }}"
+                                        data-size="{{ p.default_size }}"
+                                        onclick="addPropToMap(this.getAttribute('data-name'), this.getAttribute('data-img'), this.getAttribute('data-size'))">
+                                    ➕ На карту
+                                </button>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">
+                                <div class="icon">📦</div>
+                                <div>Нет сохраненных предметов</div>
+                                <div style="font-size: 0.8rem; margin-top: 0.5rem;">Используйте форму выше, чтобы загрузить пропсы в библиотеку</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div id="tab-rewards" class="tab-content">
+                    <h3 class="section-title">Массовая награда</h3>
+                    <form id="mass-reward-form" onsubmit="return sendReward('all')">
+                        <div class="form-group">
+                            <label>Опыт (XP)</label>
+                            <input type="number" name="xp" value="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Монеты (зм / см / мм)</label>
+                            <div class="coins-row" style="display: flex; gap: 0.3rem;">
+                                <input type="number" name="gp" value="0" min="0" placeholder="зм">
+                                <input type="number" name="sp" value="0" min="0" placeholder="см">
+                                <input type="number" name="cp" value="0" min="0" placeholder="мм">
+                            </div>
+                        </div>
+                        <button type="submit" class="vtt-btn primary" style="width:100%">Выдать всем</button>
+                    </form>
+
+                    <h3 class="section-title" style="margin-top: 2rem;">Индивидуально</h3>
+                    <form id="single-reward-form" onsubmit="return sendReward('single')">
+                        <div class="form-group">
+                            <label>Персонаж</label>
+                            <select name="char_id" id="reward-char-select">
+                                {% for p in players %}
+                                <option value="{{ p.char.id }}">{{ p.char.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>XP и монеты</label>
+                            <input type="number" name="xp" value="0" min="0" placeholder="XP">
+                            <div class="coins-row" style="display: flex; gap: 0.3rem; margin-top: 0.3rem;">
+                                <input type="number" name="gp" value="0" min="0" placeholder="зм">
+                                <input type="number" name="sp" value="0" min="0" placeholder="см">
+                            </div>
+                        </div>
+                        <button type="submit" class="vtt-btn primary" style="width:100%">Выдать</button>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Center: VTT -->
+        <main class="vtt-container" id="vttContainer">
+
+            <!-- ПАНЕЛЬ ИНСТРУМЕНТОВ -->
+            <div class="vtt-toolbar" id="vttToolbar">
+                <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding-bottom: 0.2rem;" onclick="toggleToolbar()">
+                    <span style="font-size: 0.8rem; font-weight: bold; color: var(--accent-gold); text-transform: uppercase;">🛠 Инструменты</span>
+                    <span id="toolbarChevron" style="color: var(--text-secondary); font-size: 0.7rem; transition: transform 0.2s;">▲</span>
+                </div>
+
+                <div id="toolbarContent">
+                    <div class="draw-panel">
+                        <div class="tool-btn-group">
+                            <button class="tool-btn active" id="toolMove" onclick="setTool('move')" title="Перемещение (ЛКМ)">✋</button>
+                            <button class="tool-btn" id="toolRuler" onclick="setTool('ruler')" title="Линейка (ЛКМ)">📏</button>
+                            <button class="tool-btn" id="toolDraw" onclick="setTool('draw')" title="Рисование (ЛКМ)">🖌️</button>
+                            <button class="tool-btn" id="toolFow" onclick="setTool('fow')" title="Туман войны (ЛКМ)">☁️</button>
+                        </div>
+
+                        <!-- Настройки кисти -->
+                        <div id="drawSettings" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                            <div class="color-picker-row">
+                                <div class="color-btn active" style="background: #e0d4b8;" onclick="setBrushColor('#e0d4b8', this)"></div>
+                                <div class="color-btn" style="background: #8b3a3a;" onclick="setBrushColor('#8b3a3a', this)"></div>
+                                <div class="color-btn" style="background: #4a6b4a;" onclick="setBrushColor('#4a6b4a', this)"></div>
+                                <div class="color-btn" style="background: #3498db;" onclick="setBrushColor('#3498db', this)"></div>
+                                <div class="color-btn" style="background: #111111;" onclick="setBrushColor('#111111', this)"></div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 0.7rem; color: var(--text-secondary);">Толщина:</span>
+                                <input type="range" id="brushSize" min="2" max="20" value="4" style="flex: 1; accent-color: var(--accent-gold);" onchange="setBrushSize(this.value)">
+                            </div>
+                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="clearDrawings()">🗑️ Стереть рисунки</button>
+                        </div>
+
+                        <!-- Настройки тумана -->
+                        <div id="fowSettings" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+                            <div class="tool-btn-group">
+                                <button class="tool-btn active" id="fowModeReveal" onclick="setFowMode('reveal')" style="font-size: 0.8rem;">👁️ Раскрыть</button>
+                                <button class="tool-btn" id="fowModeHide" onclick="setFowMode('hide')" style="font-size: 0.8rem;">⬛ Скрыть</button>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-size: 0.7rem; color: var(--text-secondary);">Размер:</span>
+                                <input type="range" min="20" max="200" value="60" style="flex: 1; accent-color: var(--accent-gold);" onchange="fogBrushSize = parseInt(this.value)">
+                            </div>
+                            <button class="vtt-btn" style="padding: 0.2rem; font-size: 0.8rem; border-color: var(--text-secondary);" onclick="fowHideAll()">⬛ Залить туманом</button>
+                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="fowClearAll()">🗑️ Убрать туман</button>
+                        </div>
+                    </div>
+
+                    <div style="height: 1px; background: var(--border-color); margin: 0.1rem 0;"></div>
+
+                    <!-- Раздельные кнопки удаления Карты и Токенов -->
+                    <div style="display: flex; gap: 0.3rem;">
+                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearMap()" title="Удалить текущую карту">🗑️ Карта</button>
+                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearAllTokens()" title="Удалить все токены">🗑️ Токены</button>
+                    </div>
+
+                    <button class="vtt-btn" style="width: 100%; margin-top: 0.3rem; border-color: var(--accent-gold);" onclick="addCustomToken()">
+                        🔵 Создать маркер
+                    </button>
+
+                    <button class="vtt-btn" id="gridToggleBtn" onclick="toggleGrid()" title="Показать/скрыть сетку">⊞ Сетка</button>
+                    <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; text-align: center;">
+                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Клетка: <span id="gridSizeLabel">50</span>px</div>
+                        <input type="range" id="gridSizeSlider" min="20" max="150" value="50" oninput="changeGridSize(this.value)" style="width: 100%; accent-color: var(--accent-gold); cursor: pointer;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()" title="Приблизить">+</button>
+                <button class="zoom-btn" onclick="zoomOut()" title="Отдалить">−</button>
+                <button class="zoom-btn" onclick="fitMap()" title="Вписать в экран" style="font-size: 0.9rem;">⛶</button>
+            </div>
+
+            <div class="vtt-info">
+                <div>Масштаб: <span id="zoomLevel">100%</span></div>
+                <div>Карта: <span id="mapSize">—</span></div>
+            </div>
+
+            <canvas id="vtt-canvas" class="mode-move"></canvas>
+
+            <div id="vtt-placeholder" class="vtt-placeholder">
+                <div style="font-size: 4rem; opacity: 0.5; margin-bottom: 1rem;">🗺️</div>
+                <h2 style="font-family: var(--font-main); color: var(--text-primary);">Виртуальный стол</h2>
+                <p>Загрузите карту во вкладке "Сцены", чтобы начать игру</p>
+                <p style="font-size: 0.8rem; margin-top: 0.5rem; opacity: 0.7;">ЛКМ — перемещение карты или токенов</p>
+            </div>
+        </main>
+
+        <!-- RIGHT PANEL (CHAT & DICE LOG) -->
+        <aside class="right-panel" id="rightPanel">
+            <button class="toggle-chat-btn" id="chatToggleBtn" onclick="toggleRightPanel()">▶</button>
+
+            <div style="padding: 1rem; border-bottom: 2px solid var(--border-color); font-family: var(--font-main); color: var(--accent-gold); display: flex; justify-content: space-between; align-items: center;">
+                <span>ЧАТ И БРОСКИ</span>
+                <span style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-ui);">Общий</span>
+            </div>
+
+            <div class="chat-log" id="chatLog">
+                <div id="chatLoader" style="display: none; text-align: center; color: var(--text-secondary); font-size: 0.8rem; padding: 0.5rem;">Загрузка...</div>
+
+                {% if not chat_history %}
+                    <div id="chatStart" style="text-align: center; color: var(--text-secondary); font-size: 0.85rem; margin-top: 1rem; opacity: 0.5;">Начало сессии...</div>
+                {% else %}
+                    {% for msg in chat_history %}
+                        {% if msg.get('type') == 'chat_message' %}
+                        <div class="chat-msg {% if msg.get('username') == username %}self{% endif %}">
+                            <div class="author">{{ '👑' if msg.get('is_master') else '🎭' }} {{ msg.get('char_name') or msg.get('username') or 'Неизвестно' }}</div>
+                            <div class="text">{{ msg.get('text') }}</div>
+                        </div>
+                        {% elif msg.get('type') == 'dice_roll' %}
+                        <div class="dice-entry {% if msg.get('is_crit') %}crit{% endif %} {% if msg.get('is_fail') %}fail{% endif %}">
+                            <div style="font-size: 0.75rem; color: {% if msg.get('username') == username %}var(--accent-gold-dim){% else %}var(--accent-gold){% endif %}; margin-bottom: 0.25rem;">
+                                {{ '👑' if msg.get('is_master') else '🎭' }} <strong>{{ msg.get('char_name') or msg.get('username') or 'Неизвестно' }}</strong>
+                            </div>
+                            <div style="font-weight: 600; color: var(--text-primary);">{{ msg.get('name') or 'd' ~ msg.get('sides')|string }}</div>
+                            <div class="roll">{{ msg.get('total') }}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">
+                                [{{ msg.get('roll') }}]{% if msg.get('modifier', 0) > 0 %} +{{ msg.get('modifier') }}{% elif msg.get('modifier', 0) < 0 %} {{ msg.get('modifier') }}{% endif %}
+                                {% if msg.get('is_crit') %} 🎯 КРИТ!{% endif %}
+                                {% if msg.get('is_fail') %} 💀 ПРОВАЛ!{% endif %}
+                                {% if msg.get('is_hidden') %} 👁️ (Скрыто){% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" class="chat-input" placeholder="Написать сообщение от лица Мастера..." onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                <button class="chat-send-btn" onclick="sendChatMessage()" title="Отправить">➤</button>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- 🆕 НОВОЕ: Контекстное меню по ПКМ -->
+    <div id="vttContextMenu" class="vtt-context-menu">
+        <div class="vtt-context-item" onclick="contextMenuAction('scale_up')">🔍 Увеличить (+20%)</div>
+        <div class="vtt-context-item" onclick="contextMenuAction('scale_down')">🔎 Уменьшить (-20%)</div>
+        <div class="vtt-context-item danger" onclick="contextMenuAction('delete')">🗑️ Удалить</div>
+    </div>
+
+    <!-- ===== МОДАЛЬНОЕ ОКНО МОНСТРА ===== -->
+    <div class="monster-modal-backdrop" id="monsterModal" onclick="if(event.target===this) closeMonsterModal()">
+        <div class="monster-modal">
+            <button class="monster-modal-close" onclick="closeMonsterModal()">✕</button>
+            <div class="monster-modal-header" id="monsterModalHeader"></div>
+            <div class="monster-modal-section">
+                <div class="monster-modal-section-title">📊 Характеристики</div>
+                <div class="monster-modal-stats-grid" id="monsterModalStats"></div>
+            </div>
+            <div class="monster-modal-info-row" id="monsterModalInfo"></div>
+            <div class="monster-modal-section" id="monsterModalTraitsSection" style="display:none;">
+                <div class="monster-modal-section-title">✨ Особенности</div><div id="monsterModalTraits"></div>
+            </div>
+            <div class="monster-modal-section" id="monsterModalActionsSection" style="display:none;">
+                <div class="monster-modal-section-title">⚔️ Действия</div><div id="monsterModalActions"></div>
+            </div>
+            <div class="monster-modal-section" id="monsterModalLegendarySection" style="display:none;">
+                <div class="monster-modal-section-title">🌟 Легендарные действия</div><div id="monsterModalLegendary"></div>
+            </div>
+            <div class="monster-modal-section" id="monsterModalDescSection" style="display:none;">
+                <div class="monster-modal-section-title">📜 Описание</div><div class="monster-modal-text" id="monsterModalDesc"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/master_room.js"></script>
+</body>
+</html>
