@@ -1,5 +1,4 @@
-    <script>
-        // Копирование кода приглашения
+// Копирование кода приглашения
         function copyCode(elementId) {
             const code = document.getElementById(elementId).textContent;
             navigator.clipboard.writeText(code).then(() => {
@@ -31,4 +30,3 @@
             toggleBtn.addEventListener('click', showForm);
             cancelBtn.addEventListener('click', hideForm);
         });
-    </script>

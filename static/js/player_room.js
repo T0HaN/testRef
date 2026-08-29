@@ -1,9 +1,9 @@
     // ==================== ДАННЫЕ ПЕРСОНАЖА ====================
-    const myCharId = String({{ char.id }});
-    const myCharName = {{ char.name | tojson }};
-    const myUsername = {{ username | tojson }};
-    const myTokenImage = {{ char.token_image | tojson }} || "";
-    const maxHp = {{ char.hp.max }};
+    const myCharId = String(window.charData.id);
+    const myCharName = window.charData.name;
+    const myUsername = window.userData.username;
+    const myTokenImage = window.charData.token_image || "";
+    const maxHp = window.charData.hp.max;
     const TOKEN_SIZE = 60;
 
     // --- Управление панелью вкладок ---
@@ -68,7 +68,7 @@
     }
 
     // ==================== ЛЕНИВАЯ ЗАГРУЗКА ИСТОРИИ (LAZY LOADING) ====================
-    let chatOffset = {{ chat_history|length if chat_history else 0 }};
+    let chatOffset = window.roomData.chatHistoryLength;
     let isLoadingChat = false;
     let allChatLoaded = false;
     const chatLog = document.getElementById('chatLog');
@@ -89,7 +89,7 @@
         if (loader) loader.style.display = 'block';
 
         try {
-            const response = await fetch(`/api/room/{{ room.id }}/chat/history?offset=${chatOffset}&limit=20`);
+            const response = await fetch(`/api/room/${window.roomData.id}/chat/history?offset=${chatOffset}&limit=20`);
             const data = await response.json();
 
             if (!data.messages || data.messages.length === 0) {
@@ -185,7 +185,7 @@
     let isMaster = false;
 
     function connectWs() {
-        roomWs = new WebSocket(`/ws/room/{{ room.id }}`);
+        roomWs = new WebSocket(`/ws/room/${window.roomData.id}`);
 
         roomWs.onopen = () => {
             console.log('WebSocket подключён');
@@ -432,10 +432,10 @@
         const formData = new FormData();
         formData.append('username', myUsername);
         formData.append('current_hp', newVal);
-        formData.append('temp_hp', {{ char.hp.temp }});
-        formData.append('room_id', '{{ room.id }}');
+        formData.append('temp_hp', window.charData.hp.temp);
+        formData.append('room_id', window.roomData.id);
 
-        fetch('/char/{{ char.id }}/hp', { method: 'POST', body: formData }).catch(console.error);
+        fetch(`/char/${window.charData.id}/hp`, { method: 'POST', body: formData }).catch(console.error);
 
         if (roomWs && roomWs.readyState === WebSocket.OPEN) {
             roomWs.send(JSON.stringify({ type: 'combatant_hp_update', token_id: myCharId, hp_current: newVal }));
@@ -452,7 +452,7 @@
         formData.append('sp', sp);
         formData.append('cp', cp);
 
-        fetch('/char/{{ char.id }}/coins/set', { method: 'POST', body: formData }).catch(console.error);
+        fetch(`/char/${window.charData.id}/coins/set`, { method: 'POST', body: formData }).catch(console.error);
     }
 
     // ==================== БОЕВОЙ ТРЕКЕР ====================
@@ -537,7 +537,7 @@
     function addMyToken() {
         if (!myTokenImage || !mapImage || allTokens[myCharId]) return;
 
-        const dexMod = {{ char.stats.DEX.modifier }};
+        const dexMod = window.charData.stats.DEX.modifier;
         const roll = Math.floor(Math.random() * 20) + 1;
         const initiative = roll + dexMod;
 
@@ -552,9 +552,9 @@
             height: TOKEN_SIZE,
             initiative: initiative,
             dex_mod: dexMod,
-            ac: {{ char.attributes.ac | tojson }},
-            hp_current: {{ char.hp.current }},
-            hp_max: {{ char.hp.max }},
+            ac: window.charData.attributes.ac,
+            hp_current: window.charData.hp.current,
+            hp_max: window.charData.hp.max,
             is_monster: false
         };
 

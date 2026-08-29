@@ -124,7 +124,7 @@
                 const imageData = e.target.result;
 
                 try {
-                    const response = await fetch('/char/{{ char.id }}/token/upload', {
+                    const response = await fetch(`/char/${window.charData.id}/token/upload`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ image: imageData })

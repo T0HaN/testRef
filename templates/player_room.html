@@ -328,6 +328,34 @@
     </div>
 
     <link rel="stylesheet" href="/static/css/player_room.css">
+    <script>
+        window.roomData = {
+            id: "{{ room.id }}",
+            chatHistoryLength: {{ chat_history|length if chat_history else 0 }}
+        };
+        window.charData = {
+            id: {{ char.id }},
+            name: {{ char.name | tojson }},
+            token_image: {{ char.token_image | tojson }},
+            hp: {
+                max: {{ char.hp.max }},
+                temp: {{ char.hp.temp }},
+                current: {{ char.hp.current }}
+            },
+            stats: {
+                DEX: {
+                    modifier: {{ char.stats.DEX.modifier }}
+                }
+            },
+            attributes: {
+                ac: {{ char.attributes.ac | tojson }}
+            }
+        };
+        window.userData = {
+            username: {{ username | tojson }}
+        };
+    </script>
+
     <script src="/static/js/player_room.js"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
-    <script>
-        function filterSpells() {
+// spells.js — фильтрация заклинаний
+function filterSpells() {
             const searchQuery = document.getElementById('spellSearch').value.toLowerCase();
             const levelFilter = document.getElementById('levelFilter').value;
             const schoolFilter = document.getElementById('schoolFilter').value.toLowerCase();
@@ -32,4 +32,3 @@
                 }
             });
         }
-    </script>

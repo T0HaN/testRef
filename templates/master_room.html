@@ -494,6 +494,17 @@
         </div>
     </div>
 
+    <script>
+        window.roomData = {
+            id: "{{ room.id }}",
+            username: "{{ username }}",
+            chatHistoryLength: {{ chat_history|length if chat_history else 0 }}
+        };
+        window.userData = {
+            username: "{{ username }}"
+        };
+    </script>
+
     <script src="/static/js/master_room.js"></script>
 </body>
 </html>
