@@ -80,6 +80,14 @@ body {
     color: var(--accent-gold);
     font-family: var(--font-main);
 }
+.realm-title img {
+    height: 60px;
+    width: auto;
+    max-width: 100%;
+    display: inline-block;
+    vertical-align: middle;
+    filter: brightness(1.1) drop-shadow(0 0 6px rgba(201, 169, 97, 0.3));
+}
 .sheet-title {
     font-size: 1.1rem;
     color: var(--text-secondary);

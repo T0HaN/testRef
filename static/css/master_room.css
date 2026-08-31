@@ -54,6 +54,18 @@ body {
     letter-spacing: 0.1em;
     font-weight: bold;
 }
+.room-title .logo-inline {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}
+.room-title .logo-inline img {
+    height: 32px;
+    width: auto;
+    max-width: 100%;
+    display: inline-block;
+    filter: brightness(1.1) drop-shadow(0 0 4px rgba(201, 169, 97, 0.3));
+}
 .room-meta {
     display: flex;
     gap: 1.5rem;

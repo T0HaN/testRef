@@ -70,6 +70,14 @@ body {
     margin-bottom: 0.5rem;
     font-family: var(--font-runic);
 }
+.realm-title img {
+    height: 50px;
+    width: auto;
+    max-width: 100%;
+    display: block;
+    margin: 0 auto;
+    filter: brightness(1.1) drop-shadow(0 0 6px rgba(201, 169, 97, 0.3));
+}
 .subtitle {
     font-size: 1rem;
     color: var(--text-secondary);

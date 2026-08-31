@@ -37,6 +37,13 @@ body { font-family: var(--font-sans); background-color: var(--bg-base); color: v
 /* Лого и мобильное меню */
 .top-brand { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: center; }
 .logo-title { font-family: var(--font-serif); font-size: 2rem; color: var(--accent-gold); letter-spacing: 0.15em; text-transform: uppercase; }
+.logo-title img {
+    height: 60px;
+    width: auto;
+    max-width: 200px;
+    display: block;
+    filter: brightness(1.1) drop-shadow(0 0 6px rgba(201, 169, 97, 0.3));
+}
 .mobile-menu-btn { display: none; background: none; border: none; color: var(--accent-gold); font-size: 1.5rem; cursor: pointer; }
 
 /* Заголовок страницы и кнопки действий */

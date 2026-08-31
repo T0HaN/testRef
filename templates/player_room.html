@@ -10,7 +10,12 @@
 
     <header class="room-header">
         <div class="room-title-block">
-            <div class="room-title">Folio | {{ room.name }}</div>
+            <div class="room-title">
+                <span class="logo-inline">
+                    <img src="/static/images/Folio.png" alt="Folio" />
+                </span>
+                | {{ room.name }}
+            </div>
             <div class="room-meta" style="margin-left: 1rem; font-size: 0.9rem; color: var(--text-secondary);">
                 <span>Игроков: <strong style="color: var(--accent-gold);">{{ room.current_players|length }}/{{ room.max_players }}</strong></span>
             </div>
@@ -327,7 +332,7 @@
 
     </div>
 
-    <link rel="stylesheet" href="/static/css/player_room.css">
+    <link rel="stylesheet" href="/static/css/player_room.css?v=2">
     <script>
         window.roomData = {
             id: "{{ room.id }}",

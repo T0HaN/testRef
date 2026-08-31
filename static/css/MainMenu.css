@@ -49,8 +49,8 @@ body {
 }
 /* стиль для изображения внутри логотипа */
 .logo-title img {
-    height: 100px;        /* подгоняем под размер шрифта */
-    width: 250px;
+    height: 60px;        /* подгоняем под размер шрифта */
+    width: 200px;
     display: block;
     filter: brightness(1.1) drop-shadow(0 0 6px rgba(201, 169, 97, 0.3));
 }

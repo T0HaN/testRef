@@ -54,6 +54,15 @@ h1 {
     display: inline-block;
 }
 
+h1.realm-title img {
+    height: 80px;
+    width: auto;
+    max-width: 100%;
+    display: block;
+    margin: 0 auto;
+    filter: brightness(1.1) drop-shadow(0 0 8px rgba(212, 175, 55, 0.3));
+}
+
 h1::after {
     content: '';
     position: absolute;

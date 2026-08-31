@@ -5,14 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Folio | Комната Мастера</title>
     <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
-    <link rel="stylesheet" href="/static/css/master_room.css">
+    <link rel="stylesheet" href="/static/css/master_room.css?v=2">
 </head>
 <body>
 
     <!-- Header -->
     <header class="room-header">
         <div class="room-title-block">
-            <div class="room-title">Folio | {{ room.name }}</div>
+            <div class="room-title">
+                <span class="logo-inline">
+                    <img src="/static/images/Folio.png" alt="Folio" />
+                </span>
+                | {{ room.name }}
+            </div>
             <div class="room-meta">
                 <span>Код: <strong>{{ room.invite_code }}</strong></span>
                 <span>Игроков: <strong>{{ room.current_players|length }}/{{ room.max_players }}</strong></span>
