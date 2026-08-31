@@ -753,6 +753,19 @@ async def new_monster_form(request: Request, room_id: Optional[str] = None, curr
     return templates.TemplateResponse(request, "add_monster.html", {"request": request, "room_id": room_id})
 
 
+def _parse_list_field(value: str) -> list:
+    """Разбирает текстовое поле списка: принимает JSON-массив или список по строкам."""
+    if not value or not value.strip():
+        return []
+    try:
+        parsed = json.loads(value)
+        if isinstance(parsed, list):
+            return parsed
+    except Exception:
+        pass
+    return [line.strip() for line in value.splitlines() if line.strip()]
+
+
 @router.post("/monsters/new")
 async def create_monster(
     request: Request,
@@ -762,11 +775,16 @@ async def create_monster(
     hit_points: int = Form(...),
     hit_dice: str = Form(...),
     speed: str = Form(...),
-    attributes: str = Form(...),
     challenge_rating: str = Form(...),
-    traits: str = Form("[]"),
-    actions: str = Form("[]"),
-    legendary_actions: str = Form("[]"),
+    traits: str = Form(""),
+    actions: str = Form(""),
+    legendary_actions: str = Form(""),
+    attr_str: int = Form(10),
+    attr_dex: int = Form(10),
+    attr_con: int = Form(10),
+    attr_int: int = Form(10),
+    attr_wis: int = Form(10),
+    attr_cha: int = Form(10),
     token_image: UploadFile = File(...),
     room_id: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user)
@@ -776,24 +794,12 @@ async def create_monster(
         # 1. Загружаем изображение в S3 (MinIO)
         token_path = await upload_image_to_s3(token_image, prefix="monsters")
 
-        # 2. Парсим JSON-поля
-        import json
-        try:
-            attrs = json.loads(attributes)
-        except:
-            attrs = {}
-        try:
-            traits_list = json.loads(traits)
-        except:
-            traits_list = []
-        try:
-            actions_list = json.loads(actions)
-        except:
-            actions_list = []
-        try:
-            leg_actions_list = json.loads(legendary_actions)
-        except:
-            leg_actions_list = []
+        # 2. Собираем атрибуты и списки из простых полей формы
+        attrs = {"STR": attr_str, "DEX": attr_dex, "CON": attr_con,
+                 "INT": attr_int, "WIS": attr_wis, "CHA": attr_cha}
+        traits_list = _parse_list_field(traits)
+        actions_list = _parse_list_field(actions)
+        leg_actions_list = _parse_list_field(legendary_actions)
 
         # 3. Сохраняем в БД
         with get_db_connection() as conn:

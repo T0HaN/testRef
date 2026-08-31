@@ -71,8 +71,33 @@
             </div>
 
             <div>
-                <label for="attributes"><strong>Атрибуты (JSON)</strong> <span style="color: var(--accent-red);">*</span></label>
-                <textarea id="attributes" name="attributes" rows="3" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">{"STR":10,"DEX":10,"CON":10,"INT":10,"WIS":10,"CHA":10}</textarea>
+                <label><strong>Атрибуты</strong> <span style="color: var(--text-secondary); font-size: 0.9rem;">(значения характеристик)</span></label>
+                <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.5rem;">
+                    <div>
+                        <label for="attr_str" style="font-size: 0.85rem; color: var(--text-secondary);">СИЛ (STR)</label>
+                        <input type="number" id="attr_str" name="attr_str" value="10" min="1" max="30" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); text-align: center;">
+                    </div>
+                    <div>
+                        <label for="attr_dex" style="font-size: 0.85rem; color: var(--text-secondary);">ЛОВ (DEX)</label>
+                        <input type="number" id="attr_dex" name="attr_dex" value="10" min="1" max="30" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); text-align: center;">
+                    </div>
+                    <div>
+                        <label for="attr_con" style="font-size: 0.85rem; color: var(--text-secondary);">ТЕЛ (CON)</label>
+                        <input type="number" id="attr_con" name="attr_con" value="10" min="1" max="30" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); text-align: center;">
+                    </div>
+                    <div>
+                        <label for="attr_int" style="font-size: 0.85rem; color: var(--text-secondary);">ИНТ (INT)</label>
+                        <input type="number" id="attr_int" name="attr_int" value="10" min="1" max="30" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); text-align: center;">
+                    </div>
+                    <div>
+                        <label for="attr_wis" style="font-size: 0.85rem; color: var(--text-secondary);">МДР (WIS)</label>
+                        <input type="number" id="attr_wis" name="attr_wis" value="10" min="1" max="30" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); text-align: center;">
+                    </div>
+                    <div>
+                        <label for="attr_cha" style="font-size: 0.85rem; color: var(--text-secondary);">ХАР (CHA)</label>
+                        <input type="number" id="attr_cha" name="attr_cha" value="10" min="1" max="30" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); text-align: center;">
+                    </div>
+                </div>
             </div>
 
             <div>
@@ -81,18 +106,18 @@
             </div>
 
             <div>
-                <label for="traits"><strong>Черты (JSON массив)</strong></label>
-                <textarea id="traits" name="traits" rows="3" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">[]</textarea>
+                <label for="traits"><strong>Особенности и черты</strong> <span style="color: var(--text-secondary); font-size: 0.9rem;">(по одной в строке, необязательно)</span></label>
+                <textarea id="traits" name="traits" rows="4" placeholder="Амфибия: может дышать и под водой, и на суше&#10;Тёмное зрение 60 фт." style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);"></textarea>
             </div>
 
             <div>
-                <label for="actions"><strong>Действия (JSON массив)</strong></label>
-                <textarea id="actions" name="actions" rows="3" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">[]</textarea>
+                <label for="actions"><strong>Действия</strong> <span style="color: var(--text-secondary); font-size: 0.9rem;">(по одному в строке, необязательно)</span></label>
+                <textarea id="actions" name="actions" rows="4" placeholder="Укус: +5 к попаданию, урон 1d6+3 колющего" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);"></textarea>
             </div>
 
             <div>
-                <label for="legendary_actions"><strong>Легендарные действия (JSON массив)</strong></label>
-                <textarea id="legendary_actions" name="legendary_actions" rows="3" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">[]</textarea>
+                <label for="legendary_actions"><strong>Легендарные действия</strong> <span style="color: var(--text-secondary); font-size: 0.9rem;">(по одному в строке, необязательно)</span></label>
+                <textarea id="legendary_actions" name="legendary_actions" rows="3" placeholder="Атака хвостом (2 действия): ..." style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);"></textarea>
             </div>
 
             <div>
