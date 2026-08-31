@@ -97,7 +97,8 @@ def get_db_connection():
         user=settings.DB_USER,
         password=settings.DB_PASSWORD,
         host=settings.DB_HOST,
-        port=settings.DB_PORT
+        port=settings.DB_PORT,
+        connect_timeout=5
     )
     psycopg2.extras.register_default_jsonb(conn, loads=json.loads)
     return conn
@@ -121,10 +122,52 @@ def get_all_monsters() -> list:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("SELECT * FROM monsters ORDER BY name")
-                return [dict(row) for row in cur.fetchall()]
+                monsters = []
+                for row in cur.fetchall():
+                    m = dict(row)
+                    # Совместимость с фронтендом бестиария (master_prep.html):
+                    # attributes -> stats, token_path -> token_image, meta -> description
+                    m['stats'] = m.get('attributes') or {}
+                    m['token_image'] = m.get('token_path')
+                    m['description'] = m.get('meta') or ''
+                    m['hit_points_clean'] = m.get('hit_points')
+                    monsters.append(m)
+                return monsters
     except Exception as e:
         print(f"❌ Ошибка при получении бестиария из БД: {e}")
         return []
+
+
+def init_monsters_table():
+    """Создаёт таблицу monsters, если её ещё нет (идемпотентно, БЕЗ очистки)."""
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS monsters (
+                        id SERIAL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        meta TEXT,
+                        armor_class INTEGER,
+                        hit_points INTEGER,
+                        hit_dice TEXT,
+                        speed TEXT,
+                        attributes JSONB,
+                        challenge_rating TEXT,
+                        traits JSONB,
+                        actions JSONB,
+                        legendary_actions JSONB,
+                        token_path TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                # Добавляем столбец token_path, если его ещё нет (для уже существующих таблиц)
+                cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='monsters' AND column_name='token_path'")
+                if not cur.fetchone():
+                    cur.execute("ALTER TABLE monsters ADD COLUMN token_path TEXT")
+                conn.commit()
+    except Exception as e:
+        print(f"❌ Ошибка инициализации таблицы monsters: {e}")
 
 
 def _get_user_id(cur, username: str) -> Optional[int]:

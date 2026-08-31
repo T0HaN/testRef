@@ -744,3 +744,74 @@ async def api_upload_prop(
         return JSONResponse(content={"status": "ok", "prop": new_prop})
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
+
+# === Монстры ===
+
+@router.get("/monsters/new")
+async def new_monster_form(request: Request, room_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Страница добавления нового монстра."""
+    return templates.TemplateResponse(request, "add_monster.html", {"request": request, "room_id": room_id})
+
+
+@router.post("/monsters/new")
+async def create_monster(
+    request: Request,
+    name: str = Form(...),
+    meta: str = Form(""),
+    armor_class: int = Form(...),
+    hit_points: int = Form(...),
+    hit_dice: str = Form(...),
+    speed: str = Form(...),
+    attributes: str = Form(...),
+    challenge_rating: str = Form(...),
+    traits: str = Form("[]"),
+    actions: str = Form("[]"),
+    legendary_actions: str = Form("[]"),
+    token_image: UploadFile = File(...),
+    room_id: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user)
+):
+    """Обработка формы добавления монстра."""
+    try:
+        # 1. Загружаем изображение в S3 (MinIO)
+        token_path = await upload_image_to_s3(token_image, prefix="monsters")
+
+        # 2. Парсим JSON-поля
+        import json
+        try:
+            attrs = json.loads(attributes)
+        except:
+            attrs = {}
+        try:
+            traits_list = json.loads(traits)
+        except:
+            traits_list = []
+        try:
+            actions_list = json.loads(actions)
+        except:
+            actions_list = []
+        try:
+            leg_actions_list = json.loads(legendary_actions)
+        except:
+            leg_actions_list = []
+
+        # 3. Сохраняем в БД
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    INSERT INTO monsters (name, meta, armor_class, hit_points, hit_dice, speed, attributes, challenge_rating, traits, actions, legendary_actions, token_path)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                """, (name, meta, armor_class, hit_points, hit_dice, speed, json.dumps(attrs), challenge_rating, json.dumps(traits_list), json.dumps(actions_list), json.dumps(leg_actions_list), token_path))
+                new_id = cur.fetchone()['id']
+                conn.commit()
+
+        # 4. Редирект
+        if room_id:
+            return RedirectResponse(url=f"/master/prep/{room_id}", status_code=303)
+        else:
+            return RedirectResponse(url="/games", status_code=303)
+
+    except Exception as e:
+        print(f"❌ Ошибка при создании монстра: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})

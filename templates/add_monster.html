@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Добавить монстра</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <style>
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #141418;
+            --bg-tertiary: #1e1e24;
+            --bg-input: #1a1a20;
+            --text-primary: #e0d4b8;
+            --text-secondary: #a89f8a;
+            --accent-gold: #c9a961;
+            --accent-gold-dim: #8b7542;
+            --accent-red: #8b3a3a;
+            --accent-green: #4a6b4a;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 1.5rem;
+        }
+        label { display: block; margin-bottom: 0.3rem; color: var(--text-primary); }
+        input, textarea { font-family: inherit; }
+        a { text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container" style="max-width: 800px; margin: 2rem auto; padding: 1.5rem; background: var(--bg-secondary); border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+        <h1 style="text-align: center; color: var(--accent-gold);">➕ Добавить нового монстра</h1>
+        <form action="/monsters/new" method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1rem;">
+            {% if room_id %}
+            <input type="hidden" name="room_id" value="{{ room_id }}">
+            {% endif %}
+
+            <div>
+                <label for="name"><strong>Название</strong> <span style="color: var(--accent-red);">*</span></label>
+                <input type="text" id="name" name="name" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);">
+            </div>
+
+            <div>
+                <label for="meta"><strong>Мета</strong> <span style="color: var(--text-secondary); font-size: 0.9rem;">(краткое описание)</span></label>
+                <textarea id="meta" name="meta" rows="3" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);"></textarea>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label for="armor_class"><strong>КД</strong> <span style="color: var(--accent-red);">*</span></label>
+                    <input type="number" id="armor_class" name="armor_class" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);">
+                </div>
+                <div>
+                    <label for="hit_points"><strong>Хиты (HP)</strong> <span style="color: var(--accent-red);">*</span></label>
+                    <input type="number" id="hit_points" name="hit_points" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);">
+                </div>
+            </div>
+
+            <div>
+                <label for="hit_dice"><strong>Кости хитов</strong> <span style="color: var(--accent-red);">*</span> <span style="color: var(--text-secondary); font-size: 0.9rem;">(например, 8d8+8)</span></label>
+                <input type="text" id="hit_dice" name="hit_dice" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);">
+            </div>
+
+            <div>
+                <label for="speed"><strong>Скорость</strong> <span style="color: var(--accent-red);">*</span> <span style="color: var(--text-secondary); font-size: 0.9rem;">(например, 30 фт.)</span></label>
+                <input type="text" id="speed" name="speed" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);">
+            </div>
+
+            <div>
+                <label for="attributes"><strong>Атрибуты (JSON)</strong> <span style="color: var(--accent-red);">*</span></label>
+                <textarea id="attributes" name="attributes" rows="3" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">{"STR":10,"DEX":10,"CON":10,"INT":10,"WIS":10,"CHA":10}</textarea>
+            </div>
+
+            <div>
+                <label for="challenge_rating"><strong>Уровень опасности (CR)</strong> <span style="color: var(--accent-red);">*</span> <span style="color: var(--text-secondary); font-size: 0.9rem;">(например, 1/4, 1, 5)</span></label>
+                <input type="text" id="challenge_rating" name="challenge_rating" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);">
+            </div>
+
+            <div>
+                <label for="traits"><strong>Черты (JSON массив)</strong></label>
+                <textarea id="traits" name="traits" rows="3" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">[]</textarea>
+            </div>
+
+            <div>
+                <label for="actions"><strong>Действия (JSON массив)</strong></label>
+                <textarea id="actions" name="actions" rows="3" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">[]</textarea>
+            </div>
+
+            <div>
+                <label for="legendary_actions"><strong>Легендарные действия (JSON массив)</strong></label>
+                <textarea id="legendary_actions" name="legendary_actions" rows="3" style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary); font-family: monospace;">[]</textarea>
+            </div>
+
+            <div>
+                <label for="token_image"><strong>Изображение токена</strong> <span style="color: var(--accent-red);">*</span></label>
+                <input type="file" id="token_image" name="token_image" accept="image/*" required style="width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #555; background: var(--bg-input); color: var(--text-primary);">
+            </div>
+
+            <button type="submit" style="padding: 0.75rem; background: var(--accent-gold); color: #1a1a1a; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; font-size: 1.1rem;">✅ Добавить монстра</button>
+        </form>
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="/games" style="color: var(--accent-gold);">← Назад к играм</a>
+        </div>
+    </div>
+</body>
+</html>

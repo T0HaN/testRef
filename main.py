@@ -9,7 +9,8 @@ from config import settings
 from dependencies import templates
 from utils import (
     init_static_data,
-    init_redis, close_redis
+    init_redis, close_redis,
+    init_monsters_table
 )
 
 # Импорт наших модулей
@@ -33,6 +34,11 @@ async def lifespan(app: FastAPI):
     # Загрузка статических данных
     print("\n📦 Загрузка статических данных...")
     init_static_data()
+
+    # Инициализация таблицы монстров (создаст таблицу, если её нет)
+    print("\n🗃️ Инициализация таблицы монстров...")
+    init_monsters_table()
+
     # print(utils.EQUIPMENT_DATA)  # Закомментировано, чтобы не спамить в консоль при запуске
 
     print("\n" + "=" * 50)
