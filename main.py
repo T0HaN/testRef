@@ -14,7 +14,7 @@ from utils import (
 )
 
 # Импорт наших модулей
-from routers import auth, characters, master, player, websockets, dashboard
+from routers import auth, characters, master, player, websockets, dashboard, profile
 
 import utils
 
@@ -149,6 +149,7 @@ app.include_router(master.router)
 app.include_router(player.router)
 app.include_router(websockets.router)
 app.include_router(dashboard.router)
+app.include_router(profile.profile_router)
 
 # === Запуск ===
 if __name__ == "__main__":

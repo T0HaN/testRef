@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Паспорт искателя • Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <!-- Базовый стиль проекта -->
+    <link rel="stylesheet" href="/static/css/login.css?v=2">
+    <!-- Стили страницы профиля -->
+    <link rel="stylesheet" href="/static/css/profile.css?v=1">
+</head>
+<body>
+    <div class="login-container profile-container">
+        <header class="header">
+            <h1 class="realm-title">
+                <img src="/static/images/Folio.png" alt="Folio" />
+            </h1>
+            <p class="subtitle">Летопись искателя: <span class="hero-name">{{ user.username }}</span></p>
+        </header>
+
+        <div class="messages">
+            {% if error %}
+                <div class="msg error">⚔️ {{ error }}</div>
+            {% endif %}
+            {% if success %}
+                <div class="msg success">✨ {{ success }}</div>
+            {% endif %}
+            {% if info %}
+                <div class="msg info">📜 {{ info }}</div>
+            {% endif %}
+        </div>
+
+        <!-- СЕКЦИЯ 1: СМЕНА ПОЧТЫ -->
+        <section class="profile-card">
+            <div class="section-header">
+                <span class="section-icon">🕊️</span>
+                <h2>Свиток связи</h2>
+            </div>
+            
+            <form method="post" action="/profile/change-email" novalidate id="email-form">
+                <div class="form-group">
+                    <label>Текущий адрес почты</label>
+                    <input
+                        type="email"
+                        value="{{ user.email }}"
+                        disabled
+                        class="input-readonly"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="new_email">Новый адрес почты</label>
+                    <input
+                        type="email"
+                        id="new_email"
+                        name="new_email"
+                        required
+                        placeholder="новый-адрес@домен.ру"
+                        autocomplete="email"
+                    >
+                </div>
+
+                <div class="btn-row">
+                    <button type="submit" id="email-submit-btn">Отправить подтверждение</button>
+                </div>
+            </form>
+        </section>
+
+        <div class="ornament">❖ ❖ ❖</div>
+
+        <!-- СЕКЦИЯ 2: СМЕНА ПАРОЛЯ -->
+        <section class="profile-card">
+            <div class="section-header">
+                <span class="section-icon">🗝️</span>
+                <h2>Тайный ключ</h2>
+            </div>
+
+            <form method="post" action="/profile/change-password" novalidate id="password-form">
+                <div class="form-group">
+                    <label for="current_password">Текущий пароль</label>
+                    <input
+                        type="password"
+                        id="current_password"
+                        name="current_password"
+                        required
+                        placeholder="Действующий тайный ключ..."
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="new_password">Новый пароль</label>
+                    <input
+                        type="password"
+                        id="new_password"
+                        name="new_password"
+                        required
+                        minlength="4"
+                        placeholder="Минимум 4 символа..."
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">Повторите новый пароль</label>
+                    <input
+                        type="password"
+                        id="confirm_password"
+                        name="confirm_password"
+                        required
+                        minlength="4"
+                        placeholder="Повторите ввод нового ключа..."
+                        autocomplete="new-password"
+                    >
+                </div>
+
+                <div class="btn-row">
+                    <button type="submit" id="password-submit-btn">Обновить тайный ключ</button>
+                </div>
+            </form>
+        </section>
+
+        <div class="toggle-mode profile-nav">
+            <a href="/dashboard" class="back-link">← Вернуться к столу приключений</a>
+        </div>
+
+        <footer class="footer">
+            <p>«Истинное мастерство начинается с порядка в собственных записях.»</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/profile.js"></script>
+</body>
+</html>

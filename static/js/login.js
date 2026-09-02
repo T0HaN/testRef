@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const emailGroup = document.getElementById('email-group');
     const consentGroup = document.getElementById('consent-group');
+    const forgotPasswordGroup = document.getElementById('forgot-password-group');
     const actionInput = document.getElementById('action-input');
     const submitBtn = document.getElementById('main-submit-btn');
     const toggleLink = document.getElementById('toggle-link');
@@ -30,6 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
             emailInput.required = false;
             consentGroup.style.display = 'none';
             consentCheckbox.required = false;
+            
+            // Показываем ссылку «Забыли пароль?»
+            if (forgotPasswordGroup) {
+                forgotPasswordGroup.style.display = 'block';
+            }
+
             actionInput.value = 'login';
             submitBtn.innerHTML = '🔐 Войти';
             togglePrompt.textContent = 'Ещё не ведете летопись?';
@@ -40,6 +47,12 @@ document.addEventListener('DOMContentLoaded', () => {
             emailInput.required = true;
             consentGroup.style.display = 'block';
             consentCheckbox.required = true;
+            
+            // Скрываем ссылку «Забыли пароль?»
+            if (forgotPasswordGroup) {
+                forgotPasswordGroup.style.display = 'none';
+            }
+
             actionInput.value = 'register';
             submitBtn.innerHTML = '📜 Зарегистрироваться';
             togglePrompt.textContent = 'Уже есть аккаунт?';

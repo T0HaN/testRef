@@ -1307,3 +1307,54 @@ def get_spells_for_class(char_class: str, char_level: int, known_spells: Optiona
     known_spells_data = [s for s in available_spells if s['name_ru'] in known_spells]
 
     return available_spells, known_spells_data, is_prepared
+
+
+
+
+
+# --- REDIS CONNECTION POOL ---
+_redis_pool = redis.ConnectionPool(
+    host=settings.REDIS_HOST,
+    port=settings.REDIS_PORT,
+    db=settings.REDIS_DB,
+    password=settings.REDIS_PASSWORD,
+    decode_responses=True  # Чтобы возвращались str, а не bytes
+)
+
+def get_redis_client() -> redis.Redis:
+    """Возвращает клиент Redis из пула."""
+    return redis.Redis(connection_pool=_redis_pool)
+
+
+# --- ОТПРАВКА EMAIL ---
+def send_email_sync(to_email: str, subject: str, html_content: str):
+    """
+    Синхронная отправка письма через SMTP.
+    Вызывается в FastAPI через BackgroundTasks, не блокируя event loop.
+    """
+    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
+        print(f"[MAIL MOCK] Письмо для {to_email} не отправлено (SMTP_USER не задан):")
+        print(f"Тема: {subject}\n{html_content}")
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_USER}>"
+    msg["To"] = to_email
+
+    part = MIMEText(html_content, "html", "utf-8")
+    msg.attach(part)
+
+    try:
+        pwd = settings.SMTP_PASSWORD.get_secret_value()
+        if settings.SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                server.login(settings.SMTP_USER, pwd)
+                server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, pwd)
+                server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
+    except Exception as e:
+        print(f"[MAIL ERROR] Ошибка отправки письма на {to_email}: {e}")

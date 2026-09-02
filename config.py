@@ -67,6 +67,14 @@ class Settings(BaseSettings):
     S3_BUCKET: str = "folio-maps"
 
 
+    # === SMTP / EMAIL ===
+    SMTP_HOST: str = "smtp.mail.ru"  # или smtp.yandex.ru / smtp.gmail.com
+    SMTP_PORT: int = 465             # 465 (SSL) или 587 (STARTTLS)
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: Optional[SecretStr] = None
+    SMTP_FROM_NAME: str = "Folio VTT"
+
+
 settings = Settings()
 
 settings.DATA_DIR.mkdir(exist_ok=True)
