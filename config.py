@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: SecretStr = Field(..., min_length=8)
     S3_BUCKET: str = "folio-maps"
 
+    # === BASE URL ===
+    APP_BASE_URL: str = "http://localhost:8000"
 
     # === SMTP / EMAIL ===
     SMTP_HOST: str = "smtp.mail.ru"  # или smtp.yandex.ru / smtp.gmail.com
