@@ -5,6 +5,14 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2.extras
 
+
+import secrets
+from fastapi import BackgroundTasks
+from werkzeug.security import generate_password_hash
+
+from utils import get_redis_client, send_email_sync, get_random_quote, get_db_connection
+import psycopg2.extras
+
 # Подключаем работу с БД вместо старых JSON-утилит
 from utils import get_random_quote, get_db_connection
 from dependencies import templates, sign_session_data, unsign_session_data
