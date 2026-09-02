@@ -6,7 +6,7 @@ from config import settings
 CONNECTION_PARAMS = {
     "dbname": settings.DB_NAME,
     "user": settings.DB_USER,
-    "password": settings.DB_PASSWORD,
+    "password": settings.DB_PASSWORD.get_secret_value(),
     "host": settings.DB_HOST,
     "port": settings.DB_PORT,
     "connect_timeout": 5

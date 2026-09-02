@@ -3,7 +3,7 @@ from datetime import datetime
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 from config import settings
 from dependencies import templates
@@ -75,8 +75,8 @@ async def session_middleware(request: Request, call_next):
 
 # === Jinja2 Фильтры ===
 def nl2br_filter(s: str):
-    """Заменяет переносы строк на <br>"""
-    return Markup(s.replace('\n', '<br>\n')) if s else ''
+    """Экранирует HTML и заменяет переносы строк на <br>"""
+    return (escape(str(s)).replace('\n', '<br>\n') if s else '')
 
 
 def timestamp_to_date(ts):

@@ -95,7 +95,7 @@ def get_db_connection():
     conn = psycopg2.connect(
         dbname=settings.DB_NAME,
         user=settings.DB_USER,
-        password=settings.DB_PASSWORD,
+        password=settings.DB_PASSWORD.get_secret_value(),
         host=settings.DB_HOST,
         port=settings.DB_PORT,
         connect_timeout=5
@@ -204,7 +204,7 @@ s3_client = boto3.client(
     's3',
     endpoint_url=settings.S3_ENDPOINT,
     aws_access_key_id=settings.S3_ACCESS_KEY,
-    aws_secret_access_key=settings.S3_SECRET_KEY,
+    aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
     region_name='us-east-1'
 )
 
@@ -231,19 +231,56 @@ def init_s3_bucket():
         s3_client.put_bucket_policy(Bucket=settings.S3_BUCKET, Policy=json.dumps(policy))
 
 
-async def upload_image_to_s3(file: UploadFile, prefix: str = "maps") -> str:
-    ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+# Разрешённые к загрузке изображения: расширение и MIME должны совпадать с белым списком.
+ALLOWED_IMAGE_EXTS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+ALLOWED_IMAGE_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+DEFAULT_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 МБ
+
+
+async def upload_image_to_s3(
+        file: UploadFile,
+        prefix: str = "maps",
+        max_size: int = DEFAULT_MAX_UPLOAD_SIZE
+) -> str:
+    """Загружает изображение в S3/MinIO с проверкой расширения, MIME и размера.
+
+    Файл читается чанками, чтобы не держать в памяти больше max_size байт.
+    При нарушении ограничений поднимается ValueError (роуты превращают его
+    в JSON-ответ {status: 'error'}).
+    """
+    # --- 1. Расширение из имени файла (без учёта регистра и путей) ---
+    raw_name = (file.filename or '').replace('\\', '/').split('/')[-1]
+    ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else 'png'
+    if ext not in ALLOWED_IMAGE_EXTS:
+        raise ValueError("Неподдерживаемый формат файла. Допустимы: png, jpg, jpeg, webp, gif.")
+
+    # --- 2. MIME-тип ---
+    content_type = (file.content_type or '').lower()
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise ValueError("Неподдерживаемый MIME-тип изображения.")
+
+    # --- 3. Чтение с ограничением размера ---
+    chunks = []
+    total = 0
+    while True:
+        chunk = await file.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_size:
+            raise ValueError(f"Файл слишком большой (максимум {max_size // (1024 * 1024)} МБ).")
+        chunks.append(chunk)
+    if total == 0:
+        raise ValueError("Пустой файл.")
+    content = b"".join(chunks)
+
     filename = f"{prefix}/{uuid.uuid4().hex}.{ext}"
-
-    content = await file.read()
-
     s3_client.put_object(
         Bucket=settings.S3_BUCKET,
         Key=filename,
         Body=content,
-        ContentType=file.content_type
+        ContentType=content_type or 'image/png'
     )
-
     return f"/media/{filename}"
 
 

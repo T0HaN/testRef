@@ -260,66 +260,24 @@ async def player_heartbeat(current_user: dict = Depends(get_current_user)):
 
 @router.post("/api/spells")
 def create_spell(spell: SpellCreate):
-    # Прямо внутри функции задаем данные для подключения к БД
-    DB_HOST = "localhost"
-    DB_PORT = "5432"
-    DB_NAME = "dnd"  # Замени на имя твоей базы
-    DB_USER = "dndapp"  # Замени на своего пользователя
-    DB_PASS = "a2n0t0o9n"  # Замени на свой пароль
-
-    conn = None
-    cursor = None
+    """Добавляет новое заклинание в общую таблицу (подключение через .env)."""
     try:
-        # Подключаемся к базе внутри функции
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASS,
-            port=DB_PORT
-        )
-        cursor = conn.cursor()
-
-        # Сырой SQL-запрос для вставки данных
-        query = """
-            INSERT INTO spells (
-                name_ru, name_en, level, school, casting_time, 
-                range, components, duration, description, source, classes
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """
-
-        # Передаем данные из Pydantic-модели в запрос
-        cursor.execute(
-            query,
-            (
-                spell.name_ru,
-                spell.name_en,
-                spell.level,
-                spell.school,
-                spell.casting_time,
-                spell.range,
-                spell.components,
-                spell.duration,
-                spell.description,
-                spell.source,
-                spell.classes
-            )
-        )
-
-        # Подтверждаем транзакцию
-        conn.commit()
-
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                        INSERT INTO spells (
+                            name_ru, name_en, level, school, casting_time,
+                            range, components, duration, description, source, classes
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (spell.name_ru, spell.name_en, spell.level, spell.school, spell.casting_time,
+                     spell.range, spell.components, spell.duration, spell.description, spell.source,
+                     spell.classes)
+                )
+                conn.commit()
     except Exception as e:
-        if conn:
-            conn.rollback()
         raise HTTPException(status_code=500, detail=f"Ошибка базы данных: {str(e)}")
-
-    finally:
-        # Всегда закрываем курсор и соединение
-        if cursor:
-            cursor.close()
-        if conn:
-            conn.close()
 
     return {"status": "success", "message": f"Заклинание «{spell.name_ru}» успешно добавлено!"}
 

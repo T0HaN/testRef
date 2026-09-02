@@ -1,28 +1,34 @@
-```
-# Compiled and build artifacts
-*.pyc
-__pycache__/
-*.o
-*.obj
-dist/
-build/
+# ============================================================
+# D&D Middle-earth — .gitignore
+# ============================================================
 
-# Dependencies
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# --- Виртуальное окружение ---
 .venv/
 venv/
-node_modules/
+env/
 
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-
-# Environment
+# --- Секреты (Шаг 1 аудита безопасности) ---
 .env
-.env.local
-*.env.*
+.env.*
+!.env.example
 
-# Editors
+# --- Артефакты разработки (бэкапы и мусор из репозитория) ---
+*.backup
+*.bak
+*.orig
+test.html
+*.log
+
+# --- IDE / ОС ---
 .vscode/
 .idea/
-```
+.DS_Store
+Thumbs.db

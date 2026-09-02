@@ -303,12 +303,12 @@
                 break;
             case 'player_join':
                 if (data.username !== myUsername) {
-                    addSystemChatMessage(`🟢 <strong>${data.char_name || data.username}</strong> присоединился к игре.`);
+                    addSystemChatMessage('🟢', data.char_name || data.username, 'присоединился к игре.');
                     refreshPlayersTab();
                 }
                 break;
             case 'player_leave':
-                addSystemChatMessage(`🔴 <strong>${data.char_name || data.username}</strong> покинул игру.`);
+                addSystemChatMessage('🔴', data.char_name || data.username, 'покинул игру.');
                 refreshPlayersTab();
                 break;
             case 'grid_size_update':
@@ -478,7 +478,7 @@
             const isUnconscious = hpCurrent <= 0;
 
             const bgIcon = c.image
-                ? `<img src="${c.image}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${isUnconscious ? '#ff0000' : borderColor};">`
+                ? `<img src="${escapeHtmlText(c.image)}" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid ${isUnconscious ? '#ff0000' : borderColor};">`
                 : `<div style="width: 36px; height: 36px; border-radius: 50%; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; border: 2px solid ${isUnconscious ? '#ff0000' : borderColor}; font-size: 1.2rem;">${c.is_monster ? '' : '🎭'}</div>`;
 
             html += `
@@ -486,7 +486,7 @@
                 ${bgIcon}
                 <div class="info" style="flex:1;">
                     <div class="char-name" style="color: ${isSelf ? 'var(--accent-gold)' : 'var(--text-primary)'};">${escapeHtmlText(c.name)} ${isSelf ? '(вы)' : ''}</div>
-                    ${isUnconscious ? `<div style="font-size: 0.7rem; color: #ff4444; font-weight: bold;">💀 Без сознания</div>` : (hpMax !== '?' ? `<div style="font-size: 0.7rem; color: var(--text-secondary);">❤️ ${hpCurrent}/${hpMax}</div>` : '')}
+                    ${isUnconscious ? `<div style="font-size: 0.7rem; color: #ff4444; font-weight: bold;">💀 Без сознания</div>` : (hpMax !== '?' ? `<div style="font-size: 0.7rem; color: var(--text-secondary);">❤️ ${escapeHtmlText(hpCurrent)}/${escapeHtmlText(hpMax)}</div>` : '')}
                 </div>
                 <div style="background: var(--bg-tertiary); border-radius: 4px; padding: 0.3rem 0.6rem; text-align: center;">
                     <div style="font-size: 0.6rem; color: var(--text-secondary);">ИНИЦ</div>
@@ -983,11 +983,15 @@
             .catch(err => console.error('Ошибка синхронизации списка игроков:', err));
     }
 
-    function addSystemChatMessage(text) {
+    function addSystemChatMessage(emoji, name, message) {
         const log = document.getElementById('chatLog');
         const entry = document.createElement('div');
         entry.style.cssText = 'text-align: center; color: var(--text-secondary); font-size: 0.85rem; margin: 0.8rem 0; opacity: 0.6;';
-        entry.innerHTML = text;
+        entry.appendChild(document.createTextNode(emoji + ' '));
+        const nameEl = document.createElement('strong');
+        nameEl.textContent = name;
+        entry.appendChild(nameEl);
+        entry.appendChild(document.createTextNode(' ' + message));
         log.appendChild(entry);
         scrollToBottomLog();
     }

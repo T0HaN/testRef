@@ -8,6 +8,7 @@ import psycopg2.extras
 # Подключаем работу с БД вместо старых JSON-утилит
 from utils import get_random_quote, get_db_connection
 from dependencies import templates, sign_session_data, unsign_session_data
+from config import settings
 
 router = APIRouter(tags=["Auth"])
 
@@ -125,6 +126,7 @@ async def login(
                 value=signed_session_cookie,
                 httponly=True,
                 max_age=86400,  # 24 часа
+                secure=settings.SESSION_COOKIE_SECURE,
                 samesite="lax"
             )
             return response

@@ -189,8 +189,8 @@ function handleWsMessage(data) {
                 setTimeout(() => { input.style.backgroundColor = 'var(--bg-primary)'; }, 500);
             }
             break;
-        case 'player_join': if (data.username !== myUsername) { addSystemChatMessage(`🟢 <strong>${data.char_name || data.username}</strong> присоединился к игре.`); refreshPlayersTab(); } break;
-        case 'player_leave': addSystemChatMessage(`🔴 <strong>${data.char_name || data.username}</strong> покинул игру.`); refreshPlayersTab(); break;
+        case 'player_join': if (data.username !== myUsername) { addSystemChatMessage('🟢', data.char_name || data.username, 'присоединился к игре.'); refreshPlayersTab(); } break;
+        case 'player_leave': addSystemChatMessage('🔴', data.char_name || data.username, 'покинул игру.'); refreshPlayersTab(); break;
     }
 }
 
@@ -721,15 +721,87 @@ function removeTokenFromMap(tokenId) {
 
 function removeMonsterFromMap(tokenId) { removeTokenFromMap(tokenId); }
 
-function adjustMonsterHp(tokenId, delta) { const combatant = combatants.find(c => String(c.token_id) === String(tokenId) || String(c.char_id) === String(tokenId)); if (!combatant) return; let newHp = Math.max(0, Math.min((combatant.hp_current || 0) + delta, combatant.hp_max || 9999)); combatant.hp_current = newHp; renderCombatList(); if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'combatant_hp_update', token_id: String(tokenId), hp_current: newHp })); } if (!combatant.is_monster) { const formData = new FormData(); formData.append('current_hp', newHp); formData.append('temp_hp', 0); formData.append('room_id', window.roomData.id); fetch(`/char/${tokenId}/hp`, { method: 'POST', body: formData }).catch(err => console.error(err)); } if (newHp <= 0 && combatant.is_monster) { const n = document.createElement('div'); n.innerHTML = `💀 <strong>${combatant.name}</strong> повержен!`; n.style.cssText = `position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:linear-gradient(145deg,rgba(139,58,58,0.95),rgba(80,20,20,0.95)); color:#e0d4b8; padding:1.5rem 2.5rem; border-radius:12px; border:2px solid #c9a961; z-index:10000; font-family:'Georgia',serif; font-size:1.3rem; text-align:center; transition:all 0.4s ease; pointer-events:none;`; document.body.appendChild(n); setTimeout(() => { n.style.opacity = '0'; setTimeout(() => n.remove(), 400); }, 3000); roomWs.send(JSON.stringify({ type: 'token_update', action: 'remove', token: { token_id: tokenId, char_id: tokenId } })); } }
+function adjustMonsterHp(tokenId, delta) { const combatant = combatants.find(c => String(c.token_id) === String(tokenId) || String(c.char_id) === String(tokenId)); if (!combatant) return; let newHp = Math.max(0, Math.min((combatant.hp_current || 0) + delta, combatant.hp_max || 9999)); combatant.hp_current = newHp; renderCombatList(); if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'combatant_hp_update', token_id: String(tokenId), hp_current: newHp })); } if (!combatant.is_monster) { const formData = new FormData(); formData.append('current_hp', newHp); formData.append('temp_hp', 0); formData.append('room_id', window.roomData.id); fetch(`/char/${tokenId}/hp`, { method: 'POST', body: formData }).catch(err => console.error(err)); } if (newHp <= 0 && combatant.is_monster) { const n = document.createElement('div'); n.innerHTML = `💀 <strong>${escapeHtmlText(combatant.name)}</strong> повержен!`; n.style.cssText = `position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:linear-gradient(145deg,rgba(139,58,58,0.95),rgba(80,20,20,0.95)); color:#e0d4b8; padding:1.5rem 2.5rem; border-radius:12px; border:2px solid #c9a961; z-index:10000; font-family:'Georgia',serif; font-size:1.3rem; text-align:center; transition:all 0.4s ease; pointer-events:none;`; document.body.appendChild(n); setTimeout(() => { n.style.opacity = '0'; setTimeout(() => n.remove(), 400); }, 3000); roomWs.send(JSON.stringify({ type: 'token_update', action: 'remove', token: { token_id: tokenId, char_id: tokenId } })); } }
 
-function renderCombatList() { const container = document.getElementById('combat-list'); if (!container) return; if (!combatants || combatants.length === 0) { container.innerHTML = '<div class="empty-state">Нет участников боя</div>'; return; } combatants.sort((a, b) => b.initiative - a.initiative); let html = ''; combatants.forEach(c => { const hpCurrent = (c.hp_current !== undefined && c.hp_current !== null) ? c.hp_current : 0; const hpMax = (c.hp_max !== undefined && c.hp_max !== null) ? c.hp_max : '?'; const borderColor = c.is_monster ? 'var(--accent-red)' : 'var(--accent-gold)'; html += `<div class="player-card" style="background: var(--bg-secondary); border: 2px solid ${borderColor}; border-radius: 8px; padding: 0.8rem; margin-bottom: 0.8rem;"><div style="text-align: center; font-family: var(--font-main); font-size: 1.1rem; font-weight: 700; color: var(--accent-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center;"><span>${c.name}</span><button class="vtt-btn danger" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;" onclick="removeMonsterFromMap('${c.token_id}')">✕</button></div><div style="display: flex; justify-content: space-around; margin-bottom: 0.6rem;"><div style="text-align: center;"><div style="font-size: 0.7rem; color: var(--text-secondary);">КД</div><div style="font-size: 1rem; font-weight: bold; color: var(--accent-gold);">${c.ac ? String(c.ac).split(' ')[0] : '?'}</div></div><div style="text-align: center;"><div style="font-size: 0.7rem; color: var(--text-secondary);">Хиты</div><div style="font-size: 1rem; font-weight: bold; color: var(--accent-green);">${hpCurrent}/${hpMax}</div></div><div style="text-align: center;"><div style="font-size: 0.7rem; color: var(--text-secondary);">Иниц</div><div style="font-size: 1rem; font-weight: bold; color: var(--accent-red);">${c.initiative}</div></div></div><div style="display: flex; justify-content: center; gap: 0.4rem;"><button class="hp-btn-sm damage" onclick="adjustMonsterHp('${c.token_id}', -5)">-5</button><button class="hp-btn-sm damage" onclick="adjustMonsterHp('${c.token_id}', -1)">-1</button><button class="hp-btn-sm heal" onclick="adjustMonsterHp('${c.token_id}', 1)">+1</button><button class="hp-btn-sm heal" onclick="adjustMonsterHp('${c.token_id}', 5)">+5</button></div></div>`; }); container.innerHTML = html; }
+function renderCombatList() {
+    const container = document.getElementById('combat-list');
+    if (!container) return;
+
+    if (!combatants || combatants.length === 0) {
+        container.innerHTML = '<div class="empty-state">Нет участников боя</div>';
+        return;
+    }
+
+    combatants.sort((a, b) => b.initiative - a.initiative);
+
+    let html = '';
+    combatants.forEach(c => {
+        const tokenId = (c.token_id !== undefined && c.token_id !== null) ? c.token_id : (c.char_id || '');
+        const safeTokenId = escapeHtmlText(String(tokenId));
+        const hpCurrent = (c.hp_current !== undefined && c.hp_current !== null) ? c.hp_current : 0;
+        const hpMax = (c.hp_max !== undefined && c.hp_max !== null) ? c.hp_max : '?';
+        const borderColor = c.is_monster ? 'var(--accent-red)' : 'var(--accent-gold)';
+        const acText = c.ac ? String(c.ac).split(' ')[0] : '?';
+
+        html += `
+        <div class="player-card" data-token-id="${safeTokenId}" style="background: var(--bg-secondary); border: 2px solid ${borderColor}; border-radius: 8px; padding: 0.8rem; margin-bottom: 0.8rem;">
+            <div style="text-align: center; font-family: var(--font-main); font-size: 1.1rem; font-weight: 700; color: var(--accent-gold); margin-bottom: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
+                <span>${escapeHtmlText(c.name)}</span>
+                <button class="vtt-btn danger js-remove-token" type="button" style="padding: 0.2rem 0.5rem; font-size: 0.7rem;">✕</button>
+            </div>
+            <div style="display: flex; justify-content: space-around; margin-bottom: 0.6rem;">
+                <div style="text-align: center;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">КД</div>
+                    <div style="font-size: 1rem; font-weight: bold; color: var(--accent-gold);">${escapeHtmlText(acText)}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">Хиты</div>
+                    <div style="font-size: 1rem; font-weight: bold; color: var(--accent-green);">${escapeHtmlText(hpCurrent)}/${escapeHtmlText(hpMax)}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">Иниц</div>
+                    <div style="font-size: 1rem; font-weight: bold; color: var(--accent-red);">${escapeHtmlText(c.initiative)}</div>
+                </div>
+            </div>
+            <div style="display: flex; justify-content: center; gap: 0.4rem;">
+                <button class="hp-btn-sm damage js-adjust-hp" type="button" data-delta="-5">-5</button>
+                <button class="hp-btn-sm damage js-adjust-hp" type="button" data-delta="-1">-1</button>
+                <button class="hp-btn-sm heal js-adjust-hp" type="button" data-delta="1">+1</button>
+                <button class="hp-btn-sm heal js-adjust-hp" type="button" data-delta="5">+5</button>
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+
+    // Обработчики через DOM (без inline-onclick и подстановки token_id в HTML)
+    container.querySelectorAll('.player-card[data-token-id]').forEach(card => {
+        const tokenId = card.getAttribute('data-token-id');
+        const removeBtn = card.querySelector('.js-remove-token');
+        if (removeBtn) removeBtn.addEventListener('click', () => removeTokenFromMap(tokenId));
+        card.querySelectorAll('.js-adjust-hp').forEach(btn => {
+            const delta = parseInt(btn.getAttribute('data-delta'), 10);
+            if (!Number.isNaN(delta)) btn.addEventListener('click', () => adjustMonsterHp(tokenId, delta));
+        });
+    });
+}
 
 function showMonsterDetails(mData) { const modal = document.getElementById('monsterModal'); if (!modal) return; document.getElementById('monsterModalHeader').innerHTML = `${mData.token_image ? `<img src="${mData.token_image}" class="monster-modal-avatar">` : `<div class="monster-modal-avatar-placeholder">👹</div>`} <div style="flex:1"><h2 class="monster-modal-title">${escapeHtmlText(mData.name)}</h2>${mData.challenge_rating ? `<div class="monster-modal-cr">CR: ${mData.challenge_rating}</div>` : ''}</div>`; const sGrid = document.getElementById('monsterModalStats'); sGrid.innerHTML = ''; ['STR','DEX','CON','INT','WIS','CHA'].forEach(s => { let v = '?'; if(mData.stats && mData.stats[s]) { v = typeof mData.stats[s] === 'object' ? (mData.stats[s].score || '?') : mData.stats[s]; } sGrid.innerHTML += `<div class="monster-modal-stat"><span class="monster-modal-stat-label">${s}</span><span class="monster-modal-stat-value">${v}</span></div>`; }); document.getElementById('monsterModalInfo').innerHTML = `<div>🛡️ КД: ${escapeHtmlText(mData.armor_class || '?')}</div><div>❤️ Хиты: ${escapeHtmlText(mData.hit_points || '?')}</div>${mData.speed ? `<div>🏃 Скор: ${escapeHtmlText(mData.speed)}</div>` : ''}`; const tSec = document.getElementById('monsterModalTraitsSection'); if (mData.traits && mData.traits.length > 0) { document.getElementById('monsterModalTraits').innerHTML = renderModalActionList(mData.traits); tSec.style.display = 'block'; } else tSec.style.display = 'none'; const aSec = document.getElementById('monsterModalActionsSection'); if (mData.actions && mData.actions.length > 0) { document.getElementById('monsterModalActions').innerHTML = renderModalActionList(mData.actions); aSec.style.display = 'block'; } else aSec.style.display = 'none'; const lSec = document.getElementById('monsterModalLegendarySection'); if (mData.legendary_actions && mData.legendary_actions.length > 0) { document.getElementById('monsterModalLegendary').innerHTML = renderModalActionList(mData.legendary_actions); lSec.style.display = 'block'; } else lSec.style.display = 'none'; const dSec = document.getElementById('monsterModalDescSection'); if (mData.description) { document.getElementById('monsterModalDesc').innerHTML = escapeHtmlText(mData.description).replace(/\n/g, '<br>'); dSec.style.display = 'block'; } else dSec.style.display = 'none'; modal.classList.add('active'); }
 function closeMonsterModal() { document.getElementById('monsterModal').classList.remove('active'); }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMonsterModal(); });
 function refreshPlayersTab() { fetch(window.location.href).then(res => res.text()).then(html => { const doc = new DOMParser().parseFromString(html, 'text/html'); const newPlayers = doc.getElementById('tab-players'); if (newPlayers) document.getElementById('tab-players').innerHTML = newPlayers.innerHTML; const newMeta = doc.querySelector('.room-meta'); const oldMeta = document.querySelector('.room-meta'); if (newMeta && oldMeta) oldMeta.innerHTML = newMeta.innerHTML; }).catch(err => console.error(err)); }
-function addSystemChatMessage(text) { const log = document.getElementById('chatLog'); const entry = document.createElement('div'); entry.style.cssText = 'text-align: center; color: var(--text-secondary); font-size: 0.85rem; margin: 0.8rem 0; opacity: 0.6;'; entry.innerHTML = text; log.appendChild(entry); scrollToBottomLog(); }
+function addSystemChatMessage(emoji, name, message) {
+    const log = document.getElementById('chatLog');
+    const entry = document.createElement('div');
+    entry.style.cssText = 'text-align: center; color: var(--text-secondary); font-size: 0.85rem; margin: 0.8rem 0; opacity: 0.6;';
+    entry.appendChild(document.createTextNode(emoji + ' '));
+    const nameEl = document.createElement('strong');
+    nameEl.textContent = name;
+    entry.appendChild(nameEl);
+    entry.appendChild(document.createTextNode(' ' + message));
+    log.appendChild(entry);
+    scrollToBottomLog();
+}
 async function loadScenes() { try { const response = await fetch(`/api/room/${window.roomData.id}/scenes`); const data = await response.json(); if (data.status === 'ok') renderScenesList(data.scenes); } catch (e) { console.error(e); } }
 function renderScenesList(scenes) { const container = document.getElementById('scenes-list'); if (scenes.length === 0) { container.innerHTML = '<div class="empty-state">Нет сохраненных сцен</div>'; return; } let html = ''; scenes.forEach(scene => { const isActive = scene.is_active; html += `<div style="background: var(--bg-secondary); border: 2px solid ${isActive ? 'var(--accent-gold)' : 'var(--border-color)'}; border-radius: 8px; overflow: hidden; position: relative;"><div style="height: 100px; background-image: url('${scene.background_url}'); background-size: cover; background-position: center; opacity: ${isActive ? '1' : '0.6'};"></div><div style="padding: 0.6rem; display: flex; justify-content: space-between; align-items: center;"><div style="font-family: var(--font-main); color: ${isActive ? 'var(--accent-gold)' : 'var(--text-primary)'}; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtmlText(scene.name)} ${isActive ? '<span style="font-size: 0.7rem; margin-left: 0.3rem;">(Активна)</span>' : ''}</div><div style="display: flex; gap: 0.4rem; flex-shrink: 0;">${!isActive ? `<button class="vtt-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="activateScene(${scene.id})">▶</button>` : ''}<button class="vtt-btn danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="deleteScene(${scene.id})">🗑️</button></div></div></div>`; }); container.innerHTML = html; }
 async function uploadNewScene(inputElement) { const file = inputElement.files[0]; if (!file) return; const nameInput = document.getElementById('newSceneName'); const name = nameInput.value.trim() || 'Новая сцена'; const btn = inputElement.nextElementSibling; const originalText = btn.innerHTML; btn.innerHTML = '⏳ Обработка...'; btn.disabled = true; const img = new Image(); img.onload = async () => { const formData = new FormData(); formData.append('file', file); formData.append('name', name); formData.append('width', img.naturalWidth); formData.append('height', img.naturalHeight); try { const response = await fetch(`/api/room/${window.roomData.id}/scene/upload`, { method: 'POST', body: formData }); const data = await response.json(); if (data.status === 'ok') { nameInput.value = ''; loadScenes(); } else alert('Ошибка: ' + data.message); } catch (e) { console.error(e); alert('Ошибка при загрузке файла'); } finally { btn.innerHTML = originalText; btn.disabled = false; inputElement.value = ''; } }; img.src = URL.createObjectURL(file); }

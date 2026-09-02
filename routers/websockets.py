@@ -2,17 +2,46 @@ import asyncio
 import json
 import time
 import uuid
+from urllib.parse import urlsplit
+
+from config import settings
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from utils import load_rooms, save_rooms, get_redis_room_state, save_redis_room_state
+from utils import (load_rooms, save_rooms, get_redis_room_state, save_redis_room_state,
+                       load_chars)
 import utils  # Для доступа к глобальному redis_client
 from dependencies import unsign_session_data
+from pydantic import ValidationError
+
+from ws_schemas import InitSchema, WS_SCHEMAS
 
 router = APIRouter(tags=["WebSockets"])
 
 # Глобальный словарь для отслеживания количества активных вкладок у игрока
 player_connections = {}
+
+
+def _is_origin_allowed(websocket: WebSocket) -> bool:
+    """CSWSH: разрешаем Origin, совпадающий с Host, или из списка WS_ALLOWED_ORIGINS."""
+    origin = websocket.headers.get("origin")
+    if not origin:
+        # Не-браузерный клиент без Origin — полагаемся на подписанную cookie.
+        return True
+    try:
+        origin_netloc = urlsplit(origin).netloc.lower()
+    except ValueError:
+        return False
+    if not origin_netloc:
+        return False
+
+    host = (websocket.headers.get("host") or "").lower()
+    if origin_netloc == host:
+        return True
+
+    allowed = [o.strip().lower() for o in settings.WS_ALLOWED_ORIGINS.split(",") if o.strip()]
+    return origin_netloc in allowed
+
 
 
 async def broadcast_ws_event(room_id: str, message: dict):
@@ -26,6 +55,11 @@ async def broadcast_ws_event(room_id: str, message: dict):
 
 @router.websocket("/ws/room/{room_id}")
 async def room_websocket(websocket: WebSocket, room_id: str):
+    # 🛡️ 0. CSWSH: проверяем Origin до рукопожатия
+    if not _is_origin_allowed(websocket):
+        await websocket.close(code=4403, reason="Origin not allowed")
+        return
+
     await websocket.accept()
 
     # 🛡️ 1. Безопасное извлечение и валидация пользователя из Cookie
@@ -59,9 +93,20 @@ async def room_websocket(websocket: WebSocket, room_id: str):
     is_master = (room_data.get('master_id') == username) or (
             user_role == 'master' and room_data.get('master_id') == username)
 
+    # 🛡️ Идентификаторы персонажей, которыми владеет пользователь (нужно для прав на токены)
+    owned_char_ids = set()
+    if not is_master and username:
+        try:
+            owned_char_ids = {str(c.get('id')) for c in load_chars(username)}
+        except Exception as e:
+            print(f"⚠️ Не удалось загрузить персонажей игрока {username}: {e}")
+            owned_char_ids = set()
+
     try:
         init_data = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
-        char_name = init_data.get('char_name', username)
+        # Валидация первого сообщения (char_name / username)
+        init_data = InitSchema(**init_data).model_dump()
+        char_name = init_data.get('char_name') or username
     except Exception:
         char_name = username
 
@@ -145,8 +190,25 @@ async def room_websocket(websocket: WebSocket, room_id: str):
     # 🔄 5. Основной цикл приёма сообщений от клиента
     try:
         while True:
-            data = await websocket.receive_json()
-            msg_type = data.get('type')
+            try:
+                raw_data = await websocket.receive_json()
+            except Exception as exc:
+                print(f"⚠️ WS невалидное сообщение [{room_id}]: {exc}")
+                await websocket.close(code=4400, reason="Invalid message")
+                break
+
+            msg_type = raw_data.get('type') if isinstance(raw_data, dict) else None
+
+            # 🛡️ Pydantic-валидация входящего WS-сообщения
+            schema_cls = WS_SCHEMAS.get(msg_type)
+            if schema_cls is None:
+                continue  # неизвестный тип — игнорируем (как и раньше)
+
+            try:
+                data = schema_cls(**raw_data).model_dump()
+            except ValidationError as exc:
+                print(f"⚠️ WS validation error [{room_id}] type={msg_type}: {exc.errors()}")
+                continue
 
             if msg_type in ['map_update', 'map_clear', 'token_update', 'combatant_hp_update', 'grid_size_update',
                             'draw_line', 'draw_clear', 'fow_update', 'tokens_clear']:
@@ -291,6 +353,13 @@ async def room_websocket(websocket: WebSocket, room_id: str):
                     f"token_{uuid.uuid4().hex}"
                 )
 
+                # 🛡️ Игрок управляет только токеном своего персонажа;
+                # чужие/новые токены (монстры, объекты, другие игроки) — только мастер.
+                owner_id = str(token_data.get('char_id') or token_data.get('token_id') or token_id or '')
+                if not is_master and owner_id not in owned_char_ids:
+                    print(f"⛔ Отказ token_update({action}) игроку {username} (room {room_id_str})")
+                    continue
+
                 token_data['char_id'] = token_id
                 token_data['token_id'] = token_id
 
@@ -404,6 +473,11 @@ async def room_websocket(websocket: WebSocket, room_id: str):
             elif msg_type == 'combatant_hp_update':
                 token_id = data.get('token_id')
                 new_hp = data.get('hp_current')
+
+                # 🛡️ HP меняет мастер (любой токен) или владелец персонажа
+                if not is_master and (token_id is None or str(token_id) not in owned_char_ids):
+                    print(f"⛔ Отказ combatant_hp_update игроку {username} (room {room_id_str})")
+                    continue
 
                 if token_id and new_hp is not None:
                     if 'combatants' in current_state:

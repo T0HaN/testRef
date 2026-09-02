@@ -14,7 +14,7 @@ templates = Jinja2Templates(directory=str(settings.TEMPLATES_DIR))
 
 # Сериализатор для криптографической подписи кук
 serializer = URLSafeTimedSerializer(
-    secret_key=settings.SECRET_KEY,
+    secret_key=settings.SECRET_KEY.get_secret_value(),
     salt="session-cookie-salt"
 )
 
@@ -150,7 +150,7 @@ async def get_current_user_jwt(
             headers={"WWW-Authenticate": "Bearer"},
         )
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY.get_secret_value(), algorithms=[settings.ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=401, detail="Invalid token")

@@ -599,7 +599,7 @@ async def api_upload_scene(
                 return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
 
     try:
-        background_url = await upload_image_to_s3(file, prefix=f"room_{room_id}")
+        background_url = await upload_image_to_s3(file, prefix=f"room_{room_id}", max_size=15 * 1024 * 1024)
         scene = create_scene(room_id, name, background_url, width, height)
 
         if 'created_at' in scene and scene['created_at']:
