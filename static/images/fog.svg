@@ -1,0 +1,8 @@
+<!-- Иконка "решетка" (grid) -->
+<svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+  <path d="M2 12h20" />
+  <path d="M4 16h16" />
+  <path d="M7 8h10" />
+  <path d="M9 20h6" />
+  <path d="M10 4h4" />
+</svg>

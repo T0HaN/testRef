@@ -24,7 +24,9 @@
             </div>
         </div>
         <div class="header-actions">
-            <a href="/master/room/{{ room.id }}/rewards" class="header-btn primary">🎁 Выдать награды</a>
+            <a href="/master/room/{{ room.id }}/rewards" class="header-btn primary">
+                <img src="/static/images/gift.svg" alt="Награды" style="width:1em; height:1em; vertical-align:middle;"> Выдать награды
+            </a>
             <a href="/games" class="header-btn">← В панель</a>
         </div>
     </header>
@@ -34,14 +36,28 @@
 
         <!-- COMPACT SIDEBAR -->
         <aside class="compact-sidebar">
-            <button class="icon-tab-btn" data-tab="players" title="Игроки">👥</button>
+            <button class="icon-tab-btn" data-tab="players" title="Игроки">
+                <img src="/static/images/users.svg" alt="Игроки" style="width:24px; height:24px; vertical-align:middle;">
+            </button>
             <button class="icon-tab-btn" data-tab="combat" title="Трекер боя">⚔️</button>
-            <button class="icon-tab-btn" data-tab="scenes" title="Сцены (Карты)">🗺️</button>
-            <button class="icon-tab-btn" data-tab="dice" title="Броски кубов">🎲</button>
-            <button class="icon-tab-btn" data-tab="history" title="История наград">📜</button>
-            <button class="icon-tab-btn" data-tab="monsters" title="Бестиарий">👹</button>
-            <button class="icon-tab-btn" data-tab="props" title="Предметы окружения">📦</button>
-            <button class="icon-tab-btn" data-tab="rewards" title="Выдача наград">🎁</button>
+            <button class="icon-tab-btn" data-tab="scenes" title="Сцены (Карты)">
+                <img src="/static/images/map.svg" alt="Карты" style="width:24px; height:24px; vertical-align:middle;">
+            </button>
+            <button class="icon-tab-btn" data-tab="dice" title="Броски кубов">
+                <img src="/static/images/dice.svg" alt="Кубы" style="width:24px; height:24px; vertical-align:middle;">
+            </button>
+            <button class="icon-tab-btn" data-tab="history" title="История наград">
+                <img src="/static/images/history.svg" alt="История" style="width:24px; height:24px; vertical-align:middle;">
+            </button>
+            <button class="icon-tab-btn" data-tab="monsters" title="Бестиарий">
+                <img src="/static/images/bestiary.svg" alt="Бестиарий" style="width:24px; height:24px; vertical-align:middle;">
+            </button>
+            <button class="icon-tab-btn" data-tab="props" title="Предметы окружения">
+                <img src="/static/images/props.svg" alt="Предметы" style="width:24px; height:24px; vertical-align:middle;">
+            </button>
+            <button class="icon-tab-btn" data-tab="rewards" title="Выдача наград">
+                <img src="/static/images/gift.svg" alt="Награды" style="width:24px; height:24px; vertical-align:middle;">
+            </button>
         </aside>
 
         <!-- SLIDING PANEL -->
@@ -54,7 +70,7 @@
                 <!-- Вкладки -->
                 <div id="tab-players" class="tab-content">
                     <h3 class="section-title">
-                        Подключённые игроки
+                        <img src="/static/images/users.svg" alt="Игроки" style="width:1em; height:1em; vertical-align:middle;"> Подключённые игроки
                         <button onclick="refreshPlayersTab()" title="Обновить статусы" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:0.9rem; float:right;">🔄</button>
                     </h3>
                     {% if players %}
@@ -112,7 +128,7 @@
                 </div>
 
                 <div id="tab-scenes" class="tab-content">
-                    <h3 class="section-title">Игровые сцены</h3>
+                    <h3 class="section-title"><img src="/static/images/map.svg" alt="Карты" style="width:1em; height:1em; vertical-align:middle;"> Игровые сцены</h3>
                     <div style="margin-bottom: 1rem;">
                         <input type="text" id="newSceneName" placeholder="Название новой сцены..." style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
                         <input type="file" id="sceneFileInput" accept="image/*" style="display: none;" onchange="uploadNewScene(this)">
@@ -126,7 +142,7 @@
                 </div>
 
                 <div id="tab-dice" class="tab-content">
-                    <h3 class="section-title">Быстрые броски</h3>
+                    <h3 class="section-title"><img src="/static/images/dice.svg" alt="Кубы" style="width:1em; height:1em; vertical-align:middle;"> Быстрые броски</h3>
                     <div style="margin-bottom: 0.8rem; background: var(--bg-primary); padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px;">
                         <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; user-select: none;">
                             <input type="checkbox" id="hiddenRollCheck" style="width: 16px; height: 16px; accent-color: var(--accent-gold);">
@@ -147,7 +163,7 @@
                 </div>
 
                 <div id="tab-history" class="tab-content">
-                    <h3 class="section-title">История наград</h3>
+                    <h3 class="section-title"><img src="/static/images/history.svg" alt="История" style="width:1em; height:1em; vertical-align:middle;"> История наград</h3>
                     {% set reward_history = room.roll_history | selectattr('type', 'equalto', 'reward') | list %}
                     {% if reward_history %}
                         {% for entry in reward_history[-10:] %}
@@ -166,7 +182,7 @@
                 </div>
 
                 <div id="tab-monsters" class="tab-content">
-                    <h3 class="section-title">Бестиарий отряда</h3>
+                    <h3 class="section-title"><img src="/static/images/bestiary.svg" alt="Бестиарий" style="width:1em; height:1em; vertical-align:middle;"> Бестиарий отряда</h3>
                     {% if selected_monsters %}
                     <div style="display: flex; flex-direction: column; gap: 0.8rem;">
                         {% for m in selected_monsters %}
@@ -234,7 +250,7 @@
 
                 <!-- Вкладка "Предметы окружения" -->
                 <div id="tab-props" class="tab-content">
-                    <h3 class="section-title">Предметы окружения</h3>
+                    <h3 class="section-title"><img src="/static/images/props.svg" alt="Предметы" style="width:1em; height:1em; vertical-align:middle;"> Предметы окружения</h3>
 
                     <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
                         <input type="text" id="newPropName" placeholder="Название (напр. Сундук)..." style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
@@ -286,7 +302,7 @@
                     </div>
                 </div>
                 <div id="tab-rewards" class="tab-content">
-                    <h3 class="section-title">Массовая награда</h3>
+                    <h3 class="section-title"><img src="/static/images/gift.svg" alt="Награды" style="width:1em; height:1em; vertical-align:middle;"> Массовая награда</h3>
                     <form id="mass-reward-form" onsubmit="return sendReward('all')">
                         <div class="form-group">
                             <label>Опыт (XP)</label>
@@ -344,7 +360,9 @@
                             <button class="tool-btn active" id="toolMove" onclick="setTool('move')" title="Перемещение (ЛКМ)">✋</button>
                             <button class="tool-btn" id="toolRuler" onclick="setTool('ruler')" title="Линейка (ЛКМ)">📏</button>
                             <button class="tool-btn" id="toolDraw" onclick="setTool('draw')" title="Рисование (ЛКМ)">🖌️</button>
-                            <button class="tool-btn" id="toolFow" onclick="setTool('fow')" title="Туман войны (ЛКМ)">☁️</button>
+                            <button class="tool-btn" id="toolFow" onclick="setTool('fow')" title="Туман войны (ЛКМ)">
+                                <img src="/static/images/fog.svg" alt="Туман" style="width:1.2em; height:1.2em; vertical-align:middle;">
+                            </button>
                         </div>
 
                         <!-- Настройки кисти -->
@@ -360,7 +378,9 @@
                                 <span style="font-size: 0.7rem; color: var(--text-secondary);">Толщина:</span>
                                 <input type="range" id="brushSize" min="2" max="20" value="4" style="flex: 1; accent-color: var(--accent-gold);" onchange="setBrushSize(this.value)">
                             </div>
-                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="clearDrawings()">🗑️ Стереть рисунки</button>
+                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="clearDrawings()">
+                                <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Стереть рисунки
+                            </button>
                         </div>
 
                         <!-- Настройки тумана -->
@@ -374,7 +394,9 @@
                                 <input type="range" min="20" max="200" value="60" style="flex: 1; accent-color: var(--accent-gold);" onchange="fogBrushSize = parseInt(this.value)">
                             </div>
                             <button class="vtt-btn" style="padding: 0.2rem; font-size: 0.8rem; border-color: var(--text-secondary);" onclick="fowHideAll()">⬛ Залить туманом</button>
-                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="fowClearAll()">🗑️ Убрать туман</button>
+                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="fowClearAll()">
+                                <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Убрать туман
+                            </button>
                         </div>
                     </div>
 
@@ -382,8 +404,12 @@
 
                     <!-- Раздельные кнопки удаления Карты и Токенов -->
                     <div style="display: flex; gap: 0.3rem;">
-                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearMap()" title="Удалить текущую карту">🗑️ Карта</button>
-                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearAllTokens()" title="Удалить все токены">🗑️ Токены</button>
+                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearMap()" title="Удалить текущую карту">
+                            <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Карта
+                        </button>
+                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearAllTokens()" title="Удалить все токены">
+                            <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Токены
+                        </button>
                     </div>
 
                     <button class="vtt-btn" style="width: 100%; margin-top: 0.3rem; border-color: var(--accent-gold);" onclick="addCustomToken()">
@@ -471,7 +497,9 @@
     <div id="vttContextMenu" class="vtt-context-menu">
         <div class="vtt-context-item" onclick="contextMenuAction('scale_up')">🔍 Увеличить (+20%)</div>
         <div class="vtt-context-item" onclick="contextMenuAction('scale_down')">🔎 Уменьшить (-20%)</div>
-        <div class="vtt-context-item danger" onclick="contextMenuAction('delete')">🗑️ Удалить</div>
+        <div class="vtt-context-item danger" onclick="contextMenuAction('delete')">
+            <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Удалить
+        </div>
     </div>
 
     <!-- ===== МОДАЛЬНОЕ ОКНО МОНСТРА ===== -->

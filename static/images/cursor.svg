@@ -1,0 +1,7 @@
+<!-- Иконка "лапа" (paw) -->
+<svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+  <path d="M18 11V6a2 2 0 0 0-4 0v4" />
+  <path d="M14 10V4a2 2 0 0 0-4 0v7" />
+  <path d="M10 10.5V6a2 2 0 0 0-4 0v8.5" />
+  <path d="M6 14.5a5.5 5.5 0 0 0 11 0V11a2 2 0 0 0-4 0" />
+</svg>
