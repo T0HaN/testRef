@@ -38,7 +38,15 @@
         </div>
 
         <div class="header-actions">
-            <a href="/char/{{ char.id }}" class="header-btn primary" target="_blank">📄 {{ char.name }}</a>
+            <a href="/char/{{ char.id }}" class="header-btn primary" target="_blank">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="display:inline-block; vertical-align:middle; margin-right:0.3rem;">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                    <path d="M6 6h10" />
+                    <path d="M6 10h10" />
+                    <path d="M6 14h6" />
+                </svg>
+                {{ char.name }}
+            </a>
             <a href="/games" class="header-btn">В панель игр</a>
         </div>
     </header>
@@ -47,14 +55,71 @@
 
         <!-- COMPACT SIDEBAR -->
         <aside class="compact-sidebar">
-            <button class="icon-tab-btn" data-tab="players" title="Участники">👥</button>
-            <button class="icon-tab-btn" data-tab="dice" title="Броски кубов">🎲</button>
-            <button class="icon-tab-btn" data-tab="combat" title="Трекер боя">⚔️</button>
-            <button class="icon-tab-btn" data-tab="weapons" title="Оружие и атаки">🗡️</button>
-            <button class="icon-tab-btn" data-tab="checks" title="Проверки">🎯</button>
-            <button class="icon-tab-btn" data-tab="inventory" title="Инвентарь">🎒</button>
+            <button class="icon-tab-btn" data-tab="players" title="Участники">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+            </button>
+            <button class="icon-tab-btn" data-tab="dice" title="Броски кубов">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <polygon points="12 2 21.5 7.5 21.5 16.5 12 22 2.5 16.5 2.5 7.5" />
+                    <polyline points="2.5 7.5 12 12 21.5 7.5" />
+                    <line x1="12" y1="12" x2="12" y2="22" />
+                    <polyline points="7 4.8 12 12 17 4.8" />
+                    <polyline points="2.5 12 12 17 21.5 12" />
+                </svg>
+            </button>
+            <button class="icon-tab-btn" data-tab="combat" title="Трекер боя">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="m14.5 17.5 3 3 4-4-3-3-4 4Z" />
+                    <path d="m9.5 6.5 8 8" />
+                    <path d="m2 2 4 4" />
+                    <path d="m3 7 4-4" />
+                    <path d="m14.5 6.5-8 8" />
+                    <path d="m9.5 17.5-3 3-4-4 3-3 4 4Z" />
+                    <path d="m22 2-4 4" />
+                    <path d="m21 7-4-4" />
+                </svg>
+            </button>
+            <button class="icon-tab-btn" data-tab="weapons" title="Оружие и атаки">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                    <path d="m3.3 7 8.7 5 8.7-5" />
+                    <line x1="12" y1="12" x2="12" y2="22" />
+                </svg>
+            </button>
+            <button class="icon-tab-btn" data-tab="checks" title="Проверки">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="m14.5 17.5 3 3 4-4-3-3-4 4Z" />
+                    <path d="m9.5 6.5 8 8" />
+                    <path d="m2 2 4 4" />
+                    <path d="m3 7 4-4" />
+                    <path d="m14.5 6.5-8 8" />
+                    <path d="m9.5 17.5-3 3-4-4 3-3 4 4Z" />
+                    <path d="m22 2-4 4" />
+                    <path d="m21 7-4-4" />
+                </svg>
+            </button>
+            <button class="icon-tab-btn" data-tab="inventory" title="Инвентарь">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2" />
+                    <path d="M6 5H4v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5h-2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <path d="M12 14v3" />
+                </svg>
+            </button>
             {% if is_spellcaster %}
-            <button class="icon-tab-btn" data-tab="spells" title="Заклинания">📚</button>
+            <button class="icon-tab-btn" data-tab="spells" title="Заклинания">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                    <path d="M6 6h10" />
+                    <path d="M6 10h10" />
+                    <path d="M6 14h6" />
+                </svg>
+            </button>
             {% endif %}
             <div class="sidebar-spacer"></div>
 
@@ -241,7 +306,16 @@
                     <button class="vtt-btn" id="btnAddToken" onclick="addMyToken()" title="На карту" style="flex: 1; padding: 0.3rem;">🎭 Мой токен</button>
                     <button class="vtt-btn danger" id="btnRemoveToken" onclick="removeMyToken()" title="Убрать" style="flex: 1; padding: 0.3rem;" disabled>❌ Убрать</button>
                 </div>
-                <button class="vtt-btn" id="btnGrid" onclick="toggleGrid()" style="padding: 0.3rem; margin-top: 0.3rem;">⊞ Сетка</button>
+                <button class="vtt-btn" id="btnGrid" onclick="toggleGrid()" style="padding: 0.3rem; margin-top: 0.3rem;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
+                        <path d="M2 12h20" />
+                        <path d="M4 16h16" />
+                        <path d="M7 8h10" />
+                        <path d="M9 20h6" />
+                        <path d="M10 4h4" />
+                    </svg>
+                    Сетка
+                </button>
             </div>
 
             <div class="zoom-controls">
