@@ -25,7 +25,12 @@
         </div>
         <div class="header-actions">
             <a href="/master/room/{{ room.id }}/rewards" class="header-btn primary">
-                <img src="/static/images/gift.svg" alt="Награды" style="width:1em; height:1em; vertical-align:middle;"> Выдать награды
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="display:inline-block; vertical-align:middle; margin-right:0.3rem;">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                    <path d="m3.3 7 8.7 5 8.7-5" />
+                    <line x1="12" y1="12" x2="12" y2="22" />
+                </svg>
+                Выдать награды
             </a>
             <a href="/games" class="header-btn">← В панель</a>
         </div>
@@ -37,26 +42,73 @@
         <!-- COMPACT SIDEBAR -->
         <aside class="compact-sidebar">
             <button class="icon-tab-btn" data-tab="players" title="Игроки">
-                <img src="/static/images/users.svg" alt="Игроки" style="width:24px; height:24px; vertical-align:middle;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
             </button>
-            <button class="icon-tab-btn" data-tab="combat" title="Трекер боя">⚔️</button>
+            <button class="icon-tab-btn" data-tab="combat" title="Трекер боя">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="m14.5 17.5 3 3 4-4-3-3-4 4Z" />
+                    <path d="m9.5 6.5 8 8" />
+                    <path d="m2 2 4 4" />
+                    <path d="m3 7 4-4" />
+                    <path d="m14.5 6.5-8 8" />
+                    <path d="m9.5 17.5-3 3-4-4 3-3 4 4Z" />
+                    <path d="m22 2-4 4" />
+                    <path d="m21 7-4-4" />
+                </svg>
+            </button>
             <button class="icon-tab-btn" data-tab="scenes" title="Сцены (Карты)">
-                <img src="/static/images/map.svg" alt="Карты" style="width:24px; height:24px; vertical-align:middle;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M2 12h20" />
+                    <path d="M4 16h16" />
+                    <path d="M7 8h10" />
+                    <path d="M9 20h6" />
+                    <path d="M10 4h4" />
+                </svg>
             </button>
             <button class="icon-tab-btn" data-tab="dice" title="Броски кубов">
-                <img src="/static/images/dice.svg" alt="Кубы" style="width:24px; height:24px; vertical-align:middle;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <polygon points="12 2 21.5 7.5 21.5 16.5 12 22 2.5 16.5 2.5 7.5" />
+                    <polyline points="2.5 7.5 12 12 21.5 7.5" />
+                    <line x1="12" y1="12" x2="12" y2="22" />
+                    <polyline points="7 4.8 12 12 17 4.8" />
+                    <polyline points="2.5 12 12 17 21.5 12" />
+                </svg>
             </button>
             <button class="icon-tab-btn" data-tab="history" title="История наград">
-                <img src="/static/images/history.svg" alt="История" style="width:24px; height:24px; vertical-align:middle;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                    <path d="M6 6h10" />
+                    <path d="M6 10h10" />
+                    <path d="M6 14h6" />
+                </svg>
             </button>
             <button class="icon-tab-btn" data-tab="monsters" title="Бестиарий">
-                <img src="/static/images/bestiary.svg" alt="Бестиарий" style="width:24px; height:24px; vertical-align:middle;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M18 11V6a2 2 0 0 0-4 0v4" />
+                    <path d="M14 10V4a2 2 0 0 0-4 0v7" />
+                    <path d="M10 10.5V6a2 2 0 0 0-4 0v8.5" />
+                    <path d="M6 14.5a5.5 5.5 0 0 0 11 0V11a2 2 0 0 0-4 0" />
+                </svg>
             </button>
             <button class="icon-tab-btn" data-tab="props" title="Предметы окружения">
-                <img src="/static/images/props.svg" alt="Предметы" style="width:24px; height:24px; vertical-align:middle;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M6 9H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2" />
+                    <path d="M6 5H4v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5h-2" />
+                    <circle cx="12" cy="12" r="2" />
+                    <path d="M12 14v3" />
+                </svg>
             </button>
             <button class="icon-tab-btn" data-tab="rewards" title="Выдача наград">
-                <img src="/static/images/gift.svg" alt="Награды" style="width:24px; height:24px; vertical-align:middle;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="24" height="24">
+                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                    <path d="m3.3 7 8.7 5 8.7-5" />
+                    <line x1="12" y1="12" x2="12" y2="22" />
+                </svg>
             </button>
         </aside>
 
@@ -70,7 +122,7 @@
                 <!-- Вкладки -->
                 <div id="tab-players" class="tab-content">
                     <h3 class="section-title">
-                        <img src="/static/images/users.svg" alt="Игроки" style="width:1em; height:1em; vertical-align:middle;"> Подключённые игроки
+                        Подключённые игроки
                         <button onclick="refreshPlayersTab()" title="Обновить статусы" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:0.9rem; float:right;">🔄</button>
                     </h3>
                     {% if players %}
@@ -91,7 +143,15 @@
                             <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.2rem;">
                                 Игрок: @{{ p.username }} {% if not p.is_online %}<span style="color: var(--accent-red); font-size: 0.7rem; font-style: italic;">(Офлайн)</span>{% endif %}
                             </div>
-                            <a href="/master/room/{{ room.id }}/char/{{ p.char.id }}?username={{ p.username }}" class="btn-view" target="_blank">📄 Открыть лист</a>
+                            <a href="/master/room/{{ room.id }}/char/{{ p.char.id }}?username={{ p.username }}" class="btn-view" target="_blank">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.3rem;">
+                                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z" />
+                                    <path d="M6 6h10" />
+                                    <path d="M6 10h10" />
+                                    <path d="M6 14h6" />
+                                </svg>
+                                Открыть лист
+                            </a>
 
                             <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; padding: 0.6rem; margin-top: 0.5rem;">
                                 <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.3rem; text-align: center;">❤️ Хиты</div>
@@ -128,7 +188,7 @@
                 </div>
 
                 <div id="tab-scenes" class="tab-content">
-                    <h3 class="section-title"><img src="/static/images/map.svg" alt="Карты" style="width:1em; height:1em; vertical-align:middle;"> Игровые сцены</h3>
+                    <h3 class="section-title">Игровые сцены</h3>
                     <div style="margin-bottom: 1rem;">
                         <input type="text" id="newSceneName" placeholder="Название новой сцены..." style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
                         <input type="file" id="sceneFileInput" accept="image/*" style="display: none;" onchange="uploadNewScene(this)">
@@ -142,7 +202,7 @@
                 </div>
 
                 <div id="tab-dice" class="tab-content">
-                    <h3 class="section-title"><img src="/static/images/dice.svg" alt="Кубы" style="width:1em; height:1em; vertical-align:middle;"> Быстрые броски</h3>
+                    <h3 class="section-title">Быстрые броски</h3>
                     <div style="margin-bottom: 0.8rem; background: var(--bg-primary); padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px;">
                         <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; user-select: none;">
                             <input type="checkbox" id="hiddenRollCheck" style="width: 16px; height: 16px; accent-color: var(--accent-gold);">
@@ -163,7 +223,7 @@
                 </div>
 
                 <div id="tab-history" class="tab-content">
-                    <h3 class="section-title"><img src="/static/images/history.svg" alt="История" style="width:1em; height:1em; vertical-align:middle;"> История наград</h3>
+                    <h3 class="section-title">История наград</h3>
                     {% set reward_history = room.roll_history | selectattr('type', 'equalto', 'reward') | list %}
                     {% if reward_history %}
                         {% for entry in reward_history[-10:] %}
@@ -182,7 +242,7 @@
                 </div>
 
                 <div id="tab-monsters" class="tab-content">
-                    <h3 class="section-title"><img src="/static/images/bestiary.svg" alt="Бестиарий" style="width:1em; height:1em; vertical-align:middle;"> Бестиарий отряда</h3>
+                    <h3 class="section-title">Бестиарий отряда</h3>
                     {% if selected_monsters %}
                     <div style="display: flex; flex-direction: column; gap: 0.8rem;">
                         {% for m in selected_monsters %}
@@ -250,7 +310,7 @@
 
                 <!-- Вкладка "Предметы окружения" -->
                 <div id="tab-props" class="tab-content">
-                    <h3 class="section-title"><img src="/static/images/props.svg" alt="Предметы" style="width:1em; height:1em; vertical-align:middle;"> Предметы окружения</h3>
+                    <h3 class="section-title">Предметы окружения</h3>
 
                     <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border-color);">
                         <input type="text" id="newPropName" placeholder="Название (напр. Сундук)..." style="width: 100%; padding: 0.5rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary); margin-bottom: 0.5rem;">
@@ -302,7 +362,7 @@
                     </div>
                 </div>
                 <div id="tab-rewards" class="tab-content">
-                    <h3 class="section-title"><img src="/static/images/gift.svg" alt="Награды" style="width:1em; height:1em; vertical-align:middle;"> Массовая награда</h3>
+                    <h3 class="section-title">Массовая награда</h3>
                     <form id="mass-reward-form" onsubmit="return sendReward('all')">
                         <div class="form-group">
                             <label>Опыт (XP)</label>
@@ -360,9 +420,7 @@
                             <button class="tool-btn active" id="toolMove" onclick="setTool('move')" title="Перемещение (ЛКМ)">✋</button>
                             <button class="tool-btn" id="toolRuler" onclick="setTool('ruler')" title="Линейка (ЛКМ)">📏</button>
                             <button class="tool-btn" id="toolDraw" onclick="setTool('draw')" title="Рисование (ЛКМ)">🖌️</button>
-                            <button class="tool-btn" id="toolFow" onclick="setTool('fow')" title="Туман войны (ЛКМ)">
-                                <img src="/static/images/fog.svg" alt="Туман" style="width:1.2em; height:1.2em; vertical-align:middle;">
-                            </button>
+                            <button class="tool-btn" id="toolFow" onclick="setTool('fow')" title="Туман войны (ЛКМ)">☁️</button>
                         </div>
 
                         <!-- Настройки кисти -->
@@ -379,7 +437,14 @@
                                 <input type="range" id="brushSize" min="2" max="20" value="4" style="flex: 1; accent-color: var(--accent-gold);" onchange="setBrushSize(this.value)">
                             </div>
                             <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="clearDrawings()">
-                                <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Стереть рисунки
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
+                                    <path d="M3 6h18" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    <line x1="10" y1="11" x2="10" y2="17" />
+                                    <line x1="14" y1="11" x2="14" y2="17" />
+                                </svg>
+                                Стереть рисунки
                             </button>
                         </div>
 
@@ -395,7 +460,14 @@
                             </div>
                             <button class="vtt-btn" style="padding: 0.2rem; font-size: 0.8rem; border-color: var(--text-secondary);" onclick="fowHideAll()">⬛ Залить туманом</button>
                             <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="fowClearAll()">
-                                <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Убрать туман
+                                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
+                                    <path d="M3 6h18" />
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    <line x1="10" y1="11" x2="10" y2="17" />
+                                    <line x1="14" y1="11" x2="14" y2="17" />
+                                </svg>
+                                Убрать туман
                             </button>
                         </div>
                     </div>
@@ -405,10 +477,24 @@
                     <!-- Раздельные кнопки удаления Карты и Токенов -->
                     <div style="display: flex; gap: 0.3rem;">
                         <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearMap()" title="Удалить текущую карту">
-                            <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Карта
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                                <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                            Карта
                         </button>
                         <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearAllTokens()" title="Удалить все токены">
-                            <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Токены
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
+                                <path d="M3 6h18" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                                <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                            Токены
                         </button>
                     </div>
 
@@ -416,7 +502,16 @@
                         🔵 Создать маркер
                     </button>
 
-                    <button class="vtt-btn" id="gridToggleBtn" onclick="toggleGrid()" title="Показать/скрыть сетку">⊞ Сетка</button>
+                    <button class="vtt-btn" id="gridToggleBtn" onclick="toggleGrid()" title="Показать/скрыть сетку">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
+                            <path d="M2 12h20" />
+                            <path d="M4 16h16" />
+                            <path d="M7 8h10" />
+                            <path d="M9 20h6" />
+                            <path d="M10 4h4" />
+                        </svg>
+                        Сетка
+                    </button>
                     <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; text-align: center;">
                         <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Клетка: <span id="gridSizeLabel">50</span>px</div>
                         <input type="range" id="gridSizeSlider" min="20" max="150" value="50" oninput="changeGridSize(this.value)" style="width: 100%; accent-color: var(--accent-gold); cursor: pointer;">
@@ -497,9 +592,7 @@
     <div id="vttContextMenu" class="vtt-context-menu">
         <div class="vtt-context-item" onclick="contextMenuAction('scale_up')">🔍 Увеличить (+20%)</div>
         <div class="vtt-context-item" onclick="contextMenuAction('scale_down')">🔎 Уменьшить (-20%)</div>
-        <div class="vtt-context-item danger" onclick="contextMenuAction('delete')">
-            <img src="/static/images/trash.svg" alt="Удалить" style="width:1em; height:1em; vertical-align:middle;"> Удалить
-        </div>
+        <div class="vtt-context-item danger" onclick="contextMenuAction('delete')">🗑️ Удалить</div>
     </div>
 
     <!-- ===== МОДАЛЬНОЕ ОКНО МОНСТРА ===== -->
