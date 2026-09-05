@@ -15,7 +15,7 @@ const titles = {
     'history': 'История наград',
     'monsters': 'Бестиарий',
     'props': 'Пропсы',
-    'rewards': 'Награды' // 🆕
+    'rewards': 'Награды'
 };
 
 tabBtns.forEach(btn => {
@@ -86,13 +86,19 @@ async function loadOlderMessages() {
         chatLog.insertBefore(fragment, loader ? loader.nextSibling : chatLog.firstChild);
         chatLog.scrollTop = chatLog.scrollHeight - oldScrollHeight;
         chatOffset += data.messages.length;
-    } catch (err) { console.error("Ошибка загрузки истории:", err); }
-    finally { isLoadingChat = false; if (loader) loader.style.display = 'none'; }
+    } catch (err) {
+        console.error("Ошибка загрузки истории:", err);
+    } finally {
+        isLoadingChat = false;
+        if (loader) loader.style.display = 'none';
+    }
 }
 
 function escapeHtmlText(str) {
     if (!str) return '';
-    return String(str).replace(/[&<>"']/g, function(m) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; });
+    return String(str).replace(/[&<>"']/g, function(m) {
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
 }
 
 function createMessageElement(data) {
@@ -148,11 +154,20 @@ function handleWsMessage(data) {
     switch (data.type) {
         case 'init': isMaster = data.is_master; break;
         case 'map_update': loadMapFromData(data.image, data.width, data.height); break;
-        case 'map_clear': mapImage = null; drawings = []; fowPaths = []; renderFowCanvas(); document.getElementById('vtt-placeholder').style.display = 'flex'; render(); break;
+        case 'map_clear':
+            mapImage = null; drawings = []; fowPaths = [];
+            renderFowCanvas();
+            document.getElementById('vtt-placeholder').style.display = 'flex';
+            render();
+            break;
         case 'grid_size_update':
             gridSize = data.grid_size;
-            if(document.getElementById('gridSizeSlider')) { document.getElementById('gridSizeSlider').value = gridSize; document.getElementById('gridSizeLabel').textContent = gridSize; }
-            render(); break;
+            if(document.getElementById('gridSizeSlider')) {
+                document.getElementById('gridSizeSlider').value = gridSize;
+                document.getElementById('gridSizeLabel').textContent = gridSize;
+            }
+            render();
+            break;
         case 'tokens_clear':
             allTokens = {};
             combatants = [];
@@ -173,14 +188,39 @@ function handleWsMessage(data) {
                 render();
             }
             break;
-
         case 'dice_roll': addDiceEntryFromServer(data); break;
         case 'chat_message': addChatMessageFromServer(data); break;
         case 'combat_update': combatants = data.combatants; renderCombatList(); break;
-        case 'tokens_init': allTokens = {}; data.tokens.forEach(t => { const id = t.token_id || t.char_id; allTokens[id] = t; preloadTokenImage(t); }); render(); break;
-        case 'token_add': const addId = data.token.token_id || data.token.char_id; allTokens[addId] = data.token; preloadTokenImage(data.token); render(); break;
-        case 'token_remove': const removeId = data.token_id || data.char_id; delete allTokens[removeId]; render(); break;
-        case 'token_move': const moveId = data.token.token_id || data.token.char_id; if (allTokens[moveId]) { allTokens[moveId].x = data.token.x; allTokens[moveId].y = data.token.y; allTokens[moveId].width = data.token.width; allTokens[moveId].height = data.token.height; render(); } break;
+        case 'tokens_init':
+            allTokens = {};
+            data.tokens.forEach(t => {
+                const id = t.token_id || t.char_id;
+                allTokens[id] = t;
+                preloadTokenImage(t);
+            });
+            render();
+            break;
+        case 'token_add':
+            const addId = data.token.token_id || data.token.char_id;
+            allTokens[addId] = data.token;
+            preloadTokenImage(data.token);
+            render();
+            break;
+        case 'token_remove':
+            const removeId = data.token_id || data.char_id;
+            delete allTokens[removeId];
+            render();
+            break;
+        case 'token_move':
+            const moveId = data.token.token_id || data.token.char_id;
+            if (allTokens[moveId]) {
+                allTokens[moveId].x = data.token.x;
+                allTokens[moveId].y = data.token.y;
+                allTokens[moveId].width = data.token.width;
+                allTokens[moveId].height = data.token.height;
+                render();
+            }
+            break;
         case 'hp_update':
             const input = document.getElementById(`master-hp-${data.char_id}`);
             if (input) {
@@ -189,14 +229,24 @@ function handleWsMessage(data) {
                 setTimeout(() => { input.style.backgroundColor = 'var(--bg-primary)'; }, 500);
             }
             break;
-        case 'player_join': if (data.username !== myUsername) { addSystemChatMessage('🟢', data.char_name || data.username, 'присоединился к игре.'); refreshPlayersTab(); } break;
-        case 'player_leave': addSystemChatMessage('🔴', data.char_name || data.username, 'покинул игру.'); refreshPlayersTab(); break;
+        case 'player_join':
+            if (data.username !== myUsername) {
+                addSystemChatMessage('🟢', data.char_name || data.username, 'присоединился к игре.');
+                refreshPlayersTab();
+            }
+            break;
+        case 'player_leave':
+            addSystemChatMessage('🔴', data.char_name || data.username, 'покинул игру.');
+            refreshPlayersTab();
+            break;
     }
 }
 
 // ==================== ЧАТ И БРОСКИ ====================
 function sendDiceRoll(name, roll, sides, modifier, total, isCrit, isFail, isHidden = false) {
-    if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'dice_roll', name, roll, sides, modifier, total, is_crit: isCrit, is_fail: isFail, is_hidden: isHidden })); }
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'dice_roll', name, roll, sides, modifier, total, is_crit: isCrit, is_fail: isFail, is_hidden: isHidden }));
+    }
 }
 function rollDice(sides) {
     const nameInput = document.getElementById('check-name');
@@ -211,7 +261,10 @@ function sendChatMessage() {
     const input = document.getElementById('chatInput');
     const text = input.value.trim();
     if (!text) return;
-    if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'chat_message', text: text })); input.value = ''; }
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'chat_message', text: text }));
+        input.value = '';
+    }
 }
 function scrollToBottomLog() { chatLog.scrollTop = chatLog.scrollHeight; }
 function addDiceEntryFromServer(data) { const entry = createMessageElement(data); if (entry) { chatLog.appendChild(entry); chatOffset++; scrollToBottomLog(); document.getElementById('chatStart')?.remove(); } }
@@ -296,12 +349,48 @@ function setTool(mode) {
 
 function setBrushColor(color, btn) { brushColor = color; document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
 function setBrushSize(size) { brushSize = parseInt(size); }
-function clearDrawings() { if (!confirm("Очистить все рисунки на карте?")) return; drawings = []; render(); if (roomWs && roomWs.readyState === WebSocket.OPEN) roomWs.send(JSON.stringify({ type: 'draw_clear' })); }
+
+// 🔄 Стилизованный confirm диалог
+async function clearDrawings() {
+    const confirmed = await confirmModal("Очистить все рисунки на карте?", "Очистка холста", true);
+    if (!confirmed) return;
+    drawings = [];
+    render();
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'draw_clear' }));
+    }
+}
 
 // УПРАВЛЕНИЕ ТУМАНОМ
-function setFowMode(mode) { fowBrushMode = mode; document.getElementById('fowModeReveal').classList.toggle('active', mode === 'reveal'); document.getElementById('fowModeHide').classList.toggle('active', mode === 'hide'); }
-function fowHideAll() { if (!confirm("Залить всю карту туманом?")) return; fowPaths = [{type: 'hide_all'}]; renderFowCanvas(); render(); if (roomWs && roomWs.readyState === WebSocket.OPEN) roomWs.send(JSON.stringify({ type: 'fow_update', action: 'hide_all' })); }
-function fowClearAll() { if (!confirm("Удалить весь туман с карты?")) return; fowPaths = []; renderFowCanvas(); render(); if (roomWs && roomWs.readyState === WebSocket.OPEN) roomWs.send(JSON.stringify({ type: 'fow_update', action: 'clear_all' })); }
+function setFowMode(mode) {
+    fowBrushMode = mode;
+    document.getElementById('fowModeReveal').classList.toggle('active', mode === 'reveal');
+    document.getElementById('fowModeHide').classList.toggle('active', mode === 'hide');
+}
+
+// 🔄 Стилизованный confirm диалог
+async function fowHideAll() {
+    const confirmed = await confirmModal("Залить всю игровую карту туманом войны?", "Туман войны", false);
+    if (!confirmed) return;
+    fowPaths = [{type: 'hide_all'}];
+    renderFowCanvas();
+    render();
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'fow_update', action: 'hide_all' }));
+    }
+}
+
+// 🔄 Стилизованный confirm диалог
+async function fowClearAll() {
+    const confirmed = await confirmModal("Удалить весь туман войны с карты?", "Очистка тумана", true);
+    if (!confirmed) return;
+    fowPaths = [];
+    renderFowCanvas();
+    render();
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'fow_update', action: 'clear_all' }));
+    }
+}
 
 function renderFowCanvas() {
     if (!mapImage) return;
@@ -327,7 +416,6 @@ function renderFowCanvas() {
     });
 }
 
-// 🆕 ИСПРАВЛЕНО: ОТРИСОВКА ТОКЕНОВ С УЧЕТОМ ПРОПСОВ (БЕЗ ПОДПИСЕЙ И С ПОДДЕРЖКОЙ W x H)
 function drawToken(token) {
     const id = token.token_id || token.char_id;
     const img = tokenImages[id];
@@ -345,7 +433,6 @@ function drawToken(token) {
     ctx.shadowOffsetY = 2 / view.scale;
 
     if (token.is_object) {
-        // Предметы (пропсы): без синей подсветки, без подписи, произвольные пропорции
         if (img) {
             ctx.drawImage(img, token.x - w / 2, token.y - h / 2, w, h);
         } else {
@@ -353,7 +440,6 @@ function drawToken(token) {
             ctx.fillRect(token.x - w / 2, token.y - h / 2, w, h);
         }
     } else {
-        // Персонажи и монстры: круглые токены с подписью
         ctx.beginPath();
         ctx.arc(token.x, token.y, w / 2, 0, Math.PI * 2);
         ctx.closePath();
@@ -465,18 +551,82 @@ function loadMapFromData(imageData, width, height) {
     img.onload = () => { mapImage = img; mapNaturalWidth = width || img.naturalWidth; mapNaturalHeight = height || img.naturalHeight; fowCanvas.width = mapNaturalWidth; fowCanvas.height = mapNaturalHeight; renderFowCanvas(); document.getElementById('vtt-placeholder').style.display = 'none'; fitMap(); }; img.src = imageData;
 }
 
-function changeGridSize(size) { gridSize = parseInt(size); document.getElementById('gridSizeLabel').textContent = gridSize; render(); if (roomWs && roomWs.readyState === WebSocket.OPEN && isMaster) roomWs.send(JSON.stringify({ type: 'grid_size_update', grid_size: gridSize })); }
-function clearAllTokens() { if (!confirm("Удалить все токены с карты и очистить трекер боя?")) return; if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'tokens_clear' })); } }
-function clearMap() { if(!confirm("Удалить карту для всех игроков?")) return; if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'map_clear' })); roomWs.send(JSON.stringify({ type: 'tokens_clear' })); } }
+function changeGridSize(size) {
+    gridSize = parseInt(size);
+    document.getElementById('gridSizeLabel').textContent = gridSize;
+    render();
+    if (roomWs && roomWs.readyState === WebSocket.OPEN && isMaster) {
+        roomWs.send(JSON.stringify({ type: 'grid_size_update', grid_size: gridSize }));
+    }
+}
 
-async function activateScene(sceneId) { try { const response = await fetch(`/api/room/${window.roomData.id}/scene/${sceneId}/activate`, { method: 'POST' }); const data = await response.json(); if (data.status === 'ok') { if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'tokens_clear' })); } loadScenes(); } } catch (e) { console.error(e); } }
-function fitMap() { if (!mapImage) return; const padding = 40; const scaleX = (canvas.width - padding * 2) / mapNaturalWidth; const scaleY = (canvas.height - padding * 2) / mapNaturalHeight; view.scale = Math.min(scaleX, scaleY, 1); view.x = (canvas.width - mapNaturalWidth * view.scale) / 2; view.y = (canvas.height - mapNaturalHeight * view.scale) / 2; render(); }
-function zoomIn() { zoomAt(canvas.width/2, canvas.height/2, 1.25); } function zoomOut() { zoomAt(canvas.width/2, canvas.height/2, 0.8); }
-function zoomAt(cx, cy, factor) { const newScale = Math.max(0.05, Math.min(10, view.scale * factor)); const scaleChange = newScale / view.scale; view.x = cx - (cx - view.x) * scaleChange; view.y = cy - (cy - view.y) * scaleChange; view.scale = newScale; render(); }
-function toggleGrid() { gridVisible = !gridVisible; document.getElementById('gridToggleBtn').classList.toggle('active', gridVisible); render(); }
-function screenToMap(sx, sy) { const rect = canvas.getBoundingClientRect(); return { x: (sx - rect.left - view.x) / view.scale, y: (sy - rect.top - view.y) / view.scale }; }
+// 🔄 Стилизованный confirm диалог
+async function clearAllTokens() {
+    const confirmed = await confirmModal("Удалить все токены с карты и очистить трекер боя?", "Очистка токенов", true);
+    if (!confirmed) return;
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'tokens_clear' }));
+    }
+}
 
-// 🆕 ИСПРАВЛЕНО: Проверка клика по токену с учетом прямоугольных размеров (width x height)
+// 🔄 Стилизованный confirm диалог
+async function clearMap() {
+    const confirmed = await confirmModal("Удалить текущую карту и все токены для всех игроков?", "Удаление карты", true);
+    if (!confirmed) return;
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'map_clear' }));
+        roomWs.send(JSON.stringify({ type: 'tokens_clear' }));
+    }
+}
+
+async function activateScene(sceneId) {
+    try {
+        const response = await fetch(`/api/room/${window.roomData.id}/scene/${sceneId}/activate`, { method: 'POST' });
+        const data = await response.json();
+        if (data.status === 'ok') {
+            if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+                roomWs.send(JSON.stringify({ type: 'tokens_clear' }));
+            }
+            loadScenes();
+        }
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function fitMap() {
+    if (!mapImage) return;
+    const padding = 40;
+    const scaleX = (canvas.width - padding * 2) / mapNaturalWidth;
+    const scaleY = (canvas.height - padding * 2) / mapNaturalHeight;
+    view.scale = Math.min(scaleX, scaleY, 1);
+    view.x = (canvas.width - mapNaturalWidth * view.scale) / 2;
+    view.y = (canvas.height - mapNaturalHeight * view.scale) / 2;
+    render();
+}
+
+function zoomIn() { zoomAt(canvas.width/2, canvas.height/2, 1.25); }
+function zoomOut() { zoomAt(canvas.width/2, canvas.height/2, 0.8); }
+function zoomAt(cx, cy, factor) {
+    const newScale = Math.max(0.05, Math.min(10, view.scale * factor));
+    const scaleChange = newScale / view.scale;
+    view.x = cx - (cx - view.x) * scaleChange;
+    view.y = cy - (cy - view.y) * scaleChange;
+    view.scale = newScale;
+    render();
+}
+
+function toggleGrid() {
+    gridVisible = !gridVisible;
+    document.getElementById('gridToggleBtn').classList.toggle('active', gridVisible);
+    render();
+}
+
+function screenToMap(sx, sy) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: (sx - rect.left - view.x) / view.scale, y: (sy - rect.top - view.y) / view.scale };
+}
+
 function getTokenAt(mapX, mapY) {
     for (const tokenId in allTokens) {
         const t = allTokens[tokenId];
@@ -489,9 +639,13 @@ function getTokenAt(mapX, mapY) {
     return null;
 }
 
-function sendMeasurement() { if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'measure', start: measureStart, end: measureEnd, color: '#c9a961' })); } }
+function sendMeasurement() {
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'measure', start: measureStart, end: measureEnd, color: '#c9a961' }));
+    }
+}
 
-// 🆕 НОВОЕ: Логика контекстного меню по ПКМ
+// Контекстное меню по ПКМ
 let contextMenuToken = null;
 
 canvas.addEventListener('contextmenu', (e) => {
@@ -547,42 +701,124 @@ canvas.addEventListener('mousedown', (e) => {
     if (currentMode === 'draw' || currentMode === 'fow') { isDrawing = true; currentPath = [mapPos]; return; }
 
     const token = getTokenAt(mapPos.x, mapPos.y);
-    if (token) { draggingToken = token; dragOffset.x = mapPos.x - token.x; dragOffset.y = mapPos.y - token.y; canvas.classList.add('panning'); e.stopPropagation(); }
-    else { isPanning = true; panStart = { x: e.clientX, y: e.clientY }; viewStart = { x: view.x, y: view.y }; canvas.classList.add('panning'); }
+    if (token) {
+        draggingToken = token;
+        dragOffset.x = mapPos.x - token.x;
+        dragOffset.y = mapPos.y - token.y;
+        canvas.classList.add('panning');
+        e.stopPropagation();
+    } else {
+        isPanning = true;
+        panStart = { x: e.clientX, y: e.clientY };
+        viewStart = { x: view.x, y: view.y };
+        canvas.classList.add('panning');
+    }
 });
 
 window.addEventListener('mousemove', (e) => {
-    if (currentMode === 'ruler' && measureStart) { measureEnd = screenToMap(e.clientX, e.clientY); sendMeasurement(); render(); return; }
+    if (currentMode === 'ruler' && measureStart) {
+        measureEnd = screenToMap(e.clientX, e.clientY);
+        sendMeasurement();
+        render();
+        return;
+    }
     if (isDrawing) {
-        const mapPos = screenToMap(e.clientX, e.clientY); const last = currentPath[currentPath.length - 1];
+        const mapPos = screenToMap(e.clientX, e.clientY);
+        const last = currentPath[currentPath.length - 1];
         if ((mapPos.x - last.x)**2 + (mapPos.y - last.y)**2 > 4) {
             currentPath.push(mapPos);
-            if (currentMode === 'fow') { fCtx.globalCompositeOperation = fowBrushMode === 'reveal' ? 'destination-out' : 'source-over'; fCtx.strokeStyle = fowBrushMode === 'reveal' ? 'rgba(0,0,0,1)' : MASTER_FOG_COLOR; fCtx.lineWidth = fogBrushSize; fCtx.lineCap = 'round'; fCtx.lineJoin = 'round'; fCtx.beginPath(); fCtx.moveTo(last.x, last.y); fCtx.lineTo(mapPos.x, mapPos.y); fCtx.stroke(); }
+            if (currentMode === 'fow') {
+                fCtx.globalCompositeOperation = fowBrushMode === 'reveal' ? 'destination-out' : 'source-over';
+                fCtx.strokeStyle = fowBrushMode === 'reveal' ? 'rgba(0,0,0,1)' : MASTER_FOG_COLOR;
+                fCtx.lineWidth = fogBrushSize;
+                fCtx.lineCap = 'round';
+                fCtx.lineJoin = 'round';
+                fCtx.beginPath();
+                fCtx.moveTo(last.x, last.y);
+                fCtx.lineTo(mapPos.x, mapPos.y);
+                fCtx.stroke();
+            }
             render();
-        } return;
+        }
+        return;
     }
-    if (draggingToken) { const mapPos = screenToMap(e.clientX, e.clientY); draggingToken.x = mapPos.x - dragOffset.x; draggingToken.y = mapPos.y - dragOffset.y; render(); return; }
-    if (!isPanning) return; view.x = viewStart.x + (e.clientX - panStart.x); view.y = viewStart.y + (e.clientY - panStart.y); render();
+    if (draggingToken) {
+        const mapPos = screenToMap(e.clientX, e.clientY);
+        draggingToken.x = mapPos.x - dragOffset.x;
+        draggingToken.y = mapPos.y - dragOffset.y;
+        render();
+        return;
+    }
+    if (!isPanning) return;
+    view.x = viewStart.x + (e.clientX - panStart.x);
+    view.y = viewStart.y + (e.clientY - panStart.y);
+    render();
 });
 
 window.addEventListener('mouseup', (e) => {
-    if (currentMode === 'ruler' && measureStart) { measureStart = null; measureEnd = null; sendMeasurement(); render(); return; }
+    if (currentMode === 'ruler' && measureStart) {
+        measureStart = null;
+        measureEnd = null;
+        sendMeasurement();
+        render();
+        return;
+    }
     if (isDrawing) {
         isDrawing = false;
         if (currentPath.length > 1) {
-            if (currentMode === 'draw') { const finalLine = { points: currentPath, color: brushColor, width: brushSize }; drawings.push(finalLine); if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'draw_line', line: finalLine })); } }
-            else if (currentMode === 'fow') { const finalPath = { type: 'path', mode: fowBrushMode, points: currentPath, width: fogBrushSize }; fowPaths.push(finalPath); if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'fow_update', action: 'add_path', path: finalPath })); } }
+            if (currentMode === 'draw') {
+                const finalLine = { points: currentPath, color: brushColor, width: brushSize };
+                drawings.push(finalLine);
+                if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+                    roomWs.send(JSON.stringify({ type: 'draw_line', line: finalLine }));
+                }
+            } else if (currentMode === 'fow') {
+                const finalPath = { type: 'path', mode: fowBrushMode, points: currentPath, width: fogBrushSize };
+                fowPaths.push(finalPath);
+                if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+                    roomWs.send(JSON.stringify({ type: 'fow_update', action: 'add_path', path: finalPath }));
+                }
+            }
         }
-        currentPath = []; render(); return;
+        currentPath = [];
+        render();
+        return;
     }
-    if (draggingToken) { const tokenId = draggingToken.token_id || draggingToken.char_id; if (roomWs && roomWs.readyState === WebSocket.OPEN) roomWs.send(JSON.stringify({ type: 'token_update', action: 'move', token: draggingToken })); draggingToken = null; }
-    isPanning = false; canvas.classList.remove('panning');
+    if (draggingToken) {
+        const tokenId = draggingToken.token_id || draggingToken.char_id;
+        if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+            roomWs.send(JSON.stringify({ type: 'token_update', action: 'move', token: draggingToken }));
+        }
+        draggingToken = null;
+    }
+    isPanning = false;
+    canvas.classList.remove('panning');
 });
 
-canvas.addEventListener('wheel', (e) => { e.preventDefault(); const rect = canvas.getBoundingClientRect(); zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.15 : 0.87); }, { passive: false });
+canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    zoomAt(e.clientX - rect.left, e.clientY - rect.top, e.deltaY < 0 ? 1.15 : 0.87);
+}, { passive: false });
 
-function adjustMasterHp(charId, username, amount) { const input = document.getElementById(`master-hp-${charId}`); let newVal = Math.max(0, parseInt(input.value || 0) + amount); input.value = newVal; saveMasterHp(charId, username, newVal); }
-function saveMasterHp(charId, username, current) { const formData = new FormData(); formData.append('username', username); formData.append('current_hp', current); formData.append('temp_hp', 0); formData.append('room_id', window.roomData.id); fetch(`/char/${charId}/hp`, { method: 'POST', body: formData }).catch(err => console.error('Ошибка сохранения HP:', err)); if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'combatant_hp_update', token_id: String(charId), hp_current: parseInt(current) })); } }
+function adjustMasterHp(charId, username, amount) {
+    const input = document.getElementById(`master-hp-${charId}`);
+    let newVal = Math.max(0, parseInt(input.value || 0) + amount);
+    input.value = newVal;
+    saveMasterHp(charId, username, newVal);
+}
+
+function saveMasterHp(charId, username, current) {
+    const formData = new FormData();
+    formData.append('username', username);
+    formData.append('current_hp', current);
+    formData.append('temp_hp', 0);
+    formData.append('room_id', window.roomData.id);
+    fetch(`/char/${charId}/hp`, { method: 'POST', body: formData }).catch(err => console.error('Ошибка сохранения HP:', err));
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'combatant_hp_update', token_id: String(charId), hp_current: parseInt(current) }));
+    }
+}
 
 function addCustomToken() {
     const name = prompt("Введите название объекта:", "Маркер");
@@ -590,7 +826,6 @@ function addCustomToken() {
     addPropToMap(name, null, 50);
 }
 
-// 🆕 ИСПРАВЛЕНО: Автоматическое определение пропорций изображения (ширина/высота) для пропсов
 function addPropToMap(name, imgUrl, defaultSize) {
     const mapX = (-view.x + canvas.width / 2) / view.scale;
     const mapY = (-view.y + canvas.height / 2) / view.scale;
@@ -664,11 +899,11 @@ async function uploadNewProp(inputElement) {
         if (data.status === 'ok') {
             window.location.reload();
         } else {
-            alert('Ошибка: ' + data.message);
+            showToast('Ошибка: ' + (data.message || 'Не удалось загрузить проп'), 'error');
         }
     } catch (e) {
         console.error(e);
-        alert('Ошибка при загрузке файла');
+        showToast('Ошибка сети при загрузке файла', 'error');
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
@@ -721,7 +956,34 @@ function removeTokenFromMap(tokenId) {
 
 function removeMonsterFromMap(tokenId) { removeTokenFromMap(tokenId); }
 
-function adjustMonsterHp(tokenId, delta) { const combatant = combatants.find(c => String(c.token_id) === String(tokenId) || String(c.char_id) === String(tokenId)); if (!combatant) return; let newHp = Math.max(0, Math.min((combatant.hp_current || 0) + delta, combatant.hp_max || 9999)); combatant.hp_current = newHp; renderCombatList(); if (roomWs && roomWs.readyState === WebSocket.OPEN) { roomWs.send(JSON.stringify({ type: 'combatant_hp_update', token_id: String(tokenId), hp_current: newHp })); } if (!combatant.is_monster) { const formData = new FormData(); formData.append('current_hp', newHp); formData.append('temp_hp', 0); formData.append('room_id', window.roomData.id); fetch(`/char/${tokenId}/hp`, { method: 'POST', body: formData }).catch(err => console.error(err)); } if (newHp <= 0 && combatant.is_monster) { const n = document.createElement('div'); n.innerHTML = `💀 <strong>${escapeHtmlText(combatant.name)}</strong> повержен!`; n.style.cssText = `position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:linear-gradient(145deg,rgba(139,58,58,0.95),rgba(80,20,20,0.95)); color:#e0d4b8; padding:1.5rem 2.5rem; border-radius:12px; border:2px solid #c9a961; z-index:10000; font-family:'Georgia',serif; font-size:1.3rem; text-align:center; transition:all 0.4s ease; pointer-events:none;`; document.body.appendChild(n); setTimeout(() => { n.style.opacity = '0'; setTimeout(() => n.remove(), 400); }, 3000); roomWs.send(JSON.stringify({ type: 'token_update', action: 'remove', token: { token_id: tokenId, char_id: tokenId } })); } }
+function adjustMonsterHp(tokenId, delta) {
+    const combatant = combatants.find(c => String(c.token_id) === String(tokenId) || String(c.char_id) === String(tokenId));
+    if (!combatant) return;
+    let newHp = Math.max(0, Math.min((combatant.hp_current || 0) + delta, combatant.hp_max || 9999));
+    combatant.hp_current = newHp;
+    renderCombatList();
+    if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+        roomWs.send(JSON.stringify({ type: 'combatant_hp_update', token_id: String(tokenId), hp_current: newHp }));
+    }
+    if (!combatant.is_monster) {
+        const formData = new FormData();
+        formData.append('current_hp', newHp);
+        formData.append('temp_hp', 0);
+        formData.append('room_id', window.roomData.id);
+        fetch(`/char/${tokenId}/hp`, { method: 'POST', body: formData }).catch(err => console.error(err));
+    }
+    if (newHp <= 0 && combatant.is_monster) {
+        const n = document.createElement('div');
+        n.innerHTML = `💀 <strong>${escapeHtmlText(combatant.name)}</strong> повержен!`;
+        n.style.cssText = `position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:linear-gradient(145deg,rgba(139,58,58,0.95),rgba(80,20,20,0.95)); color:#e0d4b8; padding:1.5rem 2.5rem; border-radius:12px; border:2px solid #c9a961; z-index:10000; font-family:'Georgia',serif; font-size:1.3rem; text-align:center; transition:all 0.4s ease; pointer-events:none;`;
+        document.body.appendChild(n);
+        setTimeout(() => {
+            n.style.opacity = '0';
+            setTimeout(() => n.remove(), 400);
+        }, 3000);
+        roomWs.send(JSON.stringify({ type: 'token_update', action: 'remove', token: { token_id: tokenId, char_id: tokenId } }));
+    }
+}
 
 function renderCombatList() {
     const container = document.getElementById('combat-list');
@@ -774,7 +1036,6 @@ function renderCombatList() {
 
     container.innerHTML = html;
 
-    // Обработчики через DOM (без inline-onclick и подстановки token_id в HTML)
     container.querySelectorAll('.player-card[data-token-id]').forEach(card => {
         const tokenId = card.getAttribute('data-token-id');
         const removeBtn = card.querySelector('.js-remove-token');
@@ -786,10 +1047,57 @@ function renderCombatList() {
     });
 }
 
-function showMonsterDetails(mData) { const modal = document.getElementById('monsterModal'); if (!modal) return; document.getElementById('monsterModalHeader').innerHTML = `${mData.token_image ? `<img src="${mData.token_image}" class="monster-modal-avatar">` : `<div class="monster-modal-avatar-placeholder">👹</div>`} <div style="flex:1"><h2 class="monster-modal-title">${escapeHtmlText(mData.name)}</h2>${mData.challenge_rating ? `<div class="monster-modal-cr">CR: ${mData.challenge_rating}</div>` : ''}</div>`; const sGrid = document.getElementById('monsterModalStats'); sGrid.innerHTML = ''; ['STR','DEX','CON','INT','WIS','CHA'].forEach(s => { let v = '?'; if(mData.stats && mData.stats[s]) { v = typeof mData.stats[s] === 'object' ? (mData.stats[s].score || '?') : mData.stats[s]; } sGrid.innerHTML += `<div class="monster-modal-stat"><span class="monster-modal-stat-label">${s}</span><span class="monster-modal-stat-value">${v}</span></div>`; }); document.getElementById('monsterModalInfo').innerHTML = `<div>🛡️ КД: ${escapeHtmlText(mData.armor_class || '?')}</div><div>❤️ Хиты: ${escapeHtmlText(mData.hit_points || '?')}</div>${mData.speed ? `<div>🏃 Скор: ${escapeHtmlText(mData.speed)}</div>` : ''}`; const tSec = document.getElementById('monsterModalTraitsSection'); if (mData.traits && mData.traits.length > 0) { document.getElementById('monsterModalTraits').innerHTML = renderModalActionList(mData.traits); tSec.style.display = 'block'; } else tSec.style.display = 'none'; const aSec = document.getElementById('monsterModalActionsSection'); if (mData.actions && mData.actions.length > 0) { document.getElementById('monsterModalActions').innerHTML = renderModalActionList(mData.actions); aSec.style.display = 'block'; } else aSec.style.display = 'none'; const lSec = document.getElementById('monsterModalLegendarySection'); if (mData.legendary_actions && mData.legendary_actions.length > 0) { document.getElementById('monsterModalLegendary').innerHTML = renderModalActionList(mData.legendary_actions); lSec.style.display = 'block'; } else lSec.style.display = 'none'; const dSec = document.getElementById('monsterModalDescSection'); if (mData.description) { document.getElementById('monsterModalDesc').innerHTML = escapeHtmlText(mData.description).replace(/\n/g, '<br>'); dSec.style.display = 'block'; } else dSec.style.display = 'none'; modal.classList.add('active'); }
+function showMonsterDetails(mData) {
+    const modal = document.getElementById('monsterModal');
+    if (!modal) return;
+    document.getElementById('monsterModalHeader').innerHTML = `${mData.token_image ? `<img src="${mData.token_image}" class="monster-modal-avatar">` : `<div class="monster-modal-avatar-placeholder">👹</div>`} <div style="flex:1"><h2 class="monster-modal-title">${escapeHtmlText(mData.name)}</h2>${mData.challenge_rating ? `<div class="monster-modal-cr">CR: ${mData.challenge_rating}</div>` : ''}</div>`;
+    const sGrid = document.getElementById('monsterModalStats');
+    sGrid.innerHTML = '';
+    ['STR','DEX','CON','INT','WIS','CHA'].forEach(s => {
+        let v = '?';
+        if(mData.stats && mData.stats[s]) {
+            v = typeof mData.stats[s] === 'object' ? (mData.stats[s].score || '?') : mData.stats[s];
+        }
+        sGrid.innerHTML += `<div class="monster-modal-stat"><span class="monster-modal-stat-label">${s}</span><span class="monster-modal-stat-value">${v}</span></div>`;
+    });
+    document.getElementById('monsterModalInfo').innerHTML = `<div>🛡️ КД: ${escapeHtmlText(mData.armor_class || '?')}</div><div>❤️ Хиты: ${escapeHtmlText(mData.hit_points || '?')}</div>${mData.speed ? `<div>🏃 Скор: ${escapeHtmlText(mData.speed)}</div>` : ''}`;
+    const tSec = document.getElementById('monsterModalTraitsSection');
+    if (mData.traits && mData.traits.length > 0) {
+        document.getElementById('monsterModalTraits').innerHTML = renderModalActionList(mData.traits);
+        tSec.style.display = 'block';
+    } else tSec.style.display = 'none';
+    const aSec = document.getElementById('monsterModalActionsSection');
+    if (mData.actions && mData.actions.length > 0) {
+        document.getElementById('monsterModalActions').innerHTML = renderModalActionList(mData.actions);
+        aSec.style.display = 'block';
+    } else aSec.style.display = 'none';
+    const lSec = document.getElementById('monsterModalLegendarySection');
+    if (mData.legendary_actions && mData.legendary_actions.length > 0) {
+        document.getElementById('monsterModalLegendary').innerHTML = renderModalActionList(mData.legendary_actions);
+        lSec.style.display = 'block';
+    } else lSec.style.display = 'none';
+    const dSec = document.getElementById('monsterModalDescSection');
+    if (mData.description) {
+        document.getElementById('monsterModalDesc').innerHTML = escapeHtmlText(mData.description).replace(/\n/g, '<br>');
+        dSec.style.display = 'block';
+    } else dSec.style.display = 'none';
+    modal.classList.add('active');
+}
+
 function closeMonsterModal() { document.getElementById('monsterModal').classList.remove('active'); }
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMonsterModal(); });
-function refreshPlayersTab() { fetch(window.location.href).then(res => res.text()).then(html => { const doc = new DOMParser().parseFromString(html, 'text/html'); const newPlayers = doc.getElementById('tab-players'); if (newPlayers) document.getElementById('tab-players').innerHTML = newPlayers.innerHTML; const newMeta = doc.querySelector('.room-meta'); const oldMeta = document.querySelector('.room-meta'); if (newMeta && oldMeta) oldMeta.innerHTML = newMeta.innerHTML; }).catch(err => console.error(err)); }
+
+function refreshPlayersTab() {
+    fetch(window.location.href).then(res => res.text()).then(html => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const newPlayers = doc.getElementById('tab-players');
+        if (newPlayers) document.getElementById('tab-players').innerHTML = newPlayers.innerHTML;
+        const newMeta = doc.querySelector('.room-meta');
+        const oldMeta = document.querySelector('.room-meta');
+        if (newMeta && oldMeta) oldMeta.innerHTML = newMeta.innerHTML;
+    }).catch(err => console.error(err));
+}
+
 function addSystemChatMessage(emoji, name, message) {
     const log = document.getElementById('chatLog');
     const entry = document.createElement('div');
@@ -802,11 +1110,111 @@ function addSystemChatMessage(emoji, name, message) {
     log.appendChild(entry);
     scrollToBottomLog();
 }
-async function loadScenes() { try { const response = await fetch(`/api/room/${window.roomData.id}/scenes`); const data = await response.json(); if (data.status === 'ok') renderScenesList(data.scenes); } catch (e) { console.error(e); } }
-function renderScenesList(scenes) { const container = document.getElementById('scenes-list'); if (scenes.length === 0) { container.innerHTML = '<div class="empty-state">Нет сохраненных сцен</div>'; return; } let html = ''; scenes.forEach(scene => { const isActive = scene.is_active; html += `<div style="background: var(--bg-secondary); border: 2px solid ${isActive ? 'var(--accent-gold)' : 'var(--border-color)'}; border-radius: 8px; overflow: hidden; position: relative;"><div style="height: 100px; background-image: url('${scene.background_url}'); background-size: cover; background-position: center; opacity: ${isActive ? '1' : '0.6'};"></div><div style="padding: 0.6rem; display: flex; justify-content: space-between; align-items: center;"><div style="font-family: var(--font-main); color: ${isActive ? 'var(--accent-gold)' : 'var(--text-primary)'}; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtmlText(scene.name)} ${isActive ? '<span style="font-size: 0.7rem; margin-left: 0.3rem;">(Активна)</span>' : ''}</div><div style="display: flex; gap: 0.4rem; flex-shrink: 0;">${!isActive ? `<button class="vtt-btn" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="activateScene(${scene.id})">▶</button>` : ''}<button class="vtt-btn danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="deleteScene(${scene.id})">🗑️</button></div></div></div>`; }); container.innerHTML = html; }
-async function uploadNewScene(inputElement) { const file = inputElement.files[0]; if (!file) return; const nameInput = document.getElementById('newSceneName'); const name = nameInput.value.trim() || 'Новая сцена'; const btn = inputElement.nextElementSibling; const originalText = btn.innerHTML; btn.innerHTML = '⏳ Обработка...'; btn.disabled = true; const img = new Image(); img.onload = async () => { const formData = new FormData(); formData.append('file', file); formData.append('name', name); formData.append('width', img.naturalWidth); formData.append('height', img.naturalHeight); try { const response = await fetch(`/api/room/${window.roomData.id}/scene/upload`, { method: 'POST', body: formData }); const data = await response.json(); if (data.status === 'ok') { nameInput.value = ''; loadScenes(); } else alert('Ошибка: ' + data.message); } catch (e) { console.error(e); alert('Ошибка при загрузке файла'); } finally { btn.innerHTML = originalText; btn.disabled = false; inputElement.value = ''; } }; img.src = URL.createObjectURL(file); }
-async function deleteScene(sceneId) { if (!confirm("Удалить эту сцену? Это действие нельзя отменить.")) return; try { const response = await fetch(`/api/room/${window.roomData.id}/scene/${sceneId}`, { method: 'DELETE' }); const data = await response.json(); if (data.status === 'ok') loadScenes(); } catch (e) { console.error(e); } }
 
+async function loadScenes() {
+    try {
+        const response = await fetch(`/api/room/${window.roomData.id}/scenes`);
+        const data = await response.json();
+        if (data.status === 'ok') renderScenesList(data.scenes);
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+function renderScenesList(scenes) {
+    const container = document.getElementById('scenes-list');
+    if (scenes.length === 0) {
+        container.innerHTML = '<div class="empty-state">Нет сохраненных сцен</div>';
+        return;
+    }
+    let html = '';
+    scenes.forEach(scene => {
+        const isActive = scene.is_active;
+        html += `
+        <div class="scene-item-card" data-scene-id="${scene.id}" style="background: var(--bg-secondary); border: 2px solid ${isActive ? 'var(--accent-gold)' : 'var(--border-color)'}; border-radius: 8px; overflow: hidden; position: relative;">
+            <div style="height: 100px; background-image: url('${scene.background_url}'); background-size: cover; background-position: center; opacity: ${isActive ? '1' : '0.6'};"></div>
+            <div style="padding: 0.6rem; display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-family: var(--font-main); color: ${isActive ? 'var(--accent-gold)' : 'var(--text-primary)'}; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    ${escapeHtmlText(scene.name)} ${isActive ? '<span style="font-size: 0.7rem; margin-left: 0.3rem;">(Активна)</span>' : ''}
+                </div>
+                <div style="display: flex; gap: 0.4rem; flex-shrink: 0;">
+                    ${!isActive ? `<button class="vtt-btn js-activate-scene" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" type="button">▶</button>` : ''}
+                    <button class="vtt-btn danger js-delete-scene" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" type="button">🗑️</button>
+                </div>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+
+    // Навешиваем слушатели для сцен
+    container.querySelectorAll('.scene-item-card').forEach(card => {
+        const sceneId = card.getAttribute('data-scene-id');
+        const actBtn = card.querySelector('.js-activate-scene');
+        const delBtn = card.querySelector('.js-delete-scene');
+        if (actBtn) actBtn.addEventListener('click', () => activateScene(sceneId));
+        if (delBtn) delBtn.addEventListener('click', () => deleteScene(sceneId));
+    });
+}
+
+async function uploadNewScene(inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+
+    const nameInput = document.getElementById('newSceneName');
+    const name = nameInput.value.trim() || 'Новая сцена';
+    const btn = inputElement.nextElementSibling;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Обработка...';
+    btn.disabled = true;
+
+    const img = new Image();
+    img.onload = async () => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('name', name);
+        formData.append('width', img.naturalWidth);
+        formData.append('height', img.naturalHeight);
+        try {
+            const response = await fetch(`/api/room/${window.roomData.id}/scene/upload`, { method: 'POST', body: formData });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                nameInput.value = '';
+                loadScenes();
+                showToast('Сцена успешно загружена!', 'success');
+            } else {
+                showToast('Ошибка: ' + (data.message || 'Не удалось загрузить карту'), 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('Ошибка сети при загрузке сцены', 'error');
+        } finally {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            inputElement.value = '';
+        }
+    };
+    img.src = URL.createObjectURL(file);
+}
+
+// 🔄 Стилизованный confirm диалог
+async function deleteScene(sceneId) {
+    const confirmed = await confirmModal("Удалить эту сцену? Это действие нельзя будет отменить.", "Удаление сцены", true);
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/room/${window.roomData.id}/scene/${sceneId}`, { method: 'DELETE' });
+        const data = await response.json();
+        if (data.status === 'ok') {
+            loadScenes();
+            showToast('Сцена удалена', 'info');
+        } else {
+            showToast('Не удалось удалить сцену', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Ошибка сети', 'error');
+    }
+}
 
 async function sendReward(type) {
     const form = type === 'all' ? document.getElementById('mass-reward-form') : document.getElementById('single-reward-form');
@@ -829,13 +1237,13 @@ async function sendReward(type) {
         });
         const result = await resp.json();
         if (result.status === 'ok') {
-            alert('✅ Награда выдана!');
+            showToast('Награда успешно выдана игрокам!', 'success');
             form.reset();
         } else {
-            alert('❌ Ошибка: ' + (result.error || 'неизвестно'));
+            showToast('Ошибка: ' + (result.error || 'неизвестно'), 'error');
         }
     } catch (e) {
-        alert('❌ Ошибка сети');
+        showToast('Ошибка сети при выдаче награды', 'error');
     }
     return false;
 }
