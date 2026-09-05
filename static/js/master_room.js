@@ -820,8 +820,9 @@ function saveMasterHp(charId, username, current) {
     }
 }
 
-function addCustomToken() {
-    const name = prompt("Введите название объекта:", "Маркер");
+// 🔄 Стилизованный prompt диалог
+async function addCustomToken() {
+    const name = await promptModal("Введите название объекта:", "Маркер", "Новый маркер");
     if (!name) return;
     addPropToMap(name, null, 50);
 }
@@ -1146,7 +1147,6 @@ function renderScenesList(scenes) {
     });
     container.innerHTML = html;
 
-    // Навешиваем слушатели для сцен
     container.querySelectorAll('.scene-item-card').forEach(card => {
         const sceneId = card.getAttribute('data-scene-id');
         const actBtn = card.querySelector('.js-activate-scene');
