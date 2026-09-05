@@ -23,10 +23,9 @@ player_connections = {}
 
 
 def _is_origin_allowed(websocket: WebSocket) -> bool:
-    """CSWSH: разрешаем Origin, совпадающий с Host, или из списка WS_ALLOWED_ORIGINS."""
+    """CSWSH: разрешаем Origin, совпадающий с Host (без учета порта), или из списка WS_ALLOWED_ORIGINS."""
     origin = websocket.headers.get("origin")
     if not origin:
-        # Не-браузерный клиент без Origin — полагаемся на подписанную cookie.
         return True
     try:
         origin_netloc = urlsplit(origin).netloc.lower()
@@ -36,11 +35,20 @@ def _is_origin_allowed(websocket: WebSocket) -> bool:
         return False
 
     host = (websocket.headers.get("host") or "").lower()
+
+    # 1. Прямое совпадение полного netloc (на случай совпадения портов)
     if origin_netloc == host:
         return True
 
+    # 2. Совпадение только доменных имен/IP без учета портов (NAT / port forwarding)
+    origin_domain = origin_netloc.split(":")[0]
+    host_domain = host.split(":")[0]
+    if origin_domain and origin_domain == host_domain:
+        return True
+
+    # 3. Проверка по белому списку
     allowed = [o.strip().lower() for o in settings.WS_ALLOWED_ORIGINS.split(",") if o.strip()]
-    return origin_netloc in allowed
+    return origin_netloc in allowed or origin_domain in allowed
 
 
 
