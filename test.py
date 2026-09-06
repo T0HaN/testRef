@@ -38,32 +38,14 @@ def main():
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # 1. Проверяем наличие колонок таблицы characters
-        cursor.execute("""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'characters';
-        """)
-        columns = [row["column_name"] for row in cursor.fetchall()]
-
-        # 2. Определяем имя поля с картинкой
-        target_col = None
-        for col in ["token_image", "image", "token", "avatar"]:
-            if col in columns:
-                target_col = col
-                break
-
-        if not target_col:
-            print(f"❌ Подходящая колонка изображения не найдена среди: {columns}")
-            return
-
-        print(f"🔎 Сканируем таблицу characters (колонка '{target_col}')...")
-
-        cursor.execute(f"SELECT id, name, {target_col} FROM characters WHERE {target_col} LIKE 'data:image%';")
+        print("🔎 Поиск записей с base64 в characters.token_image_path...")
+        cursor.execute(
+            "SELECT id, name, token_image_path FROM characters WHERE token_image_path LIKE 'data:image%';"
+        )
         rows = cursor.fetchall()
 
         if not rows:
-            print("✅ Все токены уже перенесены в MinIO, Base64 не найден.")
+            print("✅ Все токены уже в формате URL, base64-строк не найдено.")
             return
 
         print(f"Найдено записей для конвертации: {len(rows)}")
@@ -72,7 +54,7 @@ def main():
         for row in rows:
             char_id = row["id"]
             char_name = row.get("name", "Unknown")
-            img_data = row[target_col]
+            img_data = row["token_image_path"]
 
             try:
                 header, encoded = img_data.split(",", 1)
@@ -94,7 +76,7 @@ def main():
                 new_url = f"/media/{s3_key}"
 
                 cursor.execute(
-                    f"UPDATE characters SET {target_col} = %s WHERE id = %s;",
+                    "UPDATE characters SET token_image_path = %s WHERE id = %s;",
                     (new_url, char_id)
                 )
 
@@ -105,11 +87,11 @@ def main():
                 print(f"  ❌ Ошибка с персонажем ID {char_id}: {e}")
 
         conn.commit()
-        print(f"\n🎉 Миграция успешно завершена! Обновлено: {migrated_count}")
+        print(f"\n🎉 Готово! Успешно перенесено в MinIO: {migrated_count}")
 
     except Exception as exc:
         conn.rollback()
-        print(f"💥 Ошибка выполнения: {exc}")
+        print(f"💥 Ошибка: {exc}")
     finally:
         cursor.close()
         conn.close()
