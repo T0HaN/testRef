@@ -2,15 +2,19 @@ import json
 import os
 import re
 import random
+import smtplib
 import string
 import time
 import uuid
-from typing import Dict, List, Any, Optional
-from pathlib import Path
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import boto3
 import psycopg2
+import psycopg2.extras
 from psycopg2.extras import RealDictCursor
 import redis.asyncio as redis
 from fastapi import UploadFile
@@ -36,26 +40,48 @@ SPELLS_DATA: List[dict] = []
 # === REDIS CONNECTION ===
 # ============================================================
 
+_redis_pool: Optional[redis.ConnectionPool] = None
 redis_client: Optional[redis.Redis] = None
 
 
 async def init_redis():
-    """Инициализация пула соединений с Redis"""
-    global redis_client
-    redis_client = redis.Redis(
+    """Инициализация единого асинхронного пула соединений с Redis"""
+    global _redis_pool, redis_client
+    _redis_pool = redis.ConnectionPool(
         host=settings.REDIS_HOST,
         port=settings.REDIS_PORT,
         db=settings.REDIS_DB,
         password=settings.REDIS_PASSWORD,
-        decode_responses=True  # Автоматически декодирует байты в строки
+        decode_responses=True
     )
+    redis_client = redis.Redis(connection_pool=_redis_pool)
+
+
+def get_redis_client() -> redis.Redis:
+    """Возвращает асинхронный клиент Redis из пула."""
+    global _redis_pool, redis_client
+    if redis_client is None:
+        if _redis_pool is None:
+            _redis_pool = redis.ConnectionPool(
+                host=settings.REDIS_HOST,
+                port=settings.REDIS_PORT,
+                db=settings.REDIS_DB,
+                password=settings.REDIS_PASSWORD,
+                decode_responses=True
+            )
+        redis_client = redis.Redis(connection_pool=_redis_pool)
+    return redis_client
 
 
 async def close_redis():
     """Закрытие соединений с Redis"""
-    global redis_client
+    global redis_client, _redis_pool
     if redis_client:
         await redis_client.aclose()
+        redis_client = None
+    if _redis_pool:
+        await _redis_pool.disconnect()
+        _redis_pool = None
 
 
 def _default_room_state() -> dict:
@@ -72,9 +98,8 @@ def _default_room_state() -> dict:
 
 async def get_redis_room_state(room_id: str) -> dict:
     """Получает текущее состояние VTT-комнаты из Redis"""
-    if not redis_client:
-        return _default_room_state()
-    data = await redis_client.get(f"room:{room_id}:state")
+    client = get_redis_client()
+    data = await client.get(f"room:{room_id}:state")
     if data:
         return json.loads(data)
     return _default_room_state()
@@ -82,8 +107,46 @@ async def get_redis_room_state(room_id: str) -> dict:
 
 async def save_redis_room_state(room_id: str, state: dict) -> None:
     """Сохраняет состояние VTT-комнаты в Redis"""
-    if redis_client:
-        await redis_client.set(f"room:{room_id}:state", json.dumps(state))
+    client = get_redis_client()
+    await client.set(f"room:{room_id}:state", json.dumps(state))
+
+
+# ============================================================
+# === EMAIL NOTIFICATIONS ===
+# ============================================================
+
+def send_email_sync(to_email: str, subject: str, html_content: str):
+    """
+    Синхронная отправка письма через SMTP.
+    Вызывается в FastAPI через BackgroundTasks, не блокируя event loop.
+    """
+    if not getattr(settings, "SMTP_USER", None) or not getattr(settings, "SMTP_PASSWORD", None):
+        print(f"[MAIL MOCK] Письмо для {to_email} не отправлено (SMTP_USER не задан):")
+        print(f"Тема: {subject}\n{html_content}")
+        return
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    from_name = getattr(settings, "SMTP_FROM_NAME", "Folio VTT")
+    msg["From"] = f"{from_name} <{settings.SMTP_USER}>"
+    msg["To"] = to_email
+
+    part = MIMEText(html_content, "html", "utf-8")
+    msg.attach(part)
+
+    try:
+        pwd = settings.SMTP_PASSWORD.get_secret_value() if hasattr(settings.SMTP_PASSWORD, "get_secret_value") else str(settings.SMTP_PASSWORD)
+        if getattr(settings, "SMTP_PORT", 465) == 465:
+            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                server.login(settings.SMTP_USER, pwd)
+                server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
+        else:
+            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
+                server.starttls()
+                server.login(settings.SMTP_USER, pwd)
+                server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
+    except Exception as e:
+        print(f"[MAIL ERROR] Ошибка отправки письма на {to_email}: {e}")
 
 
 # ============================================================
@@ -125,8 +188,6 @@ def get_all_monsters() -> list:
                 monsters = []
                 for row in cur.fetchall():
                     m = dict(row)
-                    # Совместимость с фронтендом бестиария (master_prep.html):
-                    # attributes -> stats, token_path -> token_image, meta -> description
                     m['stats'] = m.get('attributes') or {}
                     m['token_image'] = m.get('token_path')
                     m['description'] = m.get('meta') or ''
@@ -161,7 +222,6 @@ def init_monsters_table():
                         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                     )
                 """)
-                # Добавляем столбец token_path, если его ещё нет (для уже существующих таблиц)
                 cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name='monsters' AND column_name='token_path'")
                 if not cur.fetchone():
                     cur.execute("ALTER TABLE monsters ADD COLUMN token_path TEXT")
@@ -231,7 +291,6 @@ def init_s3_bucket():
         s3_client.put_bucket_policy(Bucket=settings.S3_BUCKET, Policy=json.dumps(policy))
 
 
-# Разрешённые к загрузке изображения: расширение и MIME должны совпадать с белым списком.
 ALLOWED_IMAGE_EXTS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 ALLOWED_IMAGE_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
 DEFAULT_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 МБ
@@ -242,24 +301,16 @@ async def upload_image_to_s3(
         prefix: str = "maps",
         max_size: int = DEFAULT_MAX_UPLOAD_SIZE
 ) -> str:
-    """Загружает изображение в S3/MinIO с проверкой расширения, MIME и размера.
-
-    Файл читается чанками, чтобы не держать в памяти больше max_size байт.
-    При нарушении ограничений поднимается ValueError (роуты превращают его
-    в JSON-ответ {status: 'error'}).
-    """
-    # --- 1. Расширение из имени файла (без учёта регистра и путей) ---
+    """Загружает изображение в S3/MinIO с проверкой расширения, MIME и размера."""
     raw_name = (file.filename or '').replace('\\', '/').split('/')[-1]
     ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else 'png'
     if ext not in ALLOWED_IMAGE_EXTS:
         raise ValueError("Неподдерживаемый формат файла. Допустимы: png, jpg, jpeg, webp, gif.")
 
-    # --- 2. MIME-тип ---
     content_type = (file.content_type or '').lower()
     if content_type not in ALLOWED_IMAGE_TYPES:
         raise ValueError("Неподдерживаемый MIME-тип изображения.")
 
-    # --- 3. Чтение с ограничением размера ---
     chunks = []
     total = 0
     while True:
@@ -324,7 +375,7 @@ def create_scene(room_id: int, name: str, background_url: str, width: int, heigh
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT COUNT(*) FROM scenes WHERE room_id = %s", (room_id,))
             count = cur.fetchone()['count']
-            is_active = (count == 0)  # Первая сцена автоматически активна
+            is_active = (count == 0)
 
             cur.execute("""
                 INSERT INTO scenes (room_id, name, background_url, map_width, map_height, is_active)
@@ -348,18 +399,15 @@ def delete_scene(room_id: int, scene_id: int):
     """Удаляет сцену из БД и картинку из S3"""
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Сначала получаем данные о сцене, чтобы знать, что удалять из S3
             cur.execute("SELECT background_url, is_active FROM scenes WHERE id = %s AND room_id = %s",
                         (scene_id, room_id))
             scene = cur.fetchone()
             if not scene:
                 return None
 
-            # Удаляем запись из БД
             cur.execute("DELETE FROM scenes WHERE id = %s AND room_id = %s", (scene_id, room_id))
             conn.commit()
 
-            # Удаляем файл из S3 (MinIO)
             try:
                 key = scene['background_url'].replace('/media/', '')
                 s3_client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
@@ -424,11 +472,13 @@ def parse_weight(weight_str) -> float:
     if not weight_str or not isinstance(weight_str, str):
         return 0.0
     s = weight_str.lower().replace('фнт.', '').replace('фнт', '').strip()
-    if not s: return 0.0
+    if not s:
+        return 0.0
     s = s.replace('½', '0.5').replace('¼', '0.25').replace('¾', '0.75').replace(',', '.')
     try:
         match = re.search(r'[\d.]+', s)
-        if match: return float(match.group())
+        if match:
+            return float(match.group())
     except (ValueError, AttributeError):
         pass
     return 0.0
@@ -437,16 +487,20 @@ def parse_weight(weight_str) -> float:
 def calculate_total_weight(char: dict) -> float:
     inv = char.get('inventory', {})
     total = 0.0
-    for w in inv.get('weapons', []): total += parse_weight(w.get('weight'))
-    for a in inv.get('armor', []): total += parse_weight(a.get('weight'))
+    for w in inv.get('weapons', []):
+        total += parse_weight(w.get('weight'))
+    for a in inv.get('armor', []):
+        total += parse_weight(a.get('weight'))
     for g in inv.get('gear', []):
         qty = g.get('qty', 1) or 1
         total += parse_weight(g.get('weight')) * qty
     coins = inv.get('coins', {})
     total_coins = sum(coins.values()) if isinstance(coins, dict) else 0
     total += total_coins / 50.0
-    for a in inv.get('arrows', []): total += (a.get('qty', 0) or 0) / 20.0
-    for b in inv.get('bolts', []): total += (b.get('qty', 0) or 0) / 20.0
+    for a in inv.get('arrows', []):
+        total += (a.get('qty', 0) or 0) / 20.0
+    for b in inv.get('bolts', []):
+        total += (b.get('qty', 0) or 0) / 20.0
     return round(total, 2)
 
 
@@ -532,7 +586,8 @@ def save_user_profile(username: str, profile: dict) -> None:
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             user_id = _get_user_id(cur, username)
-            if not user_id: return
+            if not user_id:
+                return
 
             cur.execute("SELECT room_id FROM room_players WHERE user_id = %s", (user_id,))
             db_rooms = {str(row['room_id']) for row in cur.fetchall()}
@@ -559,7 +614,8 @@ def add_room_to_player_history(username: str, room_id: str) -> None:
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             user_id = _get_user_id(cur, username)
-            if not user_id: return
+            if not user_id:
+                return
             try:
                 cur.execute("""
                     INSERT INTO room_players (room_id, user_id, joined_at, last_active)
@@ -721,7 +777,8 @@ def normalize_char(char: dict) -> dict:
         inv = {"weapons": [], "armor": [], "gear": [], "arrows": [], "bolts": [],
                "coins": {"cp": 0, "sp": 0, "ep": 0, "gp": 0, "pp": 0}, "items": inv, "known_spells": []}
     else:
-        for key in ["weapons", "armor", "gear", "arrows", "bolts", "known_spells"]: inv.setdefault(key, [])
+        for key in ["weapons", "armor", "gear", "arrows", "bolts", "known_spells"]:
+            inv.setdefault(key, [])
         inv.setdefault("coins", {"cp": 0, "sp": 0, "ep": 0, "gp": 0, "pp": 0})
     char['inventory'] = inv
 
@@ -737,7 +794,8 @@ def normalize_char(char: dict) -> dict:
     char.setdefault('description_image', None)
 
     char.setdefault('physical', {})
-    for k in ['height', 'weight', 'hair', 'eyes']: char['physical'].setdefault(k, '')
+    for k in ['height', 'weight', 'hair', 'eyes']:
+        char['physical'].setdefault(k, '')
 
     char.setdefault('attributes', {})
     char['attributes'].setdefault('speed', 30)
@@ -773,7 +831,8 @@ def normalize_char(char: dict) -> dict:
 
 
 def recalc_char(char: dict) -> dict:
-    if 'xp' in char: char['level'] = calc_level_from_xp(char['xp'])
+    if 'xp' in char:
+        char['level'] = calc_level_from_xp(char['xp'])
     level = char.get('level', 1)
     char.setdefault('attributes', {})
     char['attributes']['prof_bonus'] = f"+{calc_prof_bonus(level)}"
@@ -788,7 +847,8 @@ def _fetch_character_details(cur, char_id: int) -> dict:
     }
 
     cur.execute("SELECT stat_name, score, modifier FROM character_stats WHERE character_id = %s", (char_id,))
-    for row in cur.fetchall(): details['stats'][row['stat_name']] = {'score': row['score'], 'modifier': row['modifier']}
+    for row in cur.fetchall():
+        details['stats'][row['stat_name']] = {'score': row['score'], 'modifier': row['modifier']}
 
     cur.execute("SELECT skill_key FROM character_skills WHERE character_id = %s", (char_id,))
     details['skills'] = [row['skill_key'] for row in cur.fetchall()]
@@ -821,7 +881,8 @@ def load_chars(username: str) -> List[dict]:
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             user_id = _get_user_id(cur, username)
-            if not user_id: return []
+            if not user_id:
+                return []
 
             cur.execute("SELECT * FROM characters WHERE user_id = %s", (user_id,))
             result = []
@@ -911,7 +972,7 @@ def _upsert_character(cur, user_id: int, char: dict) -> int:
 
     for stat_name, stat_data in char.get('stats', {}).items():
         cur.execute("INSERT INTO character_stats (character_id, stat_name, score, modifier) VALUES (%s, %s, %s, %s)",
-                    (char_id, stat_name, stat_data['score'], stat_data['modifier']))
+                    (char_id, stat_data['score'], stat_data['modifier']))
 
     for skill in char.get('skills', []):
         cur.execute("INSERT INTO character_skills (character_id, skill_key) VALUES (%s, %s)", (char_id, skill))
@@ -960,7 +1021,8 @@ def save_chars(username: str, chars: list) -> None:
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             user_id = _get_user_id(cur, username)
-            if not user_id: return
+            if not user_id:
+                return
 
             cur.execute("SELECT id FROM characters WHERE user_id = %s", (user_id,))
             existing_ids = {row['id'] for row in cur.fetchall()}
@@ -1097,22 +1159,27 @@ def prepare_skills_and_saves(char: dict) -> tuple:
 # ============================================================
 
 def parse_damage(dmg_str: str) -> str:
-    if not dmg_str: return "1d4"
+    if not dmg_str:
+        return "1d4"
     match = re.search(r'(\d+)к(\d+)', dmg_str.replace(' ', ''))
     return f"{match.group(1)}d{match.group(2)}" if match else "1d4"
 
 
 def map_weapon_type(props: Any) -> str:
     props_str = str(props).lower()
-    if "боеприпас" in props_str: return "ammunition"
-    if "метательное" in props_str: return "thrown"
-    if "фехтовальное" in props_str: return "finesse"
+    if "боеприпас" in props_str:
+        return "ammunition"
+    if "метательное" in props_str:
+        return "thrown"
+    if "фехтовальное" in props_str:
+        return "finesse"
     return "standard"
 
 
 def roll_dice(dice_str: str) -> tuple:
     match = re.match(r'(\d+)d(\d+)([+-]\d+)?', dice_str.strip())
-    if not match: return [1], 1, "1d1"
+    if not match:
+        return [1], 1, "1d1"
     count, sides, mod = int(match.group(1)), int(match.group(2)), int(match.group(3) or 0)
     rolls = [random.randint(1, sides) for _ in range(count)]
     total = sum(rolls) + mod
@@ -1296,8 +1363,7 @@ def get_spells_for_class(char_class: str, char_level: int, known_spells: Optiona
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
-                SELECT * 
-                FROM spells 
+                SELECT * FROM spells 
                 WHERE %s = ANY(classes)
                 ORDER BY level ASC, name_ru ASC
             """, (char_class,))
@@ -1307,54 +1373,3 @@ def get_spells_for_class(char_class: str, char_level: int, known_spells: Optiona
     known_spells_data = [s for s in available_spells if s['name_ru'] in known_spells]
 
     return available_spells, known_spells_data, is_prepared
-
-
-
-
-
-# --- REDIS CONNECTION POOL ---
-_redis_pool = redis.ConnectionPool(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    db=settings.REDIS_DB,
-    password=settings.REDIS_PASSWORD,
-    decode_responses=True  # Чтобы возвращались str, а не bytes
-)
-
-def get_redis_client() -> redis.Redis:
-    """Возвращает клиент Redis из пула."""
-    return redis.Redis(connection_pool=_redis_pool)
-
-
-# --- ОТПРАВКА EMAIL ---
-def send_email_sync(to_email: str, subject: str, html_content: str):
-    """
-    Синхронная отправка письма через SMTP.
-    Вызывается в FastAPI через BackgroundTasks, не блокируя event loop.
-    """
-    if not settings.SMTP_USER or not settings.SMTP_PASSWORD:
-        print(f"[MAIL MOCK] Письмо для {to_email} не отправлено (SMTP_USER не задан):")
-        print(f"Тема: {subject}\n{html_content}")
-        return
-
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
-    msg["From"] = f"{settings.SMTP_FROM_NAME} <{settings.SMTP_USER}>"
-    msg["To"] = to_email
-
-    part = MIMEText(html_content, "html", "utf-8")
-    msg.attach(part)
-
-    try:
-        pwd = settings.SMTP_PASSWORD.get_secret_value()
-        if settings.SMTP_PORT == 465:
-            with smtplib.SMTP_SSL(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
-                server.login(settings.SMTP_USER, pwd)
-                server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
-        else:
-            with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10) as server:
-                server.starttls()
-                server.login(settings.SMTP_USER, pwd)
-                server.sendmail(settings.SMTP_USER, [to_email], msg.as_string())
-    except Exception as e:
-        print(f"[MAIL ERROR] Ошибка отправки письма на {to_email}: {e}")
