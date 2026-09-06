@@ -55,7 +55,7 @@ async def player_room(
     if not player_entry:
         return RedirectResponse(url="/games?error=Вы не присоединились к этой игре", status_code=303)
 
-    # 3. Загружаем персонажа игрока из JSON (пока листы персонажей не переехали в БД)
+
     chars = load_chars(current_user['username'])
     try:
         player_char_id_int = int(player_entry['char_id'])
