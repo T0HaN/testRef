@@ -521,7 +521,8 @@
     function updateTokenButtons() {
         const addBtn = document.getElementById('btnAddToken');
         const removeBtn = document.getElementById('btnRemoveToken');
-        const hasValidToken = myTokenImage && myTokenImage.length > 100;
+        // ✅ Проверяем, что ссылка существует и не пустая
+        const hasValidToken = Boolean(myTokenImage && myTokenImage.trim().length > 0);
 
         if (!hasValidToken) {
             addBtn.disabled = true;
