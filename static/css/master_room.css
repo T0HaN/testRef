@@ -561,6 +561,15 @@ body {
     background: var(--accent-gold-dim);
     color: var(--bg-primary);
 }
+.vtt-btn.primary {
+    background: linear-gradient(145deg, var(--accent-gold), var(--accent-gold-dim));
+    color: var(--bg-primary);
+    font-weight: bold;
+    border-color: var(--accent-gold);
+}
+.vtt-btn.primary:hover {
+    background: var(--accent-gold);
+}
 .vtt-btn.danger {
     border-color: var(--accent-red);
 }
@@ -618,7 +627,7 @@ body {
     background: rgba(139, 58, 58, 0.2);
 }
 
-/* 🆕 НОВОЕ: Стили контекстного меню */
+/* 🆕 Стили контекстного меню */
 .vtt-context-menu {
     display: none;
     position: fixed;
@@ -808,3 +817,93 @@ body {
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* ===== 🆕 ФОРМА ВЫДАЧИ НАГРАД ===== */
+.reward-card-form {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+.reward-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.reward-field-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.reward-input {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    padding: 0.5rem 0.7rem;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+.reward-input:focus {
+    border-color: var(--accent-gold);
+}
+.reward-select {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    color: var(--text-primary);
+    font-family: var(--font-ui);
+    padding: 0.5rem 0.7rem;
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+}
+.reward-select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+.coins-badge-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+}
+.coin-input-wrapper {
+    display: flex;
+    align-items: center;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 0 0.4rem;
+    transition: border-color 0.2s;
+}
+.coin-input-wrapper:focus-within {
+    border-color: var(--accent-gold);
+}
+.coin-input-wrapper .reward-input {
+    border: none;
+    padding: 0.45rem 0.2rem;
+    text-align: right;
+    background: transparent;
+}
+.coin-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    user-select: none;
+}
+.coin-badge.gp { color: var(--accent-gold); }
+.coin-badge.sp { color: #b5b5c3; }
+.coin-badge.cp { color: #cd7f32; }
+.reward-submit-btn {
+    width: 100%;
+    margin-top: 0.3rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}

@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Folio | Комната Мастера</title>
     <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
-    <link rel="stylesheet" href="/static/css/master_room.css?v=3">
-    <link rel="stylesheet" href="/static/css/folio_dialogs.css?v=3">
+    <link rel="stylesheet" href="/static/css/master_room.css?v=5">
+    <link rel="stylesheet" href="/static/css/folio_dialogs.css?v=5">
 </head>
 <body>
 
@@ -25,14 +25,6 @@
             </div>
         </div>
         <div class="header-actions">
-            <a href="/master/room/{{ room.id }}/rewards" class="header-btn primary">
-                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="18" height="18" style="display:inline-block; vertical-align:middle; margin-right:0.3rem;">
-                    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
-                    <path d="m3.3 7 8.7 5 8.7-5" />
-                    <line x1="12" y1="12" x2="12" y2="22" />
-                </svg>
-                Выдать награды
-            </a>
             <a href="/games" class="header-btn">← В панель</a>
         </div>
     </header>
@@ -371,41 +363,59 @@
                 <!-- Вкладка: Награды -->
                 <div id="tab-rewards" class="tab-content">
                     <h3 class="section-title">Массовая награда</h3>
-                    <form id="mass-reward-form" onsubmit="sendReward('all'); return false;">
-                        <div class="form-group">
-                            <label>Опыт (XP)</label>
-                            <input type="number" name="xp" value="0" min="0">
+                    <form id="mass-reward-form" class="reward-card-form" onsubmit="sendReward('all'); return false;">
+                        <div class="reward-field-group">
+                            <label class="reward-field-label">Опыт (XP)</label>
+                            <input type="number" name="xp" class="reward-input" value="0" min="0">
                         </div>
-                        <div class="form-group">
-                            <label>Монеты (зм / см / мм)</label>
-                            <div class="coins-row" style="display: flex; gap: 0.3rem;">
-                                <input type="number" name="gp" value="0" min="0" placeholder="зм">
-                                <input type="number" name="sp" value="0" min="0" placeholder="см">
-                                <input type="number" name="cp" value="0" min="0" placeholder="мм">
+                        <div class="reward-field-group">
+                            <label class="reward-field-label">Монеты (зм / см / мм)</label>
+                            <div class="coins-badge-row">
+                                <div class="coin-input-wrapper">
+                                    <span class="coin-badge gp">зм</span>
+                                    <input type="number" name="gp" class="reward-input" value="0" min="0">
+                                </div>
+                                <div class="coin-input-wrapper">
+                                    <span class="coin-badge sp">см</span>
+                                    <input type="number" name="sp" class="reward-input" value="0" min="0">
+                                </div>
+                                <div class="coin-input-wrapper">
+                                    <span class="coin-badge cp">мм</span>
+                                    <input type="number" name="cp" class="reward-input" value="0" min="0">
+                                </div>
                             </div>
                         </div>
-                        <button type="submit" class="vtt-btn primary" style="width:100%">Выдать всем</button>
+                        <button type="submit" class="vtt-btn primary reward-submit-btn">Выдать всем игрокам</button>
                     </form>
 
-                    <h3 class="section-title" style="margin-top: 2rem;">Индивидуально</h3>
-                    <form id="single-reward-form" onsubmit="sendReward('single'); return false;">
-                        <div class="form-group">
-                            <label>Персонаж</label>
-                            <select name="char_id" id="reward-char-select">
+                    <h3 class="section-title" style="margin-top: 1.5rem;">Индивидуальная награда</h3>
+                    <form id="single-reward-form" class="reward-card-form" onsubmit="sendReward('single'); return false;">
+                        <div class="reward-field-group">
+                            <label class="reward-field-label">Персонаж</label>
+                            <select name="char_id" id="reward-char-select" class="reward-select">
                                 {% for p in players %}
-                                <option value="{{ p.char.id }}">{{ p.char.name }}</option>
+                                <option value="{{ p.char.id }}">{{ p.char.name }} (@{{ p.username }})</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>XP и монеты</label>
-                            <input type="number" name="xp" value="0" min="0" placeholder="XP">
-                            <div class="coins-row" style="display: flex; gap: 0.3rem; margin-top: 0.3rem;">
-                                <input type="number" name="gp" value="0" min="0" placeholder="зм">
-                                <input type="number" name="sp" value="0" min="0" placeholder="см">
+                        <div class="reward-field-group">
+                            <label class="reward-field-label">Опыт (XP)</label>
+                            <input type="number" name="xp" class="reward-input" value="0" min="0">
+                        </div>
+                        <div class="reward-field-group">
+                            <label class="reward-field-label">Монеты (зм / см)</label>
+                            <div class="coins-badge-row" style="grid-template-columns: 1fr 1fr;">
+                                <div class="coin-input-wrapper">
+                                    <span class="coin-badge gp">зм</span>
+                                    <input type="number" name="gp" class="reward-input" value="0" min="0">
+                                </div>
+                                <div class="coin-input-wrapper">
+                                    <span class="coin-badge sp">см</span>
+                                    <input type="number" name="sp" class="reward-input" value="0" min="0">
+                                </div>
                             </div>
                         </div>
-                        <button type="submit" class="vtt-btn primary" style="width:100%">Выдать</button>
+                        <button type="submit" class="vtt-btn primary reward-submit-btn">Выдать персонажу</button>
                     </form>
                 </div>
 
@@ -628,7 +638,7 @@
         </div>
     </div>
 
-    <script src="/static/js/folio_dialogs.js?v=3"></script>
+    <script src="/static/js/folio_dialogs.js?v=5"></script>
     <script>
         window.roomData = {
             id: "{{ room.id }}",
@@ -639,6 +649,6 @@
             username: "{{ username }}"
         };
     </script>
-    <script src="/static/js/master_room.js?v=3"></script>
+    <script src="/static/js/master_room.js?v=5"></script>
 </body>
 </html>
