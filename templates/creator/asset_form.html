@@ -6,7 +6,7 @@
     <title>{{ 'Правка ассета' if is_edit else 'Новый ассет' }} • Folio</title>
     <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
     <link rel="stylesheet" href="/static/css/login.css?v=2">
-    <link rel="stylesheet" href="/static/css/creator.css?v=1">
+    <link rel="stylesheet" href="/static/css/creator.css?v=2">
 </head>
 <body>
     <div class="login-container form-container">
@@ -16,12 +16,23 @@
         </header>
 
         <form method="post" enctype="multipart/form-data" id="asset-form">
+            <!-- Скрытые поля для передачи типа при редактировании и сериализованных метаданных -->
             <input type="hidden" name="metadata_json" id="metadata_json" value="{{ asset.metadata | tojson if is_edit else '{}' }}">
+            {% if is_edit %}
+            <input type="hidden" name="asset_type" value="{{ asset.asset_type }}">
+            {% endif %}
 
             <!-- БАЗОВЫЕ ПОЛЯ -->
             <div class="form-group">
-                <label for="title">Название ассета</label>
-                <input type="text" id="title" name="title" required value="{{ asset.title if is_edit else '' }}" placeholder="Например: Пещера Забытого Лича">
+                <label for="title">Название ассета <span class="req-star">*</span></label>
+                <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    required
+                    value="{{ asset.title if is_edit else '' }}"
+                    placeholder="Например: Пещера Забытого Лича / Огненный шар"
+                >
             </div>
 
             <div class="form-row">
@@ -38,7 +49,14 @@
 
                 <div class="form-group">
                     <label for="price">Цена (₽)</label>
-                    <input type="number" id="price" name="price" step="0.01" min="0" value="{{ asset.price if is_edit else '0.00' }}">
+                    <input
+                        type="number"
+                        id="price"
+                        name="price"
+                        step="0.01"
+                        min="0"
+                        value="{{ asset.price if is_edit else '0.00' }}"
+                    >
                 </div>
             </div>
 
@@ -61,28 +79,31 @@
 
             <div class="form-group">
                 <label for="description">Описание летописи</label>
-                <textarea id="description" name="description" rows="3">{{ asset.description if is_edit else '' }}</textarea>
+                <textarea id="description" name="description" rows="3" placeholder="Краткая предыстория или аннотация к ассету...">{{ asset.description if is_edit else '' }}</textarea>
             </div>
 
             <div class="form-group">
-                <label for="cover_image">Обложка ассета (Превью в каталоге)</label>
+                <label for="cover_image">Обложка ассета (витрина каталога)</label>
                 <input type="file" id="cover_image" name="cover_image" accept="image/*">
+                {% if is_edit and asset.cover_image_url %}
+                <small class="current-file-hint">Текущая обложка сохранена. Выберите новый файл только если хотите заменить её.</small>
+                {% endif %}
             </div>
 
             <div class="ornament">❖ ❖ ❖</div>
 
-            <!-- ДИНАМИЧЕСКАЯ СЕКЦИЯ МЕТАДАННЫХ -->
+            <!-- ДИНАМИЧЕСКИЙ БЛОК МЕТАДАННЫХ -->
             <div id="dynamic-metadata-container">
-                <!-- Заполняется JavaScript в зависимости от выбранного asset_type -->
+                <!-- Контент генерируется /static/js/creator.js -->
             </div>
 
             <div class="btn-row">
-                <button type="submit" id="save-btn">Сохранить ассет</button>
+                <button type="submit" id="save-btn">Запечатать ассет</button>
             </div>
         </form>
 
         <div class="toggle-mode">
-            <a href="/creator/assets">← Назад к списку</a>
+            <a href="/creator/assets">← Назад к мастерской</a>
         </div>
     </div>
 
