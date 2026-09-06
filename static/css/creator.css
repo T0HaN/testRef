@@ -134,7 +134,9 @@
     color: #f5c6cb;
 }
 
-/* Формы */
+/* ============================================================
+   ФОРМЫ И ЕДИНЫЙ ТЕМНЫЙ СТИЛЬ INPUT
+   ============================================================ */
 .form-container {
     max-width: 650px;
 }
@@ -148,21 +150,60 @@
     flex: 1;
 }
 
-select, textarea {
+/* Глобальный сброс для всех инпутов (устраняет белые системные поля) */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="file"],
+select,
+textarea {
     width: 100%;
     padding: 0.75rem 1rem;
-    background: var(--bg-primary);
-    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary) !important;
+    border: 1px solid var(--border-color) !important;
     border-radius: 6px;
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
     font-family: var(--font-main);
     font-size: 1rem;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-select:focus, textarea:focus {
+input:focus,
+select:focus,
+textarea:focus {
     outline: none;
+    border-color: var(--accent-gold) !important;
+    box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.2) !important;
+}
+
+/* Коррекция системных стрелок для числовых полей */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    opacity: 0.3;
+}
+
+/* Стилизация выбора файлов */
+input[type="file"] {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+}
+
+input[type="file"]::file-selector-button {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 0.45rem 0.9rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 0.75rem;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+input[type="file"]::file-selector-button:hover {
     border-color: var(--accent-gold);
-    box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.2);
+    background: rgba(201, 169, 97, 0.1);
 }
 
 .flex-center-checkbox {
@@ -186,7 +227,7 @@ select:focus, textarea:focus {
     text-transform: uppercase;
 }
 
-/* Подсветка обязательных полей */
+/* Подсветка обязательных полей и подсказки */
 .req-star {
     color: var(--accent-red);
     font-weight: bold;
@@ -203,6 +244,29 @@ select:focus, textarea:focus {
     margin-top: 0.35rem;
     font-size: 0.8rem;
     color: var(--accent-gold-dim);
+}
+
+/* ============================================================
+   ПАРАМЕТРЫ И СЕТКИ МОНСТРА (STAT-BLOCK)
+   ============================================================ */
+
+/* Сетка параметров боя монстра: предотвращает сжатие и сплющивание полей */
+.monster-combat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.monster-combat-grid .form-group {
+    margin-bottom: 0;
+}
+
+.monster-combat-grid label {
+    font-size: 0.82rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Компактная сетка 6 характеристик D&D */
@@ -251,11 +315,28 @@ select:focus, textarea:focus {
     color: var(--text-secondary);
 }
 
-/* Динамические списки (Черты, Действия, Легендарные действия) */
+/* ============================================================
+   ДИНАМИЧЕСКИЕ СПИСКИ (ЧЕРТЫ И ДЕЙСТВИЯ)
+   ============================================================ */
 .dynamic-list-section {
     margin-top: 1.2rem;
     padding-top: 0.8rem;
     border-top: 1px dashed rgba(58, 53, 42, 0.6);
+}
+
+/* Заголовочный ряд секций для предотвращения наложения кнопок */
+.section-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.section-title-row label {
+    margin-bottom: 0;
+    font-weight: bold;
+    color: var(--text-secondary);
 }
 
 .items-stack {
@@ -266,19 +347,21 @@ select:focus, textarea:focus {
 }
 
 .btn-add-item {
-    background: transparent;
-    border: 1px dashed var(--accent-gold);
-    color: var(--accent-gold);
+    flex-shrink: 0;
+    white-space: nowrap;
+    background: transparent !important;
+    border: 1px dashed var(--accent-gold) !important;
+    color: var(--accent-gold) !important;
     font-size: 0.8rem;
-    padding: 0.25rem 0.6rem;
+    padding: 0.35rem 0.75rem;
     border-radius: 4px;
     cursor: pointer;
     transition: background 0.2s, color 0.2s;
 }
 
 .btn-add-item:hover {
-    background: rgba(201, 169, 97, 0.15);
-    color: #fff;
+    background: rgba(201, 169, 97, 0.15) !important;
+    color: #fff !important;
 }
 
 .dynamic-item-row {
@@ -332,4 +415,10 @@ select:focus, textarea:focus {
     border: 1px solid var(--border-color);
     padding: 0.75rem;
     border-radius: 6px;
+}
+
+@media (max-width: 540px) {
+    .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
 }

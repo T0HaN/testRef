@@ -55,6 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `,
 
         // --- 2. МОНСТР (STAT-BLOCK) ---
+        // --- 2. МОНСТР (STAT-BLOCK) ---
         monster: () => {
             const attrs = meta.attributes || {};
             return `
@@ -63,10 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 <div class="form-group">
                     <label>Размер, тип и мировоззрение (мета-строка)</label>
-                    <input type="text" id="meta_monster_meta" value="${meta.meta || ''}" placeholder="Средний гуманоид (любой расы), любое мировоззрение">
+                    <input type="text" id="meta_monster_meta" value="${meta.meta || ''}" placeholder="Средний гуманоид (любой расы), нейтральный">
                 </div>
 
-                <div class="form-row">
+                <!-- Сетка боевых параметров (КД, ХП, Скорость, Опасность) -->
+                <div class="monster-combat-grid">
                     <div class="form-group">
                         <label>КД (Armor Class)</label>
                         <input type="number" id="meta_ac" value="${meta.armor_class || 12}">
@@ -83,13 +85,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <label>Скорость</label>
                         <input type="text" id="meta_speed" value="${meta.speed || '30 фт.'}" placeholder="30 фт.">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group full-width-sm">
                         <label>Опасность (CR)</label>
-                        <input type="text" id="meta_cr" value="${meta.challenge_rating || '1'}" placeholder="1/4, 1, 5">
+                        <input type="text" id="meta_cr" value="${meta.challenge_rating || '1'}" placeholder="1/4, 2, 5...">
                     </div>
                 </div>
 
-                <label style="margin-top: 0.8rem; margin-bottom: 0.3rem;">Характеристики и авто-модификаторы</label>
+                <label style="margin-top: 1rem; margin-bottom: 0.4rem; display: block;">Характеристики и авто-модификаторы</label>
                 <div class="stats-grid">
                     ${['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => {
                         const val = attrs[stat] ?? 10;
@@ -105,8 +107,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).join('')}
                 </div>
 
+                <!-- Секции списков с кнопками над ними -->
                 <div class="dynamic-list-section">
-                    <div class="flex-between">
+                    <div class="section-title-row">
                         <label>Особенности и черты (Traits)</label>
                         <button type="button" class="btn-add-item" id="add-trait-btn">+ Добавить черту</button>
                     </div>
@@ -114,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <div class="dynamic-list-section">
-                    <div class="flex-between">
+                    <div class="section-title-row">
                         <label>Действия (Actions)</label>
                         <button type="button" class="btn-add-item" id="add-action-btn">+ Добавить действие</button>
                     </div>
@@ -122,9 +125,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <div class="dynamic-list-section">
-                    <div class="flex-between">
+                    <div class="section-title-row">
                         <label>Легендарные действия (Legendary Actions)</label>
-                        <button type="button" class="btn-add-item" id="add-leg-action-btn">+ Добавить легендарное действие</button>
+                        <button type="button" class="btn-add-item" id="add-leg-action-btn">+ Добавить действие</button>
                     </div>
                     <div id="leg-actions-container" class="items-stack"></div>
                 </div>
