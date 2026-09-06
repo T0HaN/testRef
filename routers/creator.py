@@ -7,7 +7,7 @@ import psycopg2.extras
 from config import settings
 from dependencies import templates, get_current_user
 from utils import get_db_connection
-from services.storage import upload_asset_file
+from utils import get_db_connection, upload_asset_file
 
 creator_router = APIRouter(prefix="/creator", tags=["Asset Creator"])
 

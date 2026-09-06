@@ -296,6 +296,20 @@ ALLOWED_IMAGE_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
 DEFAULT_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 МБ
 
 
+def upload_asset_file(file_bytes: bytes, filename: str, content_type: str, folder: str = "assets") -> str:
+    """Загружает файл ассета/обложки в MinIO и возвращает путь /media/..."""
+    raw_name = (filename or '').replace('\\', '/').split('/')[-1]
+    ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else 'bin'
+
+    key = f"{folder}/{uuid.uuid4().hex}.{ext}"
+
+    s3_client.put_object(
+        Bucket=settings.S3_BUCKET,
+        Key=key,
+        Body=file_bytes,
+        ContentType=content_type or "application/octet-stream"
+    )
+    return f"/media/{key}"
 async def upload_image_to_s3(
         file: UploadFile,
         prefix: str = "maps",
