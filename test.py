@@ -6,18 +6,14 @@ from botocore.client import Config
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-import config
+from config import settings
 
 def get_s3_client():
-    endpoint = getattr(config, "S3_ENDPOINT", "http://127.0.0.1:9000")
-    access_key = getattr(config, "S3_ACCESS_KEY", "admin")
-    secret_key = getattr(config, "S3_SECRET_KEY", "strong-password")
-
     return boto3.client(
         "s3",
-        endpoint_url=endpoint,
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
+        endpoint_url=settings.S3_ENDPOINT,
+        aws_access_key_id=settings.S3_ACCESS_KEY,
+        aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
         region_name="us-east-1",
         config=Config(
             signature_version="s3v4",
@@ -26,29 +22,23 @@ def get_s3_client():
     )
 
 def get_db_connection():
-    # Если в config есть готовый DSN / DATABASE_URL
-    db_url = getattr(config, "DATABASE_URL", None)
-    if db_url:
-        return psycopg2.connect(db_url)
-
-    # Либо берем отдельные параметры
     return psycopg2.connect(
-        host=getattr(config, "DB_HOST", "127.0.0.1"),
-        port=getattr(config, "DB_PORT", 5432),
-        database=getattr(config, "DB_NAME", getattr(config, "POSTGRES_DB", "dnd")),
-        user=getattr(config, "DB_USER", getattr(config, "POSTGRES_USER", "postgres")),
-        password=getattr(config, "DB_PASSWORD", getattr(config, "POSTGRES_PASSWORD", ""))
+        host=settings.DB_HOST,
+        port=settings.DB_PORT,
+        dbname=settings.DB_NAME,
+        user=settings.DB_USER,
+        password=settings.DB_PASSWORD.get_secret_value()
     )
 
 def main():
     s3 = get_s3_client()
-    bucket_name = getattr(config, "S3_BUCKET", "folio-maps")
+    bucket_name = settings.S3_BUCKET
 
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        # Проверяем структуру колонок таблицы characters
+        # 1. Проверяем наличие колонок таблицы characters
         cursor.execute("""
             SELECT column_name 
             FROM information_schema.columns 
@@ -56,7 +46,7 @@ def main():
         """)
         columns = [row["column_name"] for row in cursor.fetchall()]
 
-        # Определяем имя колонки с картинкой (token_image / image / token)
+        # 2. Определяем имя поля с картинкой
         target_col = None
         for col in ["token_image", "image", "token", "avatar"]:
             if col in columns:
@@ -64,16 +54,16 @@ def main():
                 break
 
         if not target_col:
-            print(f"❌ Не найдена подходящая колонка изображения среди: {columns}")
+            print(f"❌ Подходящая колонка изображения не найдена среди: {columns}")
             return
 
-        print(f"🔎 Сканируем таблицу characters, колонка: '{target_col}'...")
+        print(f"🔎 Сканируем таблицу characters (колонка '{target_col}')...")
 
         cursor.execute(f"SELECT id, name, {target_col} FROM characters WHERE {target_col} LIKE 'data:image%';")
         rows = cursor.fetchall()
 
         if not rows:
-            print("✅ Записей с base64-изображениями не обнаружено.")
+            print("✅ Все токены уже перенесены в MinIO, Base64 не найден.")
             return
 
         print(f"Найдено записей для конвертации: {len(rows)}")
@@ -112,14 +102,14 @@ def main():
                 print(f"  [ID {char_id}] {char_name} -> {new_url}")
 
             except Exception as e:
-                print(f"  ❌ Ошибка с ID {char_id}: {e}")
+                print(f"  ❌ Ошибка с персонажем ID {char_id}: {e}")
 
         conn.commit()
-        print(f"\n🎉 Успешно мигрировано записей: {migrated_count}")
+        print(f"\n🎉 Миграция успешно завершена! Обновлено: {migrated_count}")
 
     except Exception as exc:
         conn.rollback()
-        print(f"💥 Ошибка транзакции: {exc}")
+        print(f"💥 Ошибка выполнения: {exc}")
     finally:
         cursor.close()
         conn.close()
