@@ -15,14 +15,14 @@ from utils import (
     calc_level_from_xp, calc_modifier, calc_prof_bonus,
     CLASSES_DATA, EQUIPMENT_DATA, XP_THRESHOLDS,
     parse_damage, map_weapon_type, determine_weapon_proficiency, get_all_spells, get_random_quote, load_equipment,
-    upload_image_to_s3  # 🆕 Импорт функции для S3
+    upload_image_to_s3
 )
 from routers.websockets import broadcast_ws_event
 
 router = APIRouter(tags=["Characters"])
 
 # ============================================================
-# === КОНСТАНТЫ (Вынесены, чтобы избежать дублирования) ===
+# === КОНСТАНТЫ ===
 # ============================================================
 
 DND_RACES = [
@@ -77,12 +77,51 @@ DND_SAVES = [
 # === Вспомогательные функции и роуты ===
 # ============================================================
 
+class SafePrefillDict(dict):
+    """Словарь данных формы с безопасной поддержкой .getlist() для Jinja2"""
+    def __init__(self, *args, lists=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._lists = lists or {}
+
+    def getlist(self, key, default=None):
+        if key in self._lists:
+            return self._lists[key]
+        val = self.get(key)
+        if val is None:
+            return default if default is not None else []
+        return [val] if not isinstance(val, list) else val
+
+
 def _render_char_form_error(request: Request, error_msg: str, form_data=None):
     """Вспомогательная функция: возврат формы создания персонажа с ошибкой"""
+    prefill_obj = None
+
+    if form_data is not None:
+        raw_dict = {}
+        lists_dict = {}
+
+        if hasattr(form_data, "getlist"):
+            # Объект FormData из Starlette
+            for key in form_data.keys():
+                vals = form_data.getlist(key)
+                raw_dict[key] = vals[-1] if vals else ""
+                lists_dict[key] = vals
+        elif isinstance(form_data, dict):
+            for k, v in form_data.items():
+                raw_dict[k] = v[-1] if isinstance(v, list) and v else v
+                lists_dict[k] = v if isinstance(v, list) else [v]
+
+        prefill_obj = SafePrefillDict(raw_dict, lists=lists_dict)
+
+    subclasses_map = {
+        cls_name: [s.get('name', '').strip() for s in cls_data.get('subclasses', [])]
+        for cls_name, cls_data in CLASSES_DATA.items()
+    }
+
     return templates.TemplateResponse(request, "char_form.html", context={
         "races": DND_RACES,
         "classes": DND_CLASSES,
-        "subclasses": {cls: [] for cls in DND_CLASSES},
+        "subclasses": subclasses_map,
         "alignments": DND_ALIGNMENTS,
         "stats": DND_STATS,
         "stats_ru": DND_STATS_RU,
@@ -91,7 +130,7 @@ def _render_char_form_error(request: Request, error_msg: str, form_data=None):
         "error": error_msg,
         "success": None,
         "info": None,
-        "prefill": dict(form_data) if form_data is not None else None,
+        "prefill": prefill_obj,
     })
 
 
@@ -130,7 +169,8 @@ async def new_char_form(request: Request, current_user: dict = Depends(require_p
         "username": current_user['username'],
         "error": None,
         "success": None,
-        "info": None
+        "info": None,
+        "prefill": None
     })
 
 
@@ -387,7 +427,6 @@ async def update_hp(
         room_id: Optional[str] = Form(None),
         current_user: dict = Depends(get_current_user)
 ):
-    """Обновление текущего и временного здоровья персонажа"""
     if current_user['role'] == 'player':
         check_character_ownership(char_id, current_user['username'])
 
@@ -438,21 +477,18 @@ async def upload_token(char_id: int, token_data: TokenUpload, current_user: dict
     if len(token_data.image) > 3 * 1024 * 1024:
         return {"status": "error", "error": "Изображение слишком большое"}
 
-    # 🆕 Если фронтенд прислал Base64, перехватываем и грузим в S3
     if token_data.image.startswith('data:image'):
         try:
             header, encoded = token_data.image.split(",", 1)
             content_type = header.split(":")[1].split(";")[0]
             extension = content_type.split("/")[1]
 
-            # Защита от странных расширений
             if extension not in ['png', 'jpg', 'jpeg', 'webp', 'gif']:
                 extension = 'png'
 
             image_bytes = base64.b64decode(encoded)
             file_name = f"tokens/char_{char_id}_{uuid.uuid4().hex[:8]}.{extension}"
 
-            # Загружаем напрямую через встроенный клиент boto3
             utils.s3_client.put_object(
                 Bucket=utils.settings.S3_BUCKET,
                 Key=file_name,
@@ -460,13 +496,11 @@ async def upload_token(char_id: int, token_data: TokenUpload, current_user: dict
                 ContentType=content_type
             )
 
-            # Сохраняем в лист только красивую ссылку на S3
             char['token_image'] = f"/media/{file_name}"
         except Exception as e:
             print(f"Ошибка загрузки токена в S3: {e}")
             return {"status": "error", "error": "Не удалось загрузить изображение в хранилище"}
     else:
-        # Если это уже URL (например, переиспользование), просто сохраняем
         char['token_image'] = token_data.image
 
     save_chars(current_user['username'], chars)
@@ -549,10 +583,7 @@ async def save_description(
                     "success": None
                 })
 
-            # 🆕 Возвращаем указатель в начало файла после чтения размера
             await char_image.seek(0)
-
-            # Используем готовую функцию загрузки в S3 (как в мастере)
             image_url = await upload_image_to_s3(char_image, prefix=f"portrait_char_{char_id}")
             char['description_image'] = image_url
 
@@ -570,7 +601,7 @@ async def save_description(
 
 
 # ============================================================
-# === ИНВЕНТАРЬ (ЗДЕСЬ БЫЛИ ИСПРАВЛЕНЫ БАГИ) ===
+# === ИНВЕНТАРЬ ===
 # ============================================================
 
 @router.get("/char/{char_id}/inventory", response_class=HTMLResponse)
@@ -595,7 +626,6 @@ async def view_inventory(
         'armor': db_equipment.get('armor', {}),
         'gear': db_equipment.get('gear', [])
     }
-    print(equip_catalog)
 
     return templates.TemplateResponse(request, "inventory.html", context={
         "char": char,
@@ -623,27 +653,20 @@ async def toggle_armor(
         target_item = char['inventory']['armor'][idx]
         is_shield = 'ac_bonus' in target_item or target_item.get('name') == 'Щит'
 
-        # Проверяем текущее состояние: надето или нет
         currently_equipped = target_item.get('equipped', False)
 
         if not currently_equipped:
-            # Снимаем броню/щит того же типа перед надеванием новой
             for a in char['inventory']['armor']:
                 item_is_shield = 'ac_bonus' in a or a.get('name') == 'Щит'
                 if item_is_shield == is_shield:
                     a['equipped'] = False
             target_item['equipped'] = True
         else:
-            # Если уже надето - просто снимаем
             target_item['equipped'] = False
 
         save_chars(current_user['username'], chars)
-
-        # Пересчитываем AC, чтобы отдать его на фронт
         char['_calculated_ac'] = calculate_ac(char)
 
-        # МАГИЯ: Определяем, это JS запрос (Fetch) или обычная HTML-форма
-        # JS fetch обычно принимает application/json
         if "application/json" in request.headers.get("accept", ""):
             return {
                 "status": "ok",
@@ -651,7 +674,6 @@ async def toggle_armor(
                 "new_ac": char['_calculated_ac']
             }
 
-    # Если это обычная форма, просто редиректим обратно в инвентарь
     return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303)
 
 
@@ -722,56 +744,32 @@ async def buy_equipment(char_id: int, request: Request, current_user: dict = Dep
                     'cost': cost_str
                 })
 
-
-
         elif eq_type == 'armor':
-
             found_item = None
-
             for cat_name, items in utils.EQUIPMENT_DATA.get('armor', {}).items():
-
                 for item in items:
-
                     if item.get('name') == item_name:
                         found_item = item
-
                         break
-
                 if found_item:
                     break
 
             if found_item:
-
                 char['inventory']['armor'].append({
-
                     'name': found_item['name'],
-
                     'ac': found_item.get('ac', '10'),
-
                     'stealth': found_item.get('stealth'),
-
                     'strength_req': found_item.get('strength_requirement'),
-
                     'equipped': False,
-
                     'cost': found_item.get('cost'),
-
                     'weight': found_item.get('weight')
-
                 })
-
             else:
-
                 char['inventory']['armor'].append({
-
                     'name': item_name,
-
                     'ac': '10',
-
                     'equipped': False,
-
                     'cost': cost_str
-
                 })
         else:
             name_lower = item_name.lower()
@@ -808,7 +806,7 @@ async def buy_equipment(char_id: int, request: Request, current_user: dict = Dep
 
         save_chars(current_user['username'], chars)
     except Exception as e:
-        print(f"️ Ошибка покупки: {e}")
+        print(f"⚠️ Ошибка покупки: {e}")
 
     return RedirectResponse(url=f"/char/{char_id}/inventory", status_code=303)
 
@@ -999,7 +997,6 @@ async def set_coins(
         cp: int = Form(0),
         current_user: dict = Depends(require_player)
 ):
-    """Прямое сохранение точного количества монет (вызывается из VTT комнаты)"""
     check_character_ownership(char_id, current_user['username'])
 
     chars = load_chars(current_user['username'])
@@ -1008,16 +1005,13 @@ async def set_coins(
     if not char:
         return {"status": "error", "message": "Персонаж не найден"}
 
-    # Убеждаемся, что структура существует
     char.setdefault('inventory', {}).setdefault('coins', {'cp': 0, 'sp': 0, 'ep': 0, 'gp': 0, 'pp': 0})
 
-    # Обновляем значения (не позволяем уйти в минус)
     char['inventory']['coins']['gp'] = max(0, gp)
     char['inventory']['coins']['sp'] = max(0, sp)
     char['inventory']['coins']['cp'] = max(0, cp)
 
     save_chars(current_user['username'], chars)
-
     return {"status": "ok"}
 
 
@@ -1068,15 +1062,11 @@ async def view_spells(char_id: int, request: Request, current_user: dict = Depen
     char_level = char.get('level', 1)
 
     known_spells_names = char.get('inventory', {}).get('known_spells', [])
-
-    # 🆕 Получаем все заклинания из БД напрямую
     all_spells = get_all_spells()
 
-    # Разделяем на известные и доступные
     known_spells = [s for s in all_spells if s.get('name_ru') in known_spells_names]
     available_spells = [s for s in all_spells if s.get('name_ru') not in known_spells_names]
 
-    # Определяем тип подготовщика
     is_prepared_caster = char_class.lower() in ['жрец', 'друид', 'паладин', 'волшебник', 'изобретатель']
 
     def get_level(spell):
@@ -1175,11 +1165,8 @@ async def view_class_features(char_id: int, request: Request, current_user: dict
 
 @router.post("/char/{char_id}/delete")
 async def delete_character(char_id: int, request: Request, current_user: dict = Depends(require_player)):
-    """Удаляет персонажа игрока"""
-    # 1. Проверяем, что персонаж принадлежит пользователю
     check_character_ownership(char_id, current_user['username'])
 
-    # 2. Выполняем удаление через load_chars/save_chars для поддержки текущей архитектуры
     chars = load_chars(current_user['username'])
     original_length = len(chars)
     chars = [c for c in chars if c['id'] != char_id]

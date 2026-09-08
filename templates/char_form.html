@@ -129,7 +129,8 @@
                     <div class="checkbox-grid">
                         {% for key, name in saving_throws %}
                         <label class="checkbox-item">
-                            <input type="checkbox" name="saving_throws" value="{{ name }}" {% if prefill and name in prefill.getlist('saving_throws', []) %}checked{% endif %}>
+                            <input type="checkbox" name="saving_throws" value="{{ name }}"
+                                {% if prefill and prefill.getlist and name in prefill.getlist('saving_throws') %}checked{% endif %}>
                             <span>{{ name }}</span>
                         </label>
                         {% endfor %}
@@ -141,7 +142,8 @@
                     <div class="checkbox-grid">
                         {% for key, name, ability in skills %}
                         <label class="checkbox-item">
-                            <input type="checkbox" class="skill-checkbox" name="skills" value="{{ name }}" {% if prefill and name in prefill.getlist('skills', []) %}checked{% endif %}>
+                            <input type="checkbox" class="skill-checkbox" name="skills" value="{{ name }}"
+                                {% if prefill and prefill.getlist and name in prefill.getlist('skills') %}checked{% endif %}>
                             <span>{{ name }} <small style="color: var(--text-secondary);">({{ ability }})</small></span>
                         </label>
                         {% endfor %}

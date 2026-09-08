@@ -25,13 +25,11 @@ from config import settings
 # === КОНСТАНТЫ ===
 # ============================================================
 
-# XP Thresholds D&D 5e (уровни 1-20)
 XP_THRESHOLDS = [
     0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000,
     85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000
 ]
 
-# Глобальные хранилища статических данных
 CLASSES_DATA: Dict[str, dict] = {}
 EQUIPMENT_DATA: Dict[str, Any] = {}
 SPELLS_DATA: List[dict] = []
@@ -85,7 +83,6 @@ async def close_redis():
 
 
 def _default_room_state() -> dict:
-    """Базовое состояние пустой VTT-комнаты"""
     return {
         'map_image': None,
         'map_width': 0,
@@ -97,7 +94,6 @@ def _default_room_state() -> dict:
 
 
 async def get_redis_room_state(room_id: str) -> dict:
-    """Получает текущее состояние VTT-комнаты из Redis"""
     client = get_redis_client()
     data = await client.get(f"room:{room_id}:state")
     if data:
@@ -106,7 +102,6 @@ async def get_redis_room_state(room_id: str) -> dict:
 
 
 async def save_redis_room_state(room_id: str, state: dict) -> None:
-    """Сохраняет состояние VTT-комнаты в Redis"""
     client = get_redis_client()
     await client.set(f"room:{room_id}:state", json.dumps(state))
 
@@ -116,10 +111,6 @@ async def save_redis_room_state(room_id: str, state: dict) -> None:
 # ============================================================
 
 def send_email_sync(to_email: str, subject: str, html_content: str):
-    """
-    Синхронная отправка письма через SMTP.
-    Вызывается в FastAPI через BackgroundTasks, не блокируя event loop.
-    """
     if not getattr(settings, "SMTP_USER", None) or not getattr(settings, "SMTP_PASSWORD", None):
         print(f"[MAIL MOCK] Письмо для {to_email} не отправлено (SMTP_USER не задан):")
         print(f"Тема: {subject}\n{html_content}")
@@ -154,7 +145,6 @@ def send_email_sync(to_email: str, subject: str, html_content: str):
 # ============================================================
 
 def get_db_connection():
-    """Возвращает соединение с БД PostgreSQL."""
     conn = psycopg2.connect(
         dbname=settings.DB_NAME,
         user=settings.DB_USER,
@@ -168,7 +158,6 @@ def get_db_connection():
 
 
 def get_all_spells() -> list:
-    """Возвращает список всех заклинаний из БД"""
     try:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -180,7 +169,6 @@ def get_all_spells() -> list:
 
 
 def get_all_monsters() -> list:
-    """Возвращает список всех монстров из базы данных."""
     try:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -200,7 +188,6 @@ def get_all_monsters() -> list:
 
 
 def init_monsters_table():
-    """Создаёт таблицу monsters, если её ещё нет (идемпотентно, БЕЗ очистки)."""
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
@@ -231,7 +218,6 @@ def init_monsters_table():
 
 
 def _get_user_id(cur, username: str) -> Optional[int]:
-    """Получает числовой ID пользователя по username."""
     cur.execute("SELECT id FROM users WHERE username = %s", (username,))
     user = cur.fetchone()
     if not user:
@@ -242,7 +228,6 @@ def _get_user_id(cur, username: str) -> Optional[int]:
 
 
 def _safe_int(value, default: int = 0) -> int:
-    """Безопасно приводит значение к int."""
     if value is None:
         return default
     if isinstance(value, int):
@@ -270,7 +255,6 @@ s3_client = boto3.client(
 
 
 def init_s3_bucket():
-    """Создает бакет в MinIO/S3, если его еще нет, и настраивает публичный доступ"""
     try:
         s3_client.head_bucket(Bucket=settings.S3_BUCKET)
     except Exception:
@@ -297,7 +281,6 @@ DEFAULT_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 МБ
 
 
 def upload_asset_file(file_bytes: bytes, filename: str, content_type: str, folder: str = "assets") -> str:
-    """Загружает файл ассета/обложки в MinIO и возвращает путь /media/..."""
     raw_name = (filename or '').replace('\\', '/').split('/')[-1]
     ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else 'bin'
 
@@ -310,12 +293,13 @@ def upload_asset_file(file_bytes: bytes, filename: str, content_type: str, folde
         ContentType=content_type or "application/octet-stream"
     )
     return f"/media/{key}"
+
+
 async def upload_image_to_s3(
         file: UploadFile,
         prefix: str = "maps",
         max_size: int = DEFAULT_MAX_UPLOAD_SIZE
 ) -> str:
-    """Загружает изображение в S3/MinIO с проверкой расширения, MIME и размера."""
     raw_name = (file.filename or '').replace('\\', '/').split('/')[-1]
     ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else 'png'
     if ext not in ALLOWED_IMAGE_EXTS:
@@ -354,7 +338,6 @@ async def upload_image_to_s3(
 # ============================================================
 
 def init_scenes_table():
-    """Инициализация таблицы для хранения сцен/карт"""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("""
@@ -376,7 +359,6 @@ def init_scenes_table():
 
 
 def get_room_scenes(room_id: int) -> list:
-    """Получает все сцены конкретной комнаты"""
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT * FROM scenes WHERE room_id = %s ORDER BY created_at ASC", (room_id,))
@@ -384,7 +366,6 @@ def get_room_scenes(room_id: int) -> list:
 
 
 def create_scene(room_id: int, name: str, background_url: str, width: int, height: int) -> dict:
-    """Создает новую сцену в БД"""
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT COUNT(*) FROM scenes WHERE room_id = %s", (room_id,))
@@ -401,7 +382,6 @@ def create_scene(room_id: int, name: str, background_url: str, width: int, heigh
 
 
 def set_active_scene(room_id: int, scene_id: int):
-    """Делает выбранную сцену активной, отключая остальные в этой комнате"""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             cur.execute("UPDATE scenes SET is_active = false WHERE room_id = %s", (room_id,))
@@ -410,7 +390,6 @@ def set_active_scene(room_id: int, scene_id: int):
 
 
 def delete_scene(room_id: int, scene_id: int):
-    """Удаляет сцену из БД и картинку из S3"""
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT background_url, is_active FROM scenes WHERE id = %s AND room_id = %s",
@@ -436,7 +415,6 @@ def delete_scene(room_id: int, scene_id: int):
 # ============================================================
 
 def get_random_quote():
-    """Считывает цитаты и возвращает случайную."""
     quotes_file = Path("data/quotes.json")
     if quotes_file.exists():
         try:
@@ -984,9 +962,22 @@ def _upsert_character(cur, user_id: int, char: dict) -> int:
                   'character_weapons', 'character_armor', 'character_gear', 'character_ammo', 'character_known_spells']:
         cur.execute(f"DELETE FROM {table} WHERE character_id = %s", (char_id,))
 
+    # Безопасное сохранение характеристик: разбираем int, dict и tuple/list
     for stat_name, stat_data in char.get('stats', {}).items():
-        cur.execute("INSERT INTO character_stats (character_id, stat_name, score, modifier) VALUES (%s, %s, %s, %s)",
-                    (char_id, stat_data['score'], stat_data['modifier']))
+        if isinstance(stat_data, dict):
+            score = _safe_int(stat_data.get('score', 10), 10)
+            modifier = _safe_int(stat_data.get('modifier', calc_modifier(score)), calc_modifier(score))
+        elif isinstance(stat_data, (list, tuple)):
+            score = _safe_int(stat_data[0] if len(stat_data) > 0 else 10, 10)
+            modifier = _safe_int(stat_data[1] if len(stat_data) > 1 else calc_modifier(score), calc_modifier(score))
+        else:
+            score = _safe_int(stat_data, 10)
+            modifier = calc_modifier(score)
+
+        cur.execute(
+            "INSERT INTO character_stats (character_id, stat_name, score, modifier) VALUES (%s, %s, %s, %s)",
+            (char_id, stat_name, score, modifier)
+        )
 
     for skill in char.get('skills', []):
         cur.execute("INSERT INTO character_skills (character_id, skill_key) VALUES (%s, %s)", (char_id, skill))
@@ -1087,7 +1078,7 @@ def parse_strength_req(req_raw):
 
 def calculate_ac(char: dict) -> int:
     base_ac = 10
-    dex_mod = char.get('stats', {}).get('DEX', {}).get('modifier', 0)
+    dex_mod = char.get('stats', {}).get('DEX', {}).get('modifier', 0) if isinstance(char.get('stats', {}).get('DEX'), dict) else calc_modifier(_safe_int(char.get('stats', {}).get('DEX', 10), 10))
     char_class = char.get('char_class', '')
 
     equipped_armor = None
@@ -1117,10 +1108,12 @@ def calculate_ac(char: dict) -> int:
             ac = base_ac + dex_mod
     else:
         if char_class == 'Монах' and not equipped_shield:
-            wis_mod = char.get('stats', {}).get('WIS', {}).get('modifier', 0)
+            wis_stat = char.get('stats', {}).get('WIS', 10)
+            wis_mod = wis_stat.get('modifier', 0) if isinstance(wis_stat, dict) else calc_modifier(_safe_int(wis_stat, 10))
             ac = base_ac + dex_mod + wis_mod
         elif char_class == 'Варвар':
-            con_mod = char.get('stats', {}).get('CON', {}).get('modifier', 0)
+            con_stat = char.get('stats', {}).get('CON', 10)
+            con_mod = con_stat.get('modifier', 0) if isinstance(con_stat, dict) else calc_modifier(_safe_int(con_stat, 10))
             ac = base_ac + dex_mod + con_mod
         else:
             ac = base_ac + dex_mod
@@ -1144,7 +1137,9 @@ def prepare_skills_and_saves(char: dict) -> tuple:
                   'Харизма': 'Хар'}
     saves = []
     for stat_key, stat_name in abilities_map.items():
-        mod = calc_modifier(char['stats'][stat_key]['score'])
+        st = char.get('stats', {}).get(stat_key, 10)
+        score = st.get('score', 10) if isinstance(st, dict) else _safe_int(st, 10)
+        mod = calc_modifier(score)
         is_prof = stat_name in char.get('saving_throws', [])
         saves.append({'name': stat_name, 'abbr': saves_abbr[stat_name], 'mod': mod, 'proficient': is_prof,
                       'total': mod + (prof if is_prof else 0)})
@@ -1161,7 +1156,9 @@ def prepare_skills_and_saves(char: dict) -> tuple:
     ]
     skills = []
     for name, stat_key, abbr in skills_data:
-        mod = calc_modifier(char['stats'][stat_key]['score'])
+        st = char.get('stats', {}).get(stat_key, 10)
+        score = st.get('score', 10) if isinstance(st, dict) else _safe_int(st, 10)
+        mod = calc_modifier(score)
         is_prof = name in char.get('skills', [])
         skills.append(
             {'name': name, 'abbr': abbr, 'mod': mod, 'proficient': is_prof, 'total': mod + (prof if is_prof else 0)})
@@ -1285,7 +1282,6 @@ def load_equipment() -> Dict[str, Any]:
 
 
 def init_static_data():
-    """Загружает статические данные для приложения, используя базу данных"""
     global CLASSES_DATA, EQUIPMENT_DATA, SPELLS_DATA
 
     CLASSES_DATA = {}
