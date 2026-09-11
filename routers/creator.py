@@ -71,7 +71,6 @@ async def creator_dashboard(
 
 @creator_router.get("/assets", response_class=HTMLResponse)
 async def my_assets_page(request: Request, current_user: dict = Depends(get_current_user)):
-    # Редирект на единый дашборд во вкладку ассетов для сохранения структуры
     return RedirectResponse(url="/creator?tab=assets", status_code=status.HTTP_302_FOUND)
 
 
@@ -115,7 +114,6 @@ async def create_asset(
         with conn.cursor() as cur:
             cur.execute("UPDATE users SET is_creator = TRUE WHERE id = %s AND is_creator = FALSE", (current_user['id'],))
 
-            # 1. Запись в marketplace_assets
             cur.execute("""
                 INSERT INTO marketplace_assets (author_id, asset_type, title, description, cover_image_url, license_type)
                 VALUES (%s, %s, %s, %s, %s, %s)
@@ -123,7 +121,6 @@ async def create_asset(
             """, (current_user['id'], asset_type, title.strip(), description.strip(), cover_url, license_type))
             asset_id = cur.fetchone()[0]
 
-            # 2. Запись в соответствующую дочернюю таблицу
             if asset_type == 'monster':
                 attrs = data.get('attributes') or {"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10}
                 cur.execute("""
@@ -261,14 +258,12 @@ async def update_asset(
                 content_bytes = await content_file.read()
                 content_url = upload_asset_file(content_bytes, content_file.filename, content_file.content_type, folder="content")
 
-            # 1. Обновляем базовую таблицу
             cur.execute("""
                 UPDATE marketplace_assets 
                 SET title = %s, description = %s, cover_image_url = %s, license_type = %s, updated_at = NOW()
                 WHERE id = %s AND author_id = %s
             """, (title.strip(), description.strip(), cover_url, license_type, str(asset_id), current_user['id']))
 
-            # 2. Обновляем дочернюю таблицу
             atype = existing['asset_type']
             if atype == 'monster':
                 cur.execute("""
@@ -379,6 +374,8 @@ async def create_pack(
     if not asset_ids:
         raise HTTPException(status_code=400, detail="Пак должен содержать хотя бы один ассет")
 
+    target_asset_ids = [str(aid) for aid in asset_ids]
+
     cover_url = None
     if cover_image and cover_image.filename:
         cover_bytes = await cover_image.read()
@@ -388,13 +385,14 @@ async def create_pack(
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
+            # Безопасная проверка: передаем кортеж строк в IN %s
             cur.execute("""
-                SELECT id FROM marketplace_assets 
-                WHERE author_id = %s AND id = ANY(%s)
-            """, (current_user['id'], [str(aid) for aid in asset_ids]))
+                SELECT id::text FROM marketplace_assets 
+                WHERE author_id = %s AND id::text IN %s
+            """, (current_user['id'], tuple(target_asset_ids)))
             valid_ids = [row[0] for row in cur.fetchall()]
 
-            if len(valid_ids) != len(asset_ids):
+            if len(valid_ids) != len(target_asset_ids):
                 raise HTTPException(status_code=403, detail="Выбран чужой или несуществующий ассет")
 
             cur.execute("""
@@ -406,11 +404,11 @@ async def create_pack(
                   author_price_dec, license_type, discount_percentage, is_published))
             pack_id = cur.fetchone()[0]
 
-            for order, aid in enumerate(asset_ids):
+            for order, aid in enumerate(target_asset_ids):
                 cur.execute("""
                     INSERT INTO pack_assets (pack_id, asset_id, sort_order)
                     VALUES (%s, %s, %s)
-                """, (pack_id, str(aid), order))
+                """, (pack_id, aid, order))
 
             conn.commit()
 
@@ -462,6 +460,7 @@ async def update_pack(
     if not asset_ids:
         raise HTTPException(status_code=400, detail="В паке должен быть хотя бы один ассет")
 
+    target_asset_ids = [str(aid) for aid in asset_ids]
     author_price_dec = Decimal(str(max(0.0, author_price)))
 
     with get_db_connection() as conn:
@@ -470,6 +469,16 @@ async def update_pack(
             existing = cur.fetchone()
             if not existing:
                 raise HTTPException(status_code=404, detail="Пак не найден")
+
+            # Безопасная проверка: передаем кортеж строк в IN %s
+            cur.execute("""
+                SELECT id::text FROM marketplace_assets 
+                WHERE author_id = %s AND id::text IN %s
+            """, (current_user['id'], tuple(target_asset_ids)))
+            valid_ids = [row['id'] for row in cur.fetchall()]
+
+            if len(valid_ids) != len(target_asset_ids):
+                raise HTTPException(status_code=403, detail="Выбран чужой или несуществующий ассет")
 
             cover_url = existing["cover_image_url"]
             if cover_image and cover_image.filename:
@@ -485,11 +494,11 @@ async def update_pack(
                   license_type, discount_percentage, is_published, str(pack_id), current_user['id']))
 
             cur.execute("DELETE FROM pack_assets WHERE pack_id = %s", (str(pack_id),))
-            for order, aid in enumerate(asset_ids):
+            for order, aid in enumerate(target_asset_ids):
                 cur.execute("""
                     INSERT INTO pack_assets (pack_id, asset_id, sort_order)
                     VALUES (%s, %s, %s)
-                """, (str(pack_id), str(aid), order))
+                """, (str(pack_id), aid, order))
 
             conn.commit()
 
