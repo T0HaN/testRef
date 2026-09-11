@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Лавка древностей • Маркетплейс Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/MainMenu.css?v=2">
+    <link rel="stylesheet" href="/static/css/creator.css?v=2">
+    <style>
+        .market-header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        .market-filters {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-input {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 260px;
+        }
+
+        .filter-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.6rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .author-tag {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .badge-owned {
+            background: rgba(74, 107, 74, 0.9);
+            color: #d4edda;
+        }
+    </style>
+</head>
+<body>
+    <div class="creator-dashboard-container" style="padding: 2rem 1.5rem; max-width: 1200px; margin: 0 auto;">
+
+        <div class="market-header-actions">
+            <div>
+                <h1 class="realm-title" style="margin-bottom: 0.25rem; text-align: left;">💎 Лавка древностей</h1>
+                <p class="subtitle" style="text-align: left; margin-bottom: 0;">Комплекты карт, монстров и заклинаний от мастеров сообщества</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                <a href="/creator/packs" class="btn-action" style="padding: 0.6rem 1.2rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-primary);">⚒️ Моя мастерская</a>
+                <a href="/dashboard" class="btn-action" style="padding: 0.6rem 1.2rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-primary);">← В меню</a>
+            </div>
+        </div>
+
+        <!-- ПОИСК И ФИЛЬТРЫ -->
+        <form method="GET" action="/market" class="market-filters" style="margin-bottom: 2rem;">
+            <input
+                type="text"
+                name="q"
+                class="search-input"
+                placeholder="Поиск паков..."
+                value="{{ search_query }}"
+            >
+            <select name="license_type" class="filter-select">
+                <option value="all" {% if selected_license == 'all' %}selected{% endif %}>Все лицензии</option>
+                <option value="personal" {% if selected_license == 'personal' %}selected{% endif %}>Личная (Personal)</option>
+                <option value="commercial" {% if selected_license == 'commercial' %}selected{% endif %}>Коммерческая (Commercial)</option>
+            </select>
+            <button type="submit" class="btn-action highlight" style="padding: 0.6rem 1.2rem; cursor: pointer; border: none; border-radius: 6px;">Найти</button>
+            {% if search_query or selected_license != 'all' %}
+            <a href="/market" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">Сбросить</a>
+            {% endif %}
+        </form>
+
+        {% if packs %}
+        <div class="assets-grid">
+            {% for pack in packs %}
+            <div class="asset-card">
+                <div class="asset-cover" style="background-image: url('{{ pack.cover_image_url or '/static/images/default_cover.jpg' }}');">
+                    <span class="badge type-badge">{{ pack.assets_count }} ассет(ов)</span>
+                    {% if pack.is_owned %}
+                        <span class="badge badge-owned">В библиотеке</span>
+                    {% elif pack.is_author %}
+                        <span class="badge status-badge pub">Ваш пак</span>
+                    {% endif %}
+                </div>
+
+                <div class="asset-body">
+                    <h3>{{ pack.title }}</h3>
+                    <div class="author-tag">Автор: <strong>{{ pack.author_name }}</strong></div>
+                    <p class="asset-desc" style="margin-top: 0.5rem;">{{ pack.description or 'Описания пока нет.' }}</p>
+
+                    <div class="asset-meta" style="margin-top: 1rem;">
+                        <span class="price-tag">{{ pack.market_price }} ₽</span>
+                        <span class="license-tag">{{ 'Commercial' if pack.license_type == 'commercial' else 'Personal' }}</span>
+                    </div>
+                </div>
+
+                <div class="asset-actions">
+                    <a href="/market/pack/{{ pack.id }}" class="edit" style="width: 100%; text-align: center; text-decoration: none;">
+                        Подробнее о паке
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align: center; margin-top: 4rem; color: var(--text-secondary);">
+            <p style="font-size: 1.1rem; margin-bottom: 1rem;">Ничего не найдено по вашему запросу.</p>
+            <a href="/market" style="color: var(--accent-gold); text-decoration: none;">Вернуться ко всем товарам</a>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

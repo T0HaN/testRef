@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ 'Правка пака' if is_edit else 'Новый пак' }} • Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/login.css?v=2">
+    <link rel="stylesheet" href="/static/css/creator.css?v=2">
+    <style>
+        .price-calculator {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .market-price-preview {
+            background: rgba(10, 10, 12, 0.6);
+            border: 1px dashed var(--accent-gold);
+            border-radius: 6px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .market-price-val {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--accent-gold);
+            display: block;
+        }
+
+        .assets-select-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.75rem;
+            max-height: 380px;
+            overflow-y: auto;
+            padding: 0.5rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .asset-select-card {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .asset-select-card:hover {
+            border-color: var(--accent-gold);
+        }
+
+        .asset-select-card input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-gold);
+            cursor: pointer;
+        }
+
+        .asset-select-info {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .asset-select-title {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .asset-select-type {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container form-container" style="max-width: 800px;">
+        <header class="header">
+            <h1 class="realm-title">{{ 'Правка пака' if is_edit else 'Сборка нового пака' }}</h1>
+            <p class="subtitle">Соберите ассеты в единый комплект для продажи на витрине</p>
+        </header>
+
+        <form method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="title">Название пака <span class="req-star">*</span></label>
+                <input
+                    type="text"
+                    id="title"
+                    name="title"
+                    required
+                    value="{{ pack.title if is_edit else '' }}"
+                    placeholder="Например: Стартовый набор «Логово Гоблинов»"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="description">Описание и состав комплекта</label>
+                <textarea id="description" name="description" rows="3" placeholder="Что ждёт мастера и игроков внутри этого набора...">{{ pack.description if is_edit else '' }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="cover_image">Обложка пака для витрины</label>
+                <input type="file" id="cover_image" name="cover_image" accept="image/*">
+                {% if is_edit and pack.cover_image_url %}
+                <small class="current-file-hint">Текущая обложка сохранена. Выберите новый файл только если хотите её заменить.</small>
+                {% endif %}
+            </div>
+
+            <!-- КАЛЬКУЛЯТОР ЦЕНЫ И КОМИССИИ -->
+            <div class="price-calculator">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="author_price">Желаемый доход (₽)</label>
+                    <input
+                        type="number"
+                        id="author_price"
+                        name="author_price"
+                        step="1"
+                        min="0"
+                        value="{{ pack.price if is_edit else '100' }}"
+                        required
+                    >
+                    <small style="color: var(--text-secondary); font-size: 0.8rem;">Сумма, которую вы получаете на баланс</small>
+                </div>
+
+                <div class="market-price-preview">
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Цена на витрине (комиссия 10%)</span>
+                    <span class="market-price-val" id="market_price_display">110.00 ₽</span>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="license_type">Лицензия</label>
+                    <select id="license_type" name="license_type">
+                        <option value="personal" {% if is_edit and pack.license_type == 'personal' %}selected{% endif %}>Личная (Personal Use)</option>
+                        <option value="commercial" {% if is_edit and pack.license_type == 'commercial' %}selected{% endif %}>Коммерческая (Commercial Use)</option>
+                    </select>
+                </div>
+
+                <div class="form-group flex-center-checkbox">
+                    <label class="custom-checkbox">
+                        <input type="checkbox" name="is_published" value="true" {% if is_edit and pack.is_published %}checked{% endif %}>
+                        <span>Опубликовать в каталоге</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="ornament">❖ ❖ ❖</div>
+
+            <!-- ВЫБОР АССЕТОВ -->
+            <div class="form-group">
+                <label>Выберите ассеты для включения в пак <span class="req-star">*</span></label>
+
+                {% if user_assets %}
+                <div class="assets-select-grid">
+                    {% for asset in user_assets %}
+                    <label class="asset-select-card">
+                        <input
+                            type="checkbox"
+                            name="asset_ids"
+                            value="{{ asset.id }}"
+                            {% if asset.id|string in selected_asset_ids %}checked{% endif %}
+                        >
+                        <div class="asset-select-info">
+                            <span class="asset-select-title">{{ asset.title }}</span>
+                            <span class="asset-select-type">
+                                {% if asset.asset_type == 'map' %}🗺️ Карта
+                                {% elif asset.asset_type == 'monster' %}🐉 Монстр
+                                {% elif asset.asset_type == 'spell' %}✨ Заклинание
+                                {% elif asset.asset_type == 'music' %}🎵 Аудио
+                                {% else %}🛡️ Класс{% endif %}
+                            </span>
+                        </div>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                    У вас пока нет созданных ассетов. <a href="/creator/assets/new" style="color: var(--accent-gold);">Создайте первый ассет</a>, чтобы собрать пак.
+                </p>
+                {% endif %}
+            </div>
+
+            <div class="btn-row">
+                <button type="submit" id="save-btn">{{ 'Сохранить изменения' if is_edit else 'Выпустить пак' }}</button>
+            </div>
+        </form>
+
+        <div class="toggle-mode">
+            <a href="/creator/packs">← Назад к списку паков</a>
+        </div>
+    </div>
+
+    <script>
+        const authorPriceInput = document.getElementById('author_price');
+        const marketPriceDisplay = document.getElementById('market_price_display');
+
+        function updateMarketPrice() {
+            const val = parseFloat(authorPriceInput.value) || 0;
+            const finalPrice = (val * 1.10).toFixed(2);
+            marketPriceDisplay.textContent = finalPrice + ' ₽';
+        }
+
+        authorPriceInput.addEventListener('input', updateMarketPrice);
+        updateMarketPrice();
+    </script>
+</body>
+</html>

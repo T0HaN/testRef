@@ -12,11 +12,11 @@
     <div class="login-container form-container">
         <header class="header">
             <h1 class="realm-title">{{ 'Правка ассета' if is_edit else 'Сотворение ассета' }}</h1>
-            <p class="subtitle">Параметры и наполнение летописи</p>
+            <p class="subtitle">Создание строительного блока для вашей мастерской и паков</p>
         </header>
 
         <form method="post" enctype="multipart/form-data" id="asset-form">
-            <!-- Скрытые поля для передачи типа при редактировании и сериализованных метаданных -->
+            <!-- Скрытые поля для передачи типа при редактировании и сериализованных параметров -->
             <input type="hidden" name="metadata_json" id="metadata_json" value="{{ asset.metadata | tojson if is_edit else '{}' }}">
             {% if is_edit %}
             <input type="hidden" name="asset_type" value="{{ asset.asset_type }}">
@@ -48,42 +48,21 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="price">Цена (₽)</label>
-                    <input
-                        type="number"
-                        id="price"
-                        name="price"
-                        step="0.01"
-                        min="0"
-                        value="{{ asset.price if is_edit else '0.00' }}"
-                    >
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="license_type">Лицензия</label>
+                    <label for="license_type">Лицензия по умолчанию</label>
                     <select id="license_type" name="license_type">
                         <option value="personal" {% if is_edit and asset.license_type == 'personal' %}selected{% endif %}>Личное использование (Personal)</option>
                         <option value="commercial" {% if is_edit and asset.license_type == 'commercial' %}selected{% endif %}>Коммерческая (Commercial)</option>
                     </select>
                 </div>
-
-                <div class="form-group flex-center-checkbox">
-                    <label class="custom-checkbox">
-                        <input type="checkbox" name="is_published" value="true" {% if is_edit and asset.is_published %}checked{% endif %}>
-                        <span>Опубликовать в каталоге</span>
-                    </label>
-                </div>
             </div>
 
             <div class="form-group">
-                <label for="description">Описание летописи</label>
-                <textarea id="description" name="description" rows="3" placeholder="Краткая предыстория или аннотация к ассету...">{{ asset.description if is_edit else '' }}</textarea>
+                <label for="description">Описание и заметки</label>
+                <textarea id="description" name="description" rows="3" placeholder="Краткая аннотация, заметки мастера или предыстория...">{{ asset.description if is_edit else '' }}</textarea>
             </div>
 
             <div class="form-group">
-                <label for="cover_image">Обложка ассета (витрина каталога)</label>
+                <label for="cover_image">Обложка / Превью ассета</label>
                 <input type="file" id="cover_image" name="cover_image" accept="image/*">
                 {% if is_edit and asset.cover_image_url %}
                 <small class="current-file-hint">Текущая обложка сохранена. Выберите новый файл только если хотите заменить её.</small>
@@ -92,18 +71,18 @@
 
             <div class="ornament">❖ ❖ ❖</div>
 
-            <!-- ДИНАМИЧЕСКИЙ БЛОК МЕТАДАННЫХ -->
+            <!-- ДИНАМИЧЕСКИЙ БЛОК ПАРАМЕТРОВ КОНТЕНТА -->
             <div id="dynamic-metadata-container">
                 <!-- Контент генерируется /static/js/creator.js -->
             </div>
 
             <div class="btn-row">
-                <button type="submit" id="save-btn">Запечатать ассет</button>
+                <button type="submit" id="save-btn">Сохранить ассет</button>
             </div>
         </form>
 
         <div class="toggle-mode">
-            <a href="/creator/assets">← Назад к мастерской</a>
+            <a href="/creator/assets">← Назад к списку ассетов</a>
         </div>
     </div>
 

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ pack.title }} • Лавка древностей</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/MainMenu.css?v=2">
+    <link rel="stylesheet" href="/static/css/creator.css?v=2">
+    <style>
+        .pack-detail-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 800px) {
+            .pack-detail-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .pack-sidebar-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            height: fit-content;
+        }
+
+        .pack-main-cover {
+            width: 100%;
+            height: 220px;
+            background-size: cover;
+            background-position: center;
+        }
+
+        .pack-sidebar-content {
+            padding: 1.5rem;
+        }
+
+        .asset-list-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .asset-item-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .asset-thumb {
+            width: 64px;
+            height: 64px;
+            border-radius: 4px;
+            background-size: cover;
+            background-position: center;
+            flex-shrink: 0;
+            background-color: var(--bg-primary);
+        }
+
+        .asset-details h4 {
+            margin: 0 0 0.25rem 0;
+            color: var(--text-primary);
+        }
+
+        .asset-submeta {
+            font-size: 0.8rem;
+            color: var(--accent-gold);
+            margin-bottom: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="creator-dashboard-container" style="padding: 2rem 1.5rem; max-width: 1100px; margin: 0 auto;">
+
+        <a href="/market" style="color: var(--accent-gold); text-decoration: none; font-size: 0.9rem;">← Назад на витрину</a>
+
+        <div class="pack-detail-layout">
+            <!-- САЙДБАР ПОКУПКИ -->
+            <div class="pack-sidebar-card">
+                <div class="pack-main-cover" style="background-image: url('{{ pack.cover_image_url or '/static/images/default_cover.jpg' }}');"></div>
+                <div class="pack-sidebar-content">
+                    <h2 style="margin-top: 0; margin-bottom: 0.5rem; font-size: 1.4rem;">{{ pack.title }}</h2>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.2rem;">
+                        Создатель: <strong style="color: var(--text-primary);">{{ pack.author_name }}</strong>
+                    </div>
+
+                    <div style="font-size: 1.8rem; font-weight: bold; color: var(--accent-gold); margin-bottom: 1.5rem;">
+                        {{ pack.market_price }} ₽
+                    </div>
+
+                    {% if pack.is_owned %}
+                        <div style="background: rgba(74, 107, 74, 0.2); border: 1px solid #4a6b4a; color: #d4edda; padding: 0.75rem; border-radius: 6px; text-align: center; font-weight: bold;">
+                            ✓ Пак уже куплен и доступен в комнате
+                        </div>
+                    {% elif pack.is_author %}
+                        <div style="background: rgba(255, 255, 255, 0.05); border: 1px dashed var(--border-color); color: var(--text-secondary); padding: 0.75rem; border-radius: 6px; text-align: center;">
+                            Это ваш собственный пак
+                        </div>
+                    {% else %}
+                        <form action="/market/pack/{{ pack.id }}/buy" method="POST">
+                            <button type="submit" class="btn-action highlight" style="width: 100%; justify-content: center; padding: 0.8rem; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem;">
+                                🛒 Приобрести пак
+                            </button>
+                        </form>
+                    {% endif %}
+
+                    <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; font-size: 0.8rem; color: var(--text-secondary);">
+                        Лицензия: {{ 'Коммерческая' if pack.license_type == 'commercial' else 'Для личных игр' }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- СОДЕРЖИМОЕ ПАКА -->
+            <div>
+                <h3 style="margin-top: 0;">О комплекте</h3>
+                <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem;">
+                    {{ pack.description or 'Автор не указал расширенного описания для данного комплекта.' }}
+                </p>
+
+                <h3>Состав набора ({{ assets|length }})</h3>
+                <div class="asset-list-group">
+                    {% for item in assets %}
+                    <div class="asset-item-card">
+                        <div class="asset-thumb" style="background-image: url('{{ item.cover_image_url or '/static/images/default_cover.jpg' }}');"></div>
+                        <div class="asset-details">
+                            <h4>{{ item.title }}</h4>
+                            <div class="asset-submeta">
+                                {% if item.asset_type == 'monster' %}
+                                    🐉 Монстр • AC {{ item.armor_class }} • HP {{ item.hit_points }} • Опасность (CR): {{ item.challenge_rating }}
+                                {% elif item.asset_type == 'spell' %}
+                                    ✨ Заклинание • {{ item.spell_level }} круг • {{ item.spell_school }}
+                                {% elif item.asset_type == 'map' %}
+                                    🗺️ Карта • Сетка {{ item.grid_width }}x{{ item.grid_height }}
+                                {% elif item.asset_type == 'music' %}
+                                    🎵 Музыка / Эмбиент
+                                {% else %}
+                                    🛡️ Класс
+                                {% endif %}
+                            </div>
+                            <p style="margin: 0; font-size: 0.85rem; color: var(--text-secondary);">
+                                {{ item.description or 'Без описания' }}
+                            </p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
