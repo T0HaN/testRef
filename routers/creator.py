@@ -16,17 +16,38 @@ PLATFORM_FEE_MULTIPLIER = Decimal("1.10")
 
 
 def calc_market_price(author_price: Decimal) -> Decimal:
-    return (author_price * PLATFORM_FEE_MULTIPLIER).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    """Вычисляет итоговую цену на витрине с наценкой x1.1 (округление до копеек)"""
+    return (Decimal(str(author_price)) * PLATFORM_FEE_MULTIPLIER).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 # ============================================================
-# === АССЕТЫ (Строительные блоки автора) ===
+# === ЕДИНЫЙ ХАБ КУЗНИ (Вкладки: Паки и Ассеты) ===
 # ============================================================
 
-@creator_router.get("/assets", response_class=HTMLResponse)
-async def my_assets_page(request: Request, current_user: dict = Depends(get_current_user)):
+@creator_router.get("", response_class=HTMLResponse)
+@creator_router.get("/", response_class=HTMLResponse)
+async def creator_dashboard(
+        request: Request,
+        tab: str = "packs",
+        current_user: dict = Depends(get_current_user)
+):
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # 1. Загрузка паков автора
+            cur.execute("""
+                SELECT p.*, COUNT(pa.asset_id) AS assets_count
+                FROM packs p
+                LEFT JOIN pack_assets pa ON p.id = pa.pack_id
+                WHERE p.author_id = %s
+                GROUP BY p.id
+                ORDER BY p.updated_at DESC
+            """, (current_user['id'],))
+            packs = cur.fetchall()
+
+            for pack in packs:
+                pack["market_price"] = calc_market_price(pack["price"])
+
+            # 2. Загрузка строительных ассетов
             cur.execute("""
                 SELECT id, asset_type, title, description, cover_image_url, 
                        license_type, created_at, updated_at
@@ -36,10 +57,22 @@ async def my_assets_page(request: Request, current_user: dict = Depends(get_curr
             """, (current_user['id'],))
             assets = cur.fetchall()
 
-    return templates.TemplateResponse(request, "creator/asset_list.html", context={
+    return templates.TemplateResponse(request, "creator/dashboard.html", context={
         "user": current_user,
-        "assets": assets
+        "packs": packs,
+        "assets": assets,
+        "active_tab": tab if tab in ["packs", "assets"] else "packs"
     })
+
+
+# ============================================================
+# === АССЕТЫ (Строительные блоки автора) ===
+# ============================================================
+
+@creator_router.get("/assets", response_class=HTMLResponse)
+async def my_assets_page(request: Request, current_user: dict = Depends(get_current_user)):
+    # Редирект на единый дашборд во вкладку ассетов для сохранения структуры
+    return RedirectResponse(url="/creator?tab=assets", status_code=status.HTTP_302_FOUND)
 
 
 @creator_router.get("/assets/new", response_class=HTMLResponse)
@@ -90,7 +123,7 @@ async def create_asset(
             """, (current_user['id'], asset_type, title.strip(), description.strip(), cover_url, license_type))
             asset_id = cur.fetchone()[0]
 
-            # 2. Запись в дочернюю таблицу по типу
+            # 2. Запись в соответствующую дочернюю таблицу
             if asset_type == 'monster':
                 attrs = data.get('attributes') or {"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10}
                 cur.execute("""
@@ -98,8 +131,8 @@ async def create_asset(
                     (asset_id, meta, armor_class, hit_points, hit_dice, speed, challenge_rating, attributes, traits, actions, legendary_actions, token_url)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    asset_id, data.get('meta', ''), data.get('armor_class', 10), data.get('hit_points', 10),
-                    data.get('hit_dice', '1d8'), data.get('speed', '30 фт.'), data.get('challenge_rating', '1'),
+                    asset_id, data.get('meta', ''), int(data.get('armor_class', 10) or 10), int(data.get('hit_points', 10) or 10),
+                    data.get('hit_dice', '1d8'), data.get('speed', '30 фт.'), str(data.get('challenge_rating', '1')),
                     json.dumps(attrs), json.dumps(data.get('traits', [])), json.dumps(data.get('actions', [])),
                     json.dumps(data.get('legendary_actions', [])), content_url
                 ))
@@ -110,7 +143,7 @@ async def create_asset(
                     (asset_id, name_en, level, school, casting_time, range, components, duration, classes, source)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """, (
-                    asset_id, data.get('name_en', ''), int(data.get('level', 0)), data.get('school', 'Воплощение'),
+                    asset_id, data.get('name_en', ''), int(data.get('level', 0) or 0), data.get('school', 'Воплощение'),
                     data.get('casting_time', '1 действие'), data.get('range', '60 футов'), data.get('components', 'В, С'),
                     data.get('duration', 'Мгновенная'), data.get('classes', []), data.get('source', 'Homebrew')
                 ))
@@ -119,13 +152,13 @@ async def create_asset(
                 cur.execute("""
                     INSERT INTO custom_maps (asset_id, grid_width, grid_height, map_image_url)
                     VALUES (%s, %s, %s, %s)
-                """, (asset_id, int(data.get('grid_width', 30)), int(data.get('grid_height', 30)), content_url or ''))
+                """, (asset_id, int(data.get('grid_width', 30) or 30), int(data.get('grid_height', 30) or 30), content_url or ''))
 
             elif asset_type == 'music':
                 cur.execute("""
                     INSERT INTO custom_audio (asset_id, audio_url, tags, is_loop)
                     VALUES (%s, %s, %s, %s)
-                """, (asset_id, content_url or '', data.get('tags', ''), data.get('loop', True)))
+                """, (asset_id, content_url or '', data.get('tags', ''), bool(data.get('loop', True))))
 
             elif asset_type == 'class':
                 cur.execute("""
@@ -135,7 +168,7 @@ async def create_asset(
 
             conn.commit()
 
-    return RedirectResponse(url="/creator/assets?success=created", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/creator?tab=assets&success=created", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @creator_router.get("/assets/{asset_id}/edit", response_class=HTMLResponse)
@@ -163,7 +196,6 @@ async def edit_asset_page(asset_id: UUID, request: Request, current_user: dict =
     if not row:
         raise HTTPException(status_code=404, detail="Ассет не найден")
 
-    # Собираем данные в плоский объект metadata для совместимости с JS формы
     metadata = {}
     atype = row['asset_type']
     if atype == 'monster':
@@ -229,14 +261,14 @@ async def update_asset(
                 content_bytes = await content_file.read()
                 content_url = upload_asset_file(content_bytes, content_file.filename, content_file.content_type, folder="content")
 
-            # Обновляем базовую таблицу
+            # 1. Обновляем базовую таблицу
             cur.execute("""
                 UPDATE marketplace_assets 
                 SET title = %s, description = %s, cover_image_url = %s, license_type = %s, updated_at = NOW()
                 WHERE id = %s AND author_id = %s
             """, (title.strip(), description.strip(), cover_url, license_type, str(asset_id), current_user['id']))
 
-            # Обновляем дочернюю таблицу
+            # 2. Обновляем дочернюю таблицу
             atype = existing['asset_type']
             if atype == 'monster':
                 cur.execute("""
@@ -246,8 +278,8 @@ async def update_asset(
                         legendary_actions = %s, token_url = COALESCE(%s, token_url)
                     WHERE asset_id = %s
                 """, (
-                    data.get('meta', ''), data.get('armor_class', 10), data.get('hit_points', 10),
-                    data.get('hit_dice', '1d8'), data.get('speed', '30 фт.'), data.get('challenge_rating', '1'),
+                    data.get('meta', ''), int(data.get('armor_class', 10) or 10), int(data.get('hit_points', 10) or 10),
+                    data.get('hit_dice', '1d8'), data.get('speed', '30 фт.'), str(data.get('challenge_rating', '1')),
                     json.dumps(data.get('attributes') or {}), json.dumps(data.get('traits', [])),
                     json.dumps(data.get('actions', [])), json.dumps(data.get('legendary_actions', [])),
                     content_url, str(asset_id)
@@ -260,7 +292,7 @@ async def update_asset(
                         components = %s, duration = %s, classes = %s, source = %s
                     WHERE asset_id = %s
                 """, (
-                    data.get('name_en', ''), int(data.get('level', 0)), data.get('school', 'Воплощение'),
+                    data.get('name_en', ''), int(data.get('level', 0) or 0), data.get('school', 'Воплощение'),
                     data.get('casting_time', '1 действие'), data.get('range', '60 футов'),
                     data.get('components', 'В, С'), data.get('duration', 'Мгновенная'),
                     data.get('classes', []), data.get('source', 'Homebrew'), str(asset_id)
@@ -271,14 +303,14 @@ async def update_asset(
                     UPDATE custom_maps SET
                         grid_width = %s, grid_height = %s, map_image_url = COALESCE(%s, map_image_url)
                     WHERE asset_id = %s
-                """, (int(data.get('grid_width', 30)), int(data.get('grid_height', 30)), content_url, str(asset_id)))
+                """, (int(data.get('grid_width', 30) or 30), int(data.get('grid_height', 30) or 30), content_url, str(asset_id)))
 
             elif atype == 'music':
                 cur.execute("""
                     UPDATE custom_audio SET
                         tags = %s, is_loop = %s, audio_url = COALESCE(%s, audio_url)
                     WHERE asset_id = %s
-                """, (data.get('tags', ''), data.get('loop', True), content_url, str(asset_id)))
+                """, (data.get('tags', ''), bool(data.get('loop', True)), content_url, str(asset_id)))
 
             elif atype == 'class':
                 cur.execute("""
@@ -287,19 +319,18 @@ async def update_asset(
 
             conn.commit()
 
-    return RedirectResponse(url="/creator/assets?success=updated", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/creator?tab=assets&success=updated", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @creator_router.post("/assets/{asset_id}/delete")
 async def delete_asset(asset_id: UUID, current_user: dict = Depends(get_current_user)):
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # Каскадное удаление из custom_* сработает автоматически
             cur.execute("DELETE FROM marketplace_assets WHERE id = %s AND author_id = %s",
                         (str(asset_id), current_user['id']))
             conn.commit()
 
-    return RedirectResponse(url="/creator/assets?success=deleted", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/creator?tab=assets&success=deleted", status_code=status.HTTP_303_SEE_OTHER)
 
 
 # ============================================================
@@ -308,26 +339,7 @@ async def delete_asset(asset_id: UUID, current_user: dict = Depends(get_current_
 
 @creator_router.get("/packs", response_class=HTMLResponse)
 async def my_packs_page(request: Request, current_user: dict = Depends(get_current_user)):
-    with get_db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute("""
-                SELECT p.*, COUNT(pa.asset_id) AS assets_count
-                FROM packs p
-                LEFT JOIN pack_assets pa ON p.id = pa.pack_id
-                WHERE p.author_id = %s
-                GROUP BY p.id
-                ORDER BY p.updated_at DESC
-            """, (current_user['id'],))
-            packs = cur.fetchall()
-
-            for pack in packs:
-                author_p = Decimal(str(pack["price"]))
-                pack["market_price"] = calc_market_price(author_p)
-
-    return templates.TemplateResponse(request, "creator/pack_list.html", context={
-        "user": current_user,
-        "packs": packs
-    })
+    return RedirectResponse(url="/creator?tab=packs", status_code=status.HTTP_302_FOUND)
 
 
 @creator_router.get("/packs/new", response_class=HTMLResponse)
@@ -402,7 +414,7 @@ async def create_pack(
 
             conn.commit()
 
-    return RedirectResponse(url="/creator/packs?success=created", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/creator?tab=packs&success=created", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @creator_router.get("/packs/{pack_id}/edit", response_class=HTMLResponse)
@@ -481,7 +493,7 @@ async def update_pack(
 
             conn.commit()
 
-    return RedirectResponse(url="/creator/packs?success=updated", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/creator?tab=packs&success=updated", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @creator_router.post("/packs/{pack_id}/delete")
@@ -491,4 +503,4 @@ async def delete_pack(pack_id: UUID, current_user: dict = Depends(get_current_us
             cur.execute("DELETE FROM packs WHERE id = %s AND author_id = %s", (str(pack_id), current_user['id']))
             conn.commit()
 
-    return RedirectResponse(url="/creator/packs?success=deleted", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url="/creator?tab=packs&success=deleted", status_code=status.HTTP_303_SEE_OTHER)

@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Кузня Творца • Folio</title>
+    <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/static/css/MainMenu.css?v=2">
+    <link rel="stylesheet" href="/static/css/creator.css?v=2">
+    <style>
+        .tabs-header {
+            display: flex;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+            padding: 0.75rem 1.2rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--accent-gold);
+            border-bottom-color: var(--accent-gold);
+            font-weight: bold;
+        }
+
+        .tab-count {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 0.15rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="creator-dashboard-container" style="padding: 2rem 1.5rem; max-width: 1200px; margin: 0 auto;">
+
+        <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
+        <div class="flex-between" style="margin-bottom: 1.5rem;">
+            <div>
+                <h1 class="realm-title" style="margin-bottom: 0.25rem; text-align: left;">⚒️ Кузня Творца</h1>
+                <p class="subtitle" style="text-align: left; margin-bottom: 0;">Управление торговыми комплектами и строительными блоками</p>
+            </div>
+            <div style="display: flex; gap: 0.75rem;">
+                {% if active_tab == 'packs' %}
+                    <a href="/creator/packs/new" class="btn-create">+ Собрать пак</a>
+                {% else %}
+                    <a href="/creator/assets/new" class="btn-create">+ Создать ассет</a>
+                {% endif %}
+                <a href="/dashboard" class="btn-action" style="padding: 0.6rem 1.2rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-primary);">В меню</a>
+            </div>
+        </div>
+
+        <!-- ВКЛАДКИ -->
+        <div class="tabs-header">
+            <a href="/creator?tab=packs" class="tab-btn {% if active_tab == 'packs' %}active{% endif %}">
+                <span>📦 Торговые Паки</span>
+                <span class="tab-count">{{ packs|length }}</span>
+            </a>
+            <a href="/creator?tab=assets" class="tab-btn {% if active_tab == 'assets' %}active{% endif %}">
+                <span>🧩 Склад Ассетов</span>
+                <span class="tab-count">{{ assets|length }}</span>
+            </a>
+        </div>
+
+        <!-- ВКЛАДКА 1: ПАКИ -->
+        {% if active_tab == 'packs' %}
+            {% if packs %}
+            <div class="assets-grid">
+                {% for pack in packs %}
+                <div class="asset-card">
+                    <div class="asset-cover" style="background-image: url('{{ pack.cover_image_url or '/static/images/default_cover.jpg' }}');">
+                        <span class="badge type-badge">{{ pack.assets_count }} ассет(ов)</span>
+                        <span class="badge status-badge {{ 'pub' if pack.is_published else 'draft' }}">
+                            {{ 'На витрине' if pack.is_published else 'Черновик' }}
+                        </span>
+                    </div>
+                    <div class="asset-body">
+                        <h3>{{ pack.title }}</h3>
+                        <p class="asset-desc">{{ pack.description or 'Без описания' }}</p>
+                        <div class="asset-meta">
+                            <div>
+                                <span class="price-tag">{{ pack.market_price }} ₽</span>
+                                <span style="display: block; font-size: 0.75rem; color: var(--text-secondary);">Доход: {{ pack.price }} ₽</span>
+                            </div>
+                            <span class="license-tag">{{ 'Commercial' if pack.license_type == 'commercial' else 'Personal' }}</span>
+                        </div>
+                    </div>
+                    <div class="asset-actions">
+                        <a href="/creator/packs/{{ pack.id }}/edit" class="edit">Редактировать</a>
+                        <form action="/creator/packs/{{ pack.id }}/delete" method="POST" style="flex: 1; display: flex;" onsubmit="return confirm('Удалить пак? Ассеты останутся на складе.');">
+                            <button type="submit" class="delete" style="width: 100%;">Удалить</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align: center; margin-top: 4rem; color: var(--text-secondary);">
+                <p style="font-size: 1.1rem; margin-bottom: 1rem;">У вас пока нет скомпонованных паков.</p>
+                <a href="/creator/packs/new" class="btn-create" style="display: inline-block;">Собрать первый пак</a>
+            </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- ВКЛАДКА 2: АССЕТЫ -->
+        {% if active_tab == 'assets' %}
+            {% if assets %}
+            <div class="assets-grid">
+                {% for asset in assets %}
+                <div class="asset-card">
+                    <div class="asset-cover" style="background-image: url('{{ asset.cover_image_url or '/static/images/default_cover.jpg' }}');">
+                        <span class="badge type-badge">
+                            {% if asset.asset_type == 'map' %}🗺️ Карта
+                            {% elif asset.asset_type == 'monster' %}🐉 Монстр
+                            {% elif asset.asset_type == 'spell' %}✨ Заклинание
+                            {% elif asset.asset_type == 'music' %}🎵 Музыка
+                            {% else %}🛡️ Класс{% endif %}
+                        </span>
+                    </div>
+                    <div class="asset-body">
+                        <h3>{{ asset.title }}</h3>
+                        <p class="asset-desc">{{ asset.description or 'Без описания' }}</p>
+                        <div class="asset-meta">
+                            <span class="license-tag">{{ 'Commercial' if asset.license_type == 'commercial' else 'Personal' }}</span>
+                        </div>
+                    </div>
+                    <div class="asset-actions">
+                        <a href="/creator/assets/{{ asset.id }}/edit" class="edit">Редактировать</a>
+                        <form action="/creator/assets/{{ asset.id }}/delete" method="POST" style="flex: 1; display: flex;" onsubmit="return confirm('Удалить ассет?');">
+                            <button type="submit" class="delete" style="width: 100%;">Удалить</button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div style="text-align: center; margin-top: 4rem; color: var(--text-secondary);">
+                <p style="font-size: 1.1rem; margin-bottom: 1rem;">Ваш склад ассетов пуст.</p>
+                <a href="/creator/assets/new" class="btn-create" style="display: inline-block;">Создать первый ассет</a>
+            </div>
+            {% endif %}
+        {% endif %}
+
+    </div>
+</body>
+</html>
