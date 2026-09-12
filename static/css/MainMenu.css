@@ -38,21 +38,25 @@ body {
     display: flex; flex-direction: column;
 }
 .top-brand { margin-bottom: 2.5rem; display: flex; justify-content: space-between; align-items: center; }
+/* ===== LOGO ===== */
 .logo-title {
-    font-family: var(--font-serif);
-    font-size: 2rem;
-    color: var(--accent-gold);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    display: flex;
+    margin: 0;
+    padding: 0;
+    display: inline-flex;
     align-items: center;
+    line-height: 1;
 }
-/* стиль для изображения внутри логотипа */
+
+/* Стиль для изображения логотипа */
 .logo-title img {
-    height: 60px;        /* подгоняем под размер шрифта */
-    width: 200px;
+    height: 48px;           /* Оптимальная высота в шапке */
+    width: auto;            /* Автоматическая ширина сохраняет правильные пропорции */
+    max-width: 220px;       /* Ограничитель ширины */
+    object-fit: contain;    /* Картинка не деформируется и масштабируется плавно */
     display: block;
-    filter: brightness(1.1) drop-shadow(0 0 6px rgba(201, 169, 97, 0.3));
+    filter: brightness(1.08) drop-shadow(0 0 8px rgba(201, 169, 97, 0.25));
+    user-select: none;
+    -webkit-user-drag: none;
 }
 
 /* Mobile menu toggle (hidden on desktop) */
