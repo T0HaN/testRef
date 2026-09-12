@@ -6,6 +6,8 @@
     <title>Мои Герои | Folio</title>
     <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
     <link rel="stylesheet" href="/static/css/CharList1.css?v=2">
+    <!-- Стили встроенных диалогов Folio -->
+    <link rel="stylesheet" href="/static/css/folio_dialoges.css?v=2">
     <style>
         /* Стилизация и единое выравнивание SVG-иконок */
         .icon-svg {
@@ -206,8 +208,8 @@
                             <svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 20.5A2.5 2.5 0 0 1 16.5 23H4.5A2.5 2.5 0 0 1 2 20.5V4.5A2.5 2.5 0 0 1 4.5 2H16.5A2.5 2.5 0 0 1 19 4.5v16z"></path><path d="M19 5h2.5A2.5 2.5 0 0 1 24 7.5v11a2.5 2.5 0 0 1-2.5 2.5H19"></path><line x1="6" y1="7" x2="15" y2="7"></line><line x1="6" y1="12" x2="15" y2="12"></line></svg>
                             Просмотр
                         </a>
-                        <form method="POST" action="/char/{{ char.id }}/delete">
-                            <button type="submit" class="btn-delete" title="Удалить героя" onclick="return confirm('Вы уверены, что хотите навсегда удалить героя «{{ char.name }}»?')">
+                        <form method="POST" action="/char/{{ char.id }}/delete" onsubmit="deleteCharacter(event, '{{ char.name|escape }}')">
+                            <button type="submit" class="btn-delete" title="Удалить героя">
                                 <!-- Корзина -->
                                 <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                             </button>
@@ -278,6 +280,23 @@
     </aside>
 
     <!-- СКРИПТЫ -->
+    <script src="/static/js/folio_dialogs.js?v=2"></script>
     <script src="/static/js/CharList1.js"></script>
+    <script>
+        async function deleteCharacter(event, charName) {
+            event.preventDefault();
+            const form = event.target;
+
+            const confirmed = await confirmModal(
+                `Вы уверены, что хотите навсегда отправить в небытие героя <strong>«${charName}»</strong>? Это действие необратимо.`,
+                'Удаление героя',
+                true // флаг опасного действия (красная кнопка)
+            );
+
+            if (confirmed) {
+                form.submit();
+            }
+        }
+    </script>
 </body>
 </html>
