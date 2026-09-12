@@ -20,7 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 <input type="text" class="item-name" placeholder="Название (напр. Укус)" value="${escapeHtml(nameVal)}">
                 <textarea class="item-desc" rows="2" placeholder="Описание, модификаторы попадания и урон">${escapeHtml(descVal)}</textarea>
             </div>
-            <button type="button" class="btn-remove-row" title="Удалить">✕</button>
+            <button type="button" class="btn-remove-row" title="Удалить">
+                <svg class="icon-svg" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
         `;
         row.querySelector('.btn-remove-row').addEventListener('click', () => row.remove());
         targetContainer.appendChild(row);
@@ -36,7 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- 1. КАРТА ---
         map: () => `
             <div class="meta-block">
-                <h4 class="meta-title">🗺️ Параметры боевой карты (Battlemap)</h4>
+                <h4 class="meta-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg class="icon-svg" viewBox="0 0 24 24" style="width: 18px; height: 18px; color: var(--accent-gold);"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+                    Параметры боевой карты (Battlemap)
+                </h4>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Ширина сетки (клеток)</label>
@@ -55,19 +60,20 @@ document.addEventListener('DOMContentLoaded', () => {
         `,
 
         // --- 2. МОНСТР (STAT-BLOCK) ---
-        // --- 2. МОНСТР (STAT-BLOCK) ---
         monster: () => {
             const attrs = meta.attributes || {};
             return `
             <div class="meta-block">
-                <h4 class="meta-title">🐉 Лист монстра (Stat-block D&D 5e)</h4>
+                <h4 class="meta-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg class="icon-svg" viewBox="0 0 24 24" style="width: 18px; height: 18px; color: var(--accent-gold);"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" y1="19" x2="19" y2="13"></line><line x1="16" y1="16" x2="20" y2="20"></line><line x1="19" y1="21" x2="21" y2="19"></line><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"></polyline><line x1="5" y1="14" x2="9" y2="18"></line><line x1="7" y1="17" x2="4" y2="20"></line><line x1="3" y1="19" x2="5" y2="21"></line></svg>
+                    Лист монстра (Stat-block D&D 5e)
+                </h4>
 
                 <div class="form-group">
                     <label>Размер, тип и мировоззрение (мета-строка)</label>
                     <input type="text" id="meta_monster_meta" value="${meta.meta || ''}" placeholder="Средний гуманоид (любой расы), нейтральный">
                 </div>
 
-                <!-- Сетка боевых параметров (КД, ХП, Скорость, Опасность) -->
                 <div class="monster-combat-grid">
                     <div class="form-group">
                         <label>КД (Armor Class)</label>
@@ -91,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
 
-                <label style="margin-top: 1rem; margin-bottom: 0.4rem; display: block;">Характеристики и авто-модификаторы</label>
+                <label style="margin-top: 1rem; margin-bottom: 0.4rem; display: block;">Характеристики и модификаторы</label>
                 <div class="stats-grid">
                     ${['str', 'dex', 'con', 'int', 'wis', 'cha'].map(stat => {
                         const val = attrs[stat] ?? 10;
@@ -107,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).join('')}
                 </div>
 
-                <!-- Секции списков с кнопками над ними -->
                 <div class="dynamic-list-section">
                     <div class="section-title-row">
                         <label>Особенности и черты (Traits)</label>
@@ -148,11 +153,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             return `
             <div class="meta-block">
-                <h4 class="meta-title">✨ Свойства заклинания</h4>
+                <h4 class="meta-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg class="icon-svg" viewBox="0 0 24 24" style="width: 18px; height: 18px; color: var(--accent-gold);"><path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z"></path></svg>
+                    Свойства заклинания
+                </h4>
 
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Название (EN) <span class="hint-text">(для поиска по SRD)</span></label>
+                        <label>Название (EN)</label>
                         <input type="text" id="meta_spell_name_en" value="${meta.name_en || ''}" placeholder="Fireball">
                     </div>
                     <div class="form-group">
@@ -180,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="form-group">
                         <label>Дистанция</label>
-                        <input type="text" id="meta_spell_range" value="${meta.range || '150 футов'}" placeholder="На себя / 60 футов / Касание">
+                        <input type="text" id="meta_spell_range" value="${meta.range || '60 футов'}" placeholder="На себя / 60 футов / Касание">
                     </div>
                 </div>
 
@@ -208,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
 
                 <div class="form-group">
-                    <label>Источник (книга правил или модуль)</label>
+                    <label>Источник</label>
                     <input type="text" id="meta_spell_source" value="${meta.source || 'Player’s Handbook'}" placeholder="Player’s Handbook / Homebrew">
                 </div>
             </div>
@@ -218,7 +226,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- 4. КЛАСС ---
         class: () => `
             <div class="meta-block">
-                <h4 class="meta-title">🛡️ Параметры класса / архетипа</h4>
+                <h4 class="meta-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg class="icon-svg" viewBox="0 0 24 24" style="width: 18px; height: 18px; color: var(--accent-gold);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                    Параметры класса / архетипа
+                </h4>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Кость хитов (Hit Die)</label>
@@ -240,7 +251,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- 5. МУЗЫКА ---
         music: () => `
             <div class="meta-block">
-                <h4 class="meta-title">🎵 Аудио-дорожка и эмбиент</h4>
+                <h4 class="meta-title" style="display: flex; align-items: center; gap: 0.5rem;">
+                    <svg class="icon-svg" viewBox="0 0 24 24" style="width: 18px; height: 18px; color: var(--accent-gold);"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+                    Аудио-дорожка и эмбиент
+                </h4>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Тэги атмосферы (через запятую)</label>
@@ -268,7 +282,6 @@ document.addEventListener('DOMContentLoaded', () => {
             metaContainer.innerHTML = templates[selectedType]();
 
             if (selectedType === 'monster') {
-                // Вешаем слушатели на расчёт характеристик
                 ['str', 'dex', 'con', 'int', 'wis', 'cha'].forEach(s => {
                     const input = document.getElementById(`stat_${s}`);
                     const mod = document.getElementById(`mod_${s}`);
@@ -280,7 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 });
 
-                // Контейнеры и кнопки
                 const traitsContainer = document.getElementById('traits-container');
                 const actionsContainer = document.getElementById('actions-container');
                 const legActionsContainer = document.getElementById('leg-actions-container');
@@ -289,7 +301,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('add-action-btn').addEventListener('click', () => createDynamicRow(actionsContainer));
                 document.getElementById('add-leg-action-btn').addEventListener('click', () => createDynamicRow(legActionsContainer));
 
-                // Восстановление сохранённых черт при редактировании
                 if (Array.isArray(meta.traits)) {
                     meta.traits.forEach(t => createDynamicRow(traitsContainer, t.name, t.description));
                 }
@@ -331,7 +342,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 cha: parseInt(document.getElementById('stat_cha')?.value) || 10
             };
 
-            // Сбор динамических черт и действий
             const traits = [];
             document.querySelectorAll('#traits-container .dynamic-item-row').forEach(row => {
                 const name = row.querySelector('.item-name')?.value.trim();
