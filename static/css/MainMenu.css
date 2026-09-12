@@ -49,14 +49,12 @@ body {
 
 /* Стиль для изображения логотипа */
 .logo-title img {
-    height: 48px;           /* Оптимальная высота в шапке */
-    width: auto;            /* Автоматическая ширина сохраняет правильные пропорции */
-    max-width: 220px;       /* Ограничитель ширины */
-    object-fit: contain;    /* Картинка не деформируется и масштабируется плавно */
+    height: 56px;           /* Единая высота логотипа */
+    width: auto;            /* Авто-ширина сохраняет пропорции */
+    max-width: 260px;       /* Запас по ширине, чтобы картинка не сплющивалась */
+    object-fit: contain;
     display: block;
-    filter: brightness(1.08) drop-shadow(0 0 8px rgba(201, 169, 97, 0.25));
-    user-select: none;
-    -webkit-user-drag: none;
+    filter: brightness(1.1) drop-shadow(0 0 6px rgba(201, 169, 97, 0.3));
 }
 
 /* Mobile menu toggle (hidden on desktop) */
