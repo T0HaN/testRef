@@ -2,7 +2,8 @@ import json
 import time
 import asyncio
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict, Any
+from uuid import UUID
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
@@ -39,22 +40,80 @@ def cleanup_stale_players(room_id: str, timeout_seconds: int = 300):
     pass
 
 
+def get_prep_monsters_payload(user_id: int) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Загружает базовых монстров (SRD), доступные пользователю паки с монстрами
+    и полный список монстров, входящих в эти паки.
+    """
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # 1. Базовые монстры
+            cur.execute("""
+                SELECT 
+                    id, name, meta, armor_class, hit_points, hit_dice, speed, 
+                    attributes, challenge_rating, traits, actions, legendary_actions, 
+                    token_path AS token_image
+                FROM monsters 
+                ORDER BY name ASC
+            """)
+            base_monsters = cur.fetchall()
+
+            # 2. Доступные пользователю паки с монстрами (свои созданные + купленные)
+            cur.execute("""
+                SELECT DISTINCT p.id, p.title, COUNT(ma.id) AS monster_count
+                FROM packs p
+                JOIN pack_assets pa ON p.id = pa.pack_id
+                JOIN marketplace_assets ma ON pa.asset_id = ma.id
+                LEFT JOIN user_purchases up ON p.id = up.pack_id
+                WHERE ma.asset_type = 'monster'
+                  AND (p.author_id = %s OR up.user_id = %s)
+                GROUP BY p.id, p.title
+                ORDER BY p.title ASC
+            """, (user_id, user_id))
+            user_packs = cur.fetchall()
+
+            pack_monsters = []
+            if user_packs:
+                pack_ids = [str(p['id']) for p in user_packs]
+                # 3. Ассеты монстров из этих паков
+                cur.execute("""
+                    SELECT 
+                        ma.title AS name,
+                        cm.armor_class,
+                        cm.hit_points,
+                        cm.challenge_rating,
+                        cm.speed,
+                        cm.meta,
+                        cm.attributes,
+                        cm.traits,
+                        cm.actions,
+                        cm.legendary_actions,
+                        cm.token_url AS token_image,
+                        pa.pack_id
+                    FROM pack_assets pa
+                    JOIN marketplace_assets ma ON pa.asset_id = ma.id
+                    JOIN custom_monsters cm ON ma.id = cm.asset_id
+                    WHERE pa.pack_id = ANY(%s::uuid[])
+                """, (pack_ids,))
+                pack_monsters = cur.fetchall()
+
+    return {
+        "monsters": base_monsters,
+        "user_packs": user_packs,
+        "pack_monsters": pack_monsters
+    }
+
+
 @router.get("/games", response_class=HTMLResponse)
 async def games_dashboard(request: Request, current_user: dict = Depends(get_current_user)):
-    """
-    Единая панель кампаний.
-    Загружает списки игр, где пользователь является Мастером и где он Игрок.
-    """
     master_rooms = []
     player_rooms = []
 
-    # 🆕 Загружаем персонажей текущего пользователя для модалки входа
     chars = load_chars(current_user['username'])
 
     try:
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                # 1. Загружаем кампании, где я — Мастер
                 cur.execute("""
                     SELECT id, name, description, invite_code, max_players, active, created_at 
                     FROM rooms 
@@ -63,7 +122,6 @@ async def games_dashboard(request: Request, current_user: dict = Depends(get_cur
                 """, (current_user['id'],))
                 master_rooms = cur.fetchall()
 
-                # 2. Загружаем кампании, где я — Игрок (через связь many-to-many)
                 cur.execute("""
                     SELECT r.id, r.name, r.description, r.active, rp.char_name, rp.character_id, rp.joined_at
                     FROM rooms r
@@ -78,10 +136,8 @@ async def games_dashboard(request: Request, current_user: dict = Depends(get_cur
         import traceback
         traceback.print_exc()
 
-    # Получаем случайную цитату для футера
     quote_text = get_random_quote()
 
-    # Передаём данные в новый шаблон
     return templates.TemplateResponse(
         request=request,
         name="games.html",
@@ -136,12 +192,10 @@ async def delete_room(room_id: str, request: Request, current_user: dict = Depen
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # Проверяем, принадлежит ли комната текущему пользователю
             cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id_int, current_user['id']))
             if not cur.fetchone():
                 return RedirectResponse(url="/games?error=Комната не найдена или нет прав", status_code=303)
 
-            # Очищаем связи игроков и удаляем комнату
             cur.execute("DELETE FROM room_players WHERE room_id = %s", (room_id_int,))
             cur.execute("DELETE FROM rooms WHERE id = %s", (room_id_int,))
             conn.commit()
@@ -177,23 +231,20 @@ async def master_room(room_id: str, request: Request, current_user: dict = Depen
 
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # Проверяем права мастера через БД
             cur.execute("SELECT * FROM rooms WHERE id = %s AND master_id = %s", (room_id_int, current_user['id']))
             room = cur.fetchone()
 
             if not room:
                 return RedirectResponse(url="/games?error=Доступ запрещен", status_code=303)
 
-            # Достаем всех игроков из БД (теперь они не удаляются)
             cur.execute("""
-                            SELECT rp.user_id, rp.character_id AS char_id, rp.char_name, u.username
-                            FROM room_players rp
-                            JOIN users u ON rp.user_id = u.id
-                            WHERE rp.room_id = %s
-                        """, (room_id_int,))
+                SELECT rp.user_id, rp.character_id AS char_id, rp.char_name, u.username
+                FROM room_players rp
+                JOIN users u ON rp.user_id = u.id
+                WHERE rp.room_id = %s
+            """, (room_id_int,))
             current_players = cur.fetchall()
 
-            # 🆕 НОВОЕ: Достаем каталог пропсов для комнаты
             cur.execute("SELECT * FROM props ORDER BY category, name")
             props = cur.fetchall()
 
@@ -203,7 +254,6 @@ async def master_room(room_id: str, request: Request, current_user: dict = Depen
         char_id_int = p['char_id']
         user_id = p['user_id']
 
-        # Опрашиваем Redis: если ключ есть, значит игрок в сети
         is_online = False
         if utils.redis_client:
             redis_status = await utils.redis_client.get(f"user:{user_id}:online")
@@ -224,11 +274,9 @@ async def master_room(room_id: str, request: Request, current_user: dict = Depen
                 'is_online': is_online
             })
 
-    # Извлечение данных из Redis
     ws_room = await get_redis_room_state(str(room_id_int))
     selected_monsters = ws_room.get('selected_monsters', [])
 
-    # SSR: История чата
     chat_history = []
     if utils.redis_client:
         raw_history = await utils.redis_client.lrange(f"room:{room_id_int}:chat_log", -30, -1)
@@ -243,7 +291,7 @@ async def master_room(room_id: str, request: Request, current_user: dict = Depen
         "room": room,
         "players": players_data,
         "selected_monsters": selected_monsters,
-        "props": props,  # 🆕 НОВОЕ: Передаем пропсы в шаблон
+        "props": props,
         "username": current_user['username'],
         "chat_history": chat_history,
         "error": None,
@@ -260,7 +308,6 @@ async def master_view_character(
         current_user: dict = Depends(get_current_user)
 ):
     try:
-        # Проверяем, что текущий пользователь — мастер этой комнаты
         with get_db_connection() as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id, current_user['id']))
@@ -274,7 +321,7 @@ async def master_view_character(
         char = next((c for c in user_chars if str(c.get('id')) == str(char_id)), None)
 
         if not char:
-            return HTMLResponse(f"Персонаж не найден", status_code=404)
+            return HTMLResponse("Персонаж не найден", status_code=404)
 
         char = normalize_char(char)
         char['features'] = get_class_features(
@@ -310,12 +357,11 @@ async def master_view_character(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        return HTMLResponse(f"Ошибка сервера", status_code=500)
+        return HTMLResponse("Ошибка сервера", status_code=500)
 
 
 @router.get("/master/room/{room_id}/events")
 async def master_room_events(room_id: str, request: Request, current_user: dict = Depends(get_current_user)):
-    """SSE endpoint для мастера"""
     try:
         room_id_int = int(room_id)
     except (ValueError, TypeError):
@@ -386,7 +432,6 @@ async def save_roll_history(
         **roll.dict()
     }
 
-    # Сохраняем в Redis историю бросков
     if utils.redis_client:
         await utils.redis_client.lpush(f"room:{room_id_int}:rolls", json.dumps(roll_entry))
         await utils.redis_client.ltrim(f"room:{room_id_int}:rolls", 0, 99)
@@ -397,7 +442,6 @@ async def save_roll_history(
 
 @router.get("/master/room/{room_id}/rewards", response_class=HTMLResponse)
 async def master_rewards_page(room_id: str, request: Request, current_user: dict = Depends(get_current_user)):
-    """Отдельная страница наград"""
     try:
         room_id_int = int(room_id)
     except (ValueError, TypeError):
@@ -411,11 +455,11 @@ async def master_rewards_page(room_id: str, request: Request, current_user: dict
                 return RedirectResponse(url="/games", status_code=303)
 
             cur.execute("""
-                            SELECT rp.user_id, rp.character_id AS char_id, rp.char_name, u.username
-                            FROM room_players rp
-                            JOIN users u ON rp.user_id = u.id
-                            WHERE rp.room_id = %s
-                        """, (room_id_int,))
+                SELECT rp.user_id, rp.character_id AS char_id, rp.char_name, u.username
+                FROM room_players rp
+                JOIN users u ON rp.user_id = u.id
+                WHERE rp.room_id = %s
+            """, (room_id_int,))
             current_players = cur.fetchall()
 
     players_data = []
@@ -445,7 +489,6 @@ async def master_reward(
         reward: RewardRequest,
         current_user: dict = Depends(get_current_user)
 ):
-    """Выдача наград"""
     try:
         room_id_int = int(room_id)
     except (ValueError, TypeError):
@@ -459,11 +502,11 @@ async def master_reward(
                 return {"status": "error", "error": "Комната не найдена"}
 
             cur.execute("""
-                            SELECT rp.user_id, rp.character_id AS char_id, rp.char_name, u.username
-                            FROM room_players rp
-                            JOIN users u ON rp.user_id = u.id
-                            WHERE rp.room_id = %s
-                        """, (room_id_int,))
+                SELECT rp.user_id, rp.character_id AS char_id, rp.char_name, u.username
+                FROM room_players rp
+                JOIN users u ON rp.user_id = u.id
+                WHERE rp.room_id = %s
+            """, (room_id_int,))
             current_players = cur.fetchall()
 
     targets = []
@@ -526,40 +569,39 @@ async def master_reward(
     }
 
 
-@router.get("/master/prep/{room_id}")
-async def master_prep(room_id: str, request: Request, current_user: dict = Depends(get_current_user)):
-    try:
-        room_id_int = int(room_id)
-    except (ValueError, TypeError):
-        return RedirectResponse(url="/games", status_code=303)
+# === ПОДГОТОВКА К ИГРЕ (БЕСТИАРИЙ, МОДУЛИ И ПАКИ) ===
 
+@router.get("/master/prep/{room_id}", response_class=HTMLResponse)
+async def monster_prep_page(
+    room_id: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Страница подготовки сущностей бестиария к игровой сессии."""
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id_int, current_user['id']))
+            cur.execute("SELECT id FROM rooms WHERE id::text = %s AND master_id = %s", (str(room_id), current_user['id']))
             if not cur.fetchone():
-                return RedirectResponse(url="/games", status_code=303)
+                return RedirectResponse(url="/games?error=Доступ запрещен", status_code=303)
 
-    monsters = get_all_monsters()
-    quote_text = get_random_quote()
+    prep_data = get_prep_monsters_payload(user_id=current_user["id"])
 
-    return templates.TemplateResponse(request, "master_prep.html", context={
-        "monsters": monsters,
-        "room_id": room_id,
-        "quote_text": quote_text
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name="master/monster_prep.html",
+        context={
+            "room_id": str(room_id),
+            "user": current_user,
+            **prep_data
+        }
+    )
 
 
 @router.post("/master/prep/{room_id}/save")
 async def save_monster_prep(room_id: str, request: Request, current_user: dict = Depends(get_current_user)):
-    try:
-        room_id_int = int(room_id)
-        room_id_str = str(room_id_int)
-    except (ValueError, TypeError):
-        return JSONResponse(status_code=400, content={"error": "Invalid room_id"})
-
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id_int, current_user['id']))
+            cur.execute("SELECT id FROM rooms WHERE id::text = %s AND master_id = %s", (str(room_id), current_user['id']))
             if not cur.fetchone():
                 return JSONResponse(status_code=403, content={"error": "Access denied"})
 
@@ -574,9 +616,9 @@ async def save_monster_prep(room_id: str, request: Request, current_user: dict =
 
         selected_monsters = json.loads(monsters_json) if monsters_json else []
 
-        room = await get_redis_room_state(room_id_str)
+        room = await get_redis_room_state(str(room_id))
         room['selected_monsters'] = selected_monsters
-        await save_redis_room_state(room_id_str, room)
+        await save_redis_room_state(str(room_id), room)
 
         return RedirectResponse(url=f"/master/room/{room_id}", status_code=303)
     except Exception as e:
@@ -699,7 +741,6 @@ async def api_delete_scene(room_id: int, scene_id: int, current_user: dict = Dep
 
 @router.get("/media/{path:path}")
 async def get_media_from_s3(path: str):
-    """Проксируем картинки из внутреннего MinIO наружу"""
     try:
         response = utils.s3_client.get_object(Bucket=utils.settings.S3_BUCKET, Key=path)
 
@@ -713,8 +754,6 @@ async def get_media_from_s3(path: str):
         raise HTTPException(status_code=404, detail="Image not found")
 
 
-# 🆕 НОВОЕ: Эндпоинт для загрузки новых пропсов в MinIO и базу данных
-# 🆕 ИСПРАВЛЕНО: Эндпоинт для загрузки новых пропсов в MinIO и базу данных
 @router.post("/api/props/upload")
 async def api_upload_prop(
         name: str = Form(...),
@@ -724,10 +763,8 @@ async def api_upload_prop(
         current_user: dict = Depends(get_current_user)
 ):
     try:
-        # 1. Загружаем картинку в S3
         image_url = await upload_image_to_s3(file, prefix="props")
 
-        # 2. Сохраняем в таблицу
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
@@ -737,7 +774,6 @@ async def api_upload_prop(
                 new_prop = cur.fetchone()
                 conn.commit()
 
-        # Конвертируем datetime в строку, чтобы JSONResponse не ругался
         if new_prop and 'created_at' in new_prop and new_prop['created_at']:
             new_prop['created_at'] = new_prop['created_at'].isoformat()
 
@@ -745,16 +781,15 @@ async def api_upload_prop(
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "error", "message": str(e)})
 
-# === Монстры ===
+
+# === МОНСТРЫ ===
 
 @router.get("/monsters/new")
 async def new_monster_form(request: Request, room_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    """Страница добавления нового монстра."""
     return templates.TemplateResponse(request, "add_monster.html", {"request": request, "room_id": room_id})
 
 
 def _parse_list_field(value: str) -> list:
-    """Разбирает текстовое поле списка: принимает JSON-массив или список по строкам."""
     if not value or not value.strip():
         return []
     try:
@@ -789,19 +824,15 @@ async def create_monster(
     room_id: Optional[str] = Form(None),
     current_user: dict = Depends(get_current_user)
 ):
-    """Обработка формы добавления монстра."""
     try:
-        # 1. Загружаем изображение в S3 (MinIO)
         token_path = await upload_image_to_s3(token_image, prefix="monsters")
 
-        # 2. Собираем атрибуты и списки из простых полей формы
         attrs = {"STR": attr_str, "DEX": attr_dex, "CON": attr_con,
                  "INT": attr_int, "WIS": attr_wis, "CHA": attr_cha}
         traits_list = _parse_list_field(traits)
         actions_list = _parse_list_field(actions)
         leg_actions_list = _parse_list_field(legendary_actions)
 
-        # 3. Сохраняем в БД
         with get_db_connection() as conn:
             with conn.cursor(cursor_factory=RealDictCursor) as cur:
                 cur.execute("""
@@ -809,10 +840,8 @@ async def create_monster(
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                 """, (name, meta, armor_class, hit_points, hit_dice, speed, json.dumps(attrs), challenge_rating, json.dumps(traits_list), json.dumps(actions_list), json.dumps(leg_actions_list), token_path))
-                new_id = cur.fetchone()['id']
                 conn.commit()
 
-        # 4. Редирект
         if room_id:
             return RedirectResponse(url=f"/master/prep/{room_id}", status_code=303)
         else:

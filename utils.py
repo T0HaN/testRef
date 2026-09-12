@@ -1383,3 +1383,61 @@ def get_spells_for_class(char_class: str, char_level: int, known_spells: Optiona
     known_spells_data = [s for s in available_spells if s['name_ru'] in known_spells]
 
     return available_spells, known_spells_data, is_prepared
+
+
+
+def get_prep_monsters_payload(user_id: int) -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Загружает базовых монстров (SRD), доступные пользователю паки с монстрами
+    и полный список кастомных монстров, входящих в эти паки.
+    """
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            # 1. Базовые монстры
+            cur.execute("SELECT * FROM default_monsters ORDER BY name ASC")
+            base_monsters = cur.fetchall()
+
+            # 2. Доступные пользователю паки с монстрами (свои + купленные)
+            cur.execute("""
+                SELECT DISTINCT p.id, p.title, COUNT(ma.id) AS monster_count
+                FROM packs p
+                JOIN pack_assets pa ON p.id = pa.pack_id
+                JOIN marketplace_assets ma ON pa.asset_id = ma.id
+                LEFT JOIN user_purchases up ON p.id = up.pack_id
+                WHERE ma.asset_type = 'monster'
+                  AND (p.author_id = %s OR up.user_id = %s)
+                GROUP BY p.id, p.title
+                ORDER BY p.title ASC
+            """, (user_id, user_id))
+            user_packs = cur.fetchall()
+
+            pack_monsters = []
+            if user_packs:
+                pack_ids = [str(p['id']) for p in user_packs]
+                # 3. Ассеты монстров из этих паков
+                cur.execute("""
+                    SELECT 
+                        ma.title AS name,
+                        cm.armor_class,
+                        cm.hit_points,
+                        cm.challenge_rating,
+                        cm.speed,
+                        cm.meta,
+                        cm.attributes,
+                        cm.traits,
+                        cm.actions,
+                        cm.legendary_actions,
+                        cm.token_url AS token_image,
+                        pa.pack_id
+                    FROM pack_assets pa
+                    JOIN marketplace_assets ma ON pa.asset_id = ma.id
+                    JOIN custom_monsters cm ON ma.id = cm.asset_id
+                    WHERE pa.pack_id = ANY(%s::uuid[])
+                """, (pack_ids,))
+                pack_monsters = cur.fetchall()
+
+    return {
+        "monsters": base_monsters,
+        "user_packs": user_packs,
+        "pack_monsters": pack_monsters
+    }
