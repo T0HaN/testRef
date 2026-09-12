@@ -6,6 +6,61 @@
     <title>Мои кампании | Folio</title>
     <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
     <link rel="stylesheet" href="/static/css/games.css?v=2">
+    <style>
+        /* Базовые стили для аккуратного выравнивания SVG-иконок */
+        .icon-svg {
+            display: inline-block;
+            vertical-align: middle;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        .header-actions .btn .icon-svg {
+            width: 18px;
+            height: 18px;
+            margin-right: 0.4rem;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title .icon-svg {
+            width: 22px;
+            height: 22px;
+            color: var(--accent-gold);
+        }
+
+        .empty-state .empty-icon .icon-svg {
+            width: 46px;
+            height: 46px;
+            color: var(--accent-gold);
+            opacity: 0.85;
+        }
+
+        .btn-card .icon-svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .user-avatar .icon-svg {
+            width: 26px;
+            height: 26px;
+            color: var(--accent-gold);
+        }
+
+        .nav-item .icon-svg {
+            width: 18px;
+            height: 18px;
+            margin-right: 0.5rem;
+        }
+    </style>
 </head>
 <body>
 
@@ -16,7 +71,13 @@
             <h1 class="logo-title">
                 <img src="/static/images/Folio.png" alt="Folio" />
             </h1>
-            <button class="mobile-menu-btn" id="menu-toggle">☰</button>
+            <button class="mobile-menu-btn" id="menu-toggle" aria-label="Открыть меню">
+                <svg class="icon-svg" viewBox="0 0 24 24" width="24" height="24">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
         </div>
 
         <!-- АЛЕРТЫ ОШИБОК И УСПЕХА -->
@@ -34,13 +95,25 @@
                 <p class="page-subtitle">Управляйте мирами, которые вы создали, и приключениями, в которых участвуете.</p>
             </header>
             <div class="header-actions">
-                <button class="btn btn-outline" onclick="openModal('modal-join')">🚪 Присоединиться</button>
-                <button class="btn btn-primary" onclick="openModal('modal-create')">📜 Создать игру</button>
+                <button class="btn btn-outline" onclick="openModal('modal-join')">
+                    <!-- Дверь / Портал -->
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M18 20V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"></path><path d="M2 20h20"></path><circle cx="14" cy="12" r="1"></circle></svg>
+                    Присоединиться
+                </button>
+                <button class="btn btn-primary" onclick="openModal('modal-create')">
+                    <!-- Свиток -->
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 20.5A2.5 2.5 0 0 1 16.5 23H4.5A2.5 2.5 0 0 1 2 20.5V4.5A2.5 2.5 0 0 1 4.5 2H16.5A2.5 2.5 0 0 1 19 4.5v16z"></path><path d="M19 5h2.5A2.5 2.5 0 0 1 24 7.5v11a2.5 2.5 0 0 1-2.5 2.5H19"></path><line x1="6" y1="7" x2="15" y2="7"></line><line x1="6" y1="12" x2="15" y2="12"></line></svg>
+                    Создать игру
+                </button>
             </div>
         </div>
 
         <!-- СЕКЦИЯ 1: МАСТЕР (Где я веду) -->
-        <h3 class="section-title">👑 Игры, которые я веду</h3>
+        <h3 class="section-title">
+            <!-- Корона -->
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14v2H5v-2z"></path></svg>
+            Игры, которые я веду
+        </h3>
         <div class="games-grid">
             {% if master_rooms %}
                 {% for room in master_rooms %}
@@ -61,20 +134,30 @@
                     </div>
                     <div class="card-actions">
                         <a href="/master/room/{{ room.id }}" class="btn-card enter">Войти как Мастер</a>
-                        <a href="/master/prep/{{ room.id }}" class="btn-card">⚙️</a>
+                        <a href="/master/prep/{{ room.id }}" class="btn-card" title="Подготовка к игре">
+                            <!-- Шестеренка -->
+                            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="empty-state">
-                    <div class="empty-icon">🗺️</div>
+                    <div class="empty-icon">
+                        <!-- Карта -->
+                        <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+                    </div>
                     <p>У вас пока нет созданных миров.</p>
                 </div>
             {% endif %}
         </div>
 
         <!-- СЕКЦИЯ 2: ИГРОК (Где я играю) -->
-        <h3 class="section-title">⚔️ Игры, в которых я участвую</h3>
+        <h3 class="section-title">
+            <!-- Скрещенные мечи -->
+            <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" y1="19" x2="19" y2="13"></line><line x1="16" y1="16" x2="20" y2="20"></line><line x1="19" y1="21" x2="21" y2="19"></line><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"></polyline><line x1="5" y1="14" x2="9" y2="18"></line><line x1="7" y1="17" x2="4" y2="20"></line><line x1="3" y1="19" x2="5" y2="21"></line></svg>
+            Игры, в которых я участвую
+        </h3>
         <div class="games-grid">
             {% if player_rooms %}
                 {% for room in player_rooms %}
@@ -94,15 +177,20 @@
                         </div>
                     </div>
                     <div class="card-actions">
-                        <!-- 🆕 Исправлен путь на /player/room/ -->
                         <a href="/player/room/{{ room.id }}" class="btn-card enter">Войти в игру</a>
-                        <a href="#" class="btn-card" title="Покинуть группу" style="flex: 0.3; color: var(--accent-red);">🚪</a>
+                        <a href="#" class="btn-card" title="Покинуть группу" style="flex: 0.3; color: var(--accent-red); display: flex; align-items: center; justify-content: center;">
+                            <!-- Выход / Логаут -->
+                            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                        </a>
                     </div>
                 </div>
                 {% endfor %}
             {% else %}
                 <div class="empty-state">
-                    <div class="empty-icon">🏕️</div>
+                    <div class="empty-icon">
+                        <!-- Костер / Лагерь -->
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2c1 3 4 6 4 9a6 6 0 0 1-12 0c0-3 3-6 4-9z"></path><line x1="4" y1="21" x2="20" y2="21"></line><line x1="5" y1="19" x2="19" y2="19"></line></svg>
+                    </div>
                     <p>Вы пока не присоединились ни к одной кампании.</p>
                 </div>
             {% endif %}
@@ -114,7 +202,10 @@
     <aside class="sidebar" id="sidebar">
         <!-- ПРОФИЛЬ -->
         <div class="user-profile">
-            <div class="user-avatar">🎭</div>
+            <div class="user-avatar">
+                <!-- Театральная маска -->
+                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+            </div>
             <div class="user-info">
                 <a href="/profile" class="user-name">{{ username }}</a>
                 <a href="/logout" class="user-logout">Покинуть таверну</a>
@@ -123,25 +214,29 @@
 
         <nav class="nav-menu">
             <a href="/dashboard" class="nav-item">
-                <span class="nav-icon">🧭</span>
+                <!-- Компас -->
+                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
                 <span>Сводка</span>
             </a>
             <a href="/chars" class="nav-item">
-                <span class="nav-icon">🛡️</span>
+                <!-- Щит -->
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                 <span>Мои персонажи</span>
             </a>
-            <!-- Внимание! Эта вкладка теперь активна и ведет на /games -->
             <a href="/games" class="nav-item active">
-                <span class="nav-icon">🗺️</span>
+                <!-- Карта -->
+                <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
                 <span>Мои игры</span>
             </a>
-            <a href="#" class="nav-item" style="opacity: 0.5; pointer-events: none;">
-                <span class="nav-icon">⚒️</span>
-                <span>Кузня (Скоро)</span>
+            <a href="/creator" class="nav-item">
+                <!-- Наковальня и молот -->
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                <span>Кузня Творца</span>
             </a>
-            <a href="#" class="nav-item" style="opacity: 0.5; pointer-events: none;">
-                <span class="nav-icon">💎</span>
-                <span>Лавка (Скоро)</span>
+            <a href="/market" class="nav-item">
+                <!-- Драгоценный камень -->
+                <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="6 3 18 3 22 9 12 22 2 9"></polygon><polyline points="12 22 7 9 2 9"></polyline><polyline points="12 22 17 9 22 9"></polyline><polyline points="6 3 7 9 17 9 18 3"></polyline></svg>
+                <span>Лавка древностей</span>
             </a>
         </nav>
     </aside>
@@ -158,7 +253,6 @@
                     <label for="invite_code">Код приглашения</label>
                     <input type="text" id="invite_code" name="invite_code" placeholder="Например: aB3xY9" required autocomplete="off">
                 </div>
-                <!-- 🆕 ВЫБОР ПЕРСОНАЖА -->
                 <div class="form-group">
                     <label for="char_id">Ваш герой</label>
                     <select id="char_id" name="char_id" required>
@@ -180,7 +274,6 @@
         <div class="modal-content">
             <button class="modal-close" onclick="closeModal('modal-create')">×</button>
             <h3 class="modal-title">Создать новую игру</h3>
-            <!-- 🆕 ИСПРАВЛЕН ПУТЬ -->
             <form action="/master/room/create" method="POST">
                 <div class="form-group">
                     <label for="room_name">Название кампании</label>
