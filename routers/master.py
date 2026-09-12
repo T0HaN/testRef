@@ -588,7 +588,7 @@ async def monster_prep_page(
 
     return templates.TemplateResponse(
         request=request,
-        name="master/master_prep.html",
+        name="master_prep.html",
         context={
             "room_id": str(room_id),
             "user": current_user,
