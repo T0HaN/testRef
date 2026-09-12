@@ -7,16 +7,91 @@
     <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
     <link rel="stylesheet" href="/static/css/login.css?v=2">
     <link rel="stylesheet" href="/static/css/creator.css?v=2">
+    <style>
+        .icon-svg {
+            display: inline-block;
+            vertical-align: middle;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        .realm-title .icon-svg {
+            width: 26px;
+            height: 26px;
+            color: var(--accent-gold);
+            margin-right: 0.5rem;
+        }
+
+        .form-group label {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            min-height: 1.4rem;
+        }
+
+        .form-group label .icon-svg {
+            width: 15px;
+            height: 15px;
+            color: var(--accent-gold);
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Выпадающие списки */
+        select {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-color: var(--bg-secondary, #141418);
+            border: 1px solid var(--border-color, #3a352a);
+            color: var(--text-primary, #e0d4b8);
+            padding: 0.65rem 2.2rem 0.65rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c9a961' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+            background-repeat: no-repeat;
+            background-position: right 0.8rem center;
+            background-size: 14px;
+            transition: border-color 0.2s ease;
+            width: 100%;
+        }
+
+        select:focus {
+            border-color: var(--accent-gold, #c9a961);
+        }
+
+        select option {
+            background-color: #1a1a22 !important;
+            color: #e0d4b8 !important;
+        }
+    </style>
 </head>
 <body>
     <div class="login-container form-container">
         <header class="header">
-            <h1 class="realm-title">{{ 'Правка ассета' if is_edit else 'Сотворение ассета' }}</h1>
+            <h1 class="realm-title">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                {{ 'Правка ассета' if is_edit else 'Сотворение ассета' }}
+            </h1>
             <p class="subtitle">Создание строительного блока для вашей мастерской и паков</p>
         </header>
 
         <form method="post" enctype="multipart/form-data" id="asset-form">
-            <!-- Скрытые поля для передачи типа при редактировании и сериализованных параметров -->
             <input type="hidden" name="metadata_json" id="metadata_json" value="{{ asset.metadata | tojson if is_edit else '{}' }}">
             {% if is_edit %}
             <input type="hidden" name="asset_type" value="{{ asset.asset_type }}">
@@ -24,7 +99,10 @@
 
             <!-- БАЗОВЫЕ ПОЛЯ -->
             <div class="form-group">
-                <label for="title">Название ассета <span class="req-star">*</span></label>
+                <label for="title">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M19 20.5A2.5 2.5 0 0 1 16.5 23H4.5A2.5 2.5 0 0 1 2 20.5V4.5A2.5 2.5 0 0 1 4.5 2H16.5A2.5 2.5 0 0 1 19 4.5v16z"></path><path d="M19 5h2.5A2.5 2.5 0 0 1 24 7.5v11a2.5 2.5 0 0 1-2.5 2.5H19"></path><line x1="6" y1="7" x2="15" y2="7"></line><line x1="6" y1="12" x2="15" y2="12"></line></svg>
+                    Название ассета <span class="req-star">*</span>
+                </label>
                 <input
                     type="text"
                     id="title"
@@ -37,18 +115,24 @@
 
             <div class="form-row">
                 <div class="form-group">
-                    <label for="asset_type">Тип ассета</label>
+                    <label for="asset_type">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline><line x1="13" y1="19" x2="19" y2="13"></line><line x1="16" y1="16" x2="20" y2="20"></line><line x1="19" y1="21" x2="21" y2="19"></line><polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"></polyline><line x1="5" y1="14" x2="9" y2="18"></line><line x1="7" y1="17" x2="4" y2="20"></line><line x1="3" y1="19" x2="5" y2="21"></line></svg>
+                        Тип ассета
+                    </label>
                     <select id="asset_type" name="asset_type" {% if is_edit %}disabled{% endif %}>
-                        <option value="map" {% if is_edit and asset.asset_type == 'map' %}selected{% endif %}>🗺️ Карта (Battlemap)</option>
-                        <option value="monster" {% if is_edit and asset.asset_type == 'monster' %}selected{% endif %}>🐉 Бестиарий (Монстр)</option>
-                        <option value="spell" {% if is_edit and asset.asset_type == 'spell' %}selected{% endif %}>✨ Заклинание</option>
-                        <option value="class" {% if is_edit and asset.asset_type == 'class' %}selected{% endif %}>🛡️ Класс / Архетип</option>
-                        <option value="music" {% if is_edit and asset.asset_type == 'music' %}selected{% endif %}>🎵 Саундтрек / Эмбиент</option>
+                        <option value="map" {% if is_edit and asset.asset_type == 'map' %}selected{% endif %}>Карта (Battlemap)</option>
+                        <option value="monster" {% if is_edit and asset.asset_type == 'monster' %}selected{% endif %}>Бестиарий (Монстр)</option>
+                        <option value="spell" {% if is_edit and asset.asset_type == 'spell' %}selected{% endif %}>Заклинание</option>
+                        <option value="class" {% if is_edit and asset.asset_type == 'class' %}selected{% endif %}>Класс / Архетип</option>
+                        <option value="music" {% if is_edit and asset.asset_type == 'music' %}selected{% endif %}>Саундтрек / Эмбиент</option>
                     </select>
                 </div>
 
                 <div class="form-group">
-                    <label for="license_type">Лицензия по умолчанию</label>
+                    <label for="license_type">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>
+                        Лицензия по умолчанию
+                    </label>
                     <select id="license_type" name="license_type">
                         <option value="personal" {% if is_edit and asset.license_type == 'personal' %}selected{% endif %}>Личное использование (Personal)</option>
                         <option value="commercial" {% if is_edit and asset.license_type == 'commercial' %}selected{% endif %}>Коммерческая (Commercial)</option>
@@ -57,12 +141,18 @@
             </div>
 
             <div class="form-group">
-                <label for="description">Описание и заметки</label>
+                <label for="description">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+                    Описание и заметки
+                </label>
                 <textarea id="description" name="description" rows="3" placeholder="Краткая аннотация, заметки мастера или предыстория...">{{ asset.description if is_edit else '' }}</textarea>
             </div>
 
             <div class="form-group">
-                <label for="cover_image">Обложка / Превью ассета</label>
+                <label for="cover_image">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    Обложка / Превью ассета
+                </label>
                 <input type="file" id="cover_image" name="cover_image" accept="image/*">
                 {% if is_edit and asset.cover_image_url %}
                 <small class="current-file-hint">Текущая обложка сохранена. Выберите новый файл только если хотите заменить её.</small>
@@ -72,9 +162,7 @@
             <div class="ornament">❖ ❖ ❖</div>
 
             <!-- ДИНАМИЧЕСКИЙ БЛОК ПАРАМЕТРОВ КОНТЕНТА -->
-            <div id="dynamic-metadata-container">
-                <!-- Контент генерируется /static/js/creator.js -->
-            </div>
+            <div id="dynamic-metadata-container"></div>
 
             <div class="btn-row">
                 <button type="submit" id="save-btn">Сохранить ассет</button>
@@ -82,7 +170,7 @@
         </form>
 
         <div class="toggle-mode">
-            <a href="/creator/assets">← Назад к списку ассетов</a>
+            <a href="/creator?tab=assets">← Назад к списку ассетов</a>
         </div>
     </div>
 
