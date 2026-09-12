@@ -48,23 +48,59 @@
             flex-wrap: wrap;
         }
 
+        /* КОНТЕЙНЕР ИНПУТА С ВСТРОЕННОЙ КНОПКОЙ */
+        .search-box {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            min-width: 280px;
+        }
+
         .search-input {
+            width: 100%;
             background: var(--bg-secondary, #141418);
             border: 1px solid var(--border-color, #3a352a);
             color: var(--text-primary, #e0d4b8);
-            padding: 0.6rem 1rem;
+            padding: 0.6rem 2.6rem 0.6rem 1rem;
             border-radius: 6px;
             font-size: 0.9rem;
-            min-width: 260px;
             outline: none;
-            transition: border-color 0.2s ease;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .search-input:focus {
             border-color: var(--accent-gold, #c9a961);
+            box-shadow: 0 0 0 1px rgba(201, 169, 97, 0.2);
         }
 
-        /* --- ИСПРАВЛЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ЛИЦЕНЗИЙ --- */
+        .search-inline-btn {
+            position: absolute;
+            right: 0.35rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: var(--text-secondary, #a89f8a);
+            padding: 0.4rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s ease, background 0.2s ease;
+        }
+
+        .search-inline-btn:hover {
+            color: var(--accent-gold, #c9a961);
+            background: rgba(201, 169, 97, 0.1);
+        }
+
+        .search-inline-btn .icon-svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* ВЫПАДАЮЩИЙ СПИСОК ЛИЦЕНЗИЙ */
         .filter-select {
             background: var(--bg-secondary, #141418);
             border: 1px solid var(--border-color, #3a352a);
@@ -77,7 +113,6 @@
             appearance: none;
             -webkit-appearance: none;
             -moz-appearance: none;
-            /* Кастомная золотистая стрелка вниз */
             background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23c9a961' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
             background-repeat: no-repeat;
             background-position: right 0.8rem center;
@@ -89,7 +124,6 @@
             border-color: var(--accent-gold, #c9a961);
         }
 
-        /* Принудительный тёмный фон и читаемый цвет для всех option */
         .filter-select option {
             background-color: #1a1a22 !important;
             color: #e0d4b8 !important;
@@ -120,7 +154,6 @@
         <div class="market-header-actions">
             <div>
                 <h1 class="realm-title" style="margin-bottom: 0.25rem; text-align: left; display: flex; align-items: center;">
-                    <!-- Драгоценный камень -->
                     <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="6 3 18 3 22 9 12 22 2 9"></polygon><polyline points="12 22 7 9 2 9"></polyline><polyline points="12 22 17 9 22 9"></polyline><polyline points="6 3 7 9 17 9 18 3"></polyline></svg>
                     Лавка древностей
                 </h1>
@@ -128,7 +161,6 @@
             </div>
             <div style="display: flex; gap: 0.75rem;">
                 <a href="/creator" class="btn-action" style="padding: 0.6rem 1.2rem; border: 1px solid var(--border-color); border-radius: 6px; text-decoration: none; color: var(--text-primary); display: inline-flex; align-items: center;">
-                    <!-- Наковальня и молот -->
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
                     Моя мастерская
                 </a>
@@ -140,23 +172,25 @@
 
         <!-- ПОИСК И ФИЛЬТРЫ -->
         <form method="GET" action="/market" class="market-filters" style="margin-bottom: 2rem;">
-            <input
-                type="text"
-                name="q"
-                class="search-input"
-                placeholder="Поиск паков..."
-                value="{{ search_query }}"
-            >
-            <select name="license_type" class="filter-select">
+            <div class="search-box">
+                <input
+                    type="text"
+                    name="q"
+                    class="search-input"
+                    placeholder="Поиск паков..."
+                    value="{{ search_query }}"
+                >
+                <button type="submit" class="search-inline-btn" title="Найти">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+
+            <select name="license_type" class="filter-select" onchange="this.form.submit()">
                 <option value="all" {% if selected_license == 'all' %}selected{% endif %}>Все лицензии</option>
                 <option value="personal" {% if selected_license == 'personal' %}selected{% endif %}>Личная (Personal)</option>
                 <option value="commercial" {% if selected_license == 'commercial' %}selected{% endif %}>Коммерческая (Commercial)</option>
             </select>
-            <button type="submit" class="btn-action highlight" style="padding: 0.6rem 1.2rem; cursor: pointer; border: none; border-radius: 6px; display: inline-flex; align-items: center;">
-                <!-- Лупа -->
-                <svg class="icon-svg" viewBox="0 0 24 24" style="width: 15px; height: 15px; margin-right: 0.4rem;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                Найти
-            </button>
+
             {% if search_query or selected_license != 'all' %}
             <a href="/market" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem; margin-left: 0.3rem;">Сбросить</a>
             {% endif %}
