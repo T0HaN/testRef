@@ -104,3 +104,58 @@
     justify-content: flex-end;
     gap: 0.6rem;
 }
+
+/* --- КНОПКИ ДИАЛОГОВ FOLIO --- */
+.folio-dialog-actions .vtt-btn {
+    font-family: var(--font-ui, 'Inter', sans-serif);
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 0.55rem 1.2rem;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    outline: none;
+    letter-spacing: 0.02em;
+}
+
+/* Кнопка "Отмена" */
+.folio-dialog-actions .vtt-btn.btn-cancel {
+    background: transparent;
+    border-color: var(--border-color, #3a352a);
+    color: var(--text-secondary, #a89f8a);
+}
+
+.folio-dialog-actions .vtt-btn.btn-cancel:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: #554e3e;
+    color: var(--text-primary, #e0d4b8);
+}
+
+/* Обычное подтверждение (золотая кнопка) */
+.folio-dialog-actions .vtt-btn.primary {
+    background: var(--accent-gold, #c9a961);
+    color: #141418;
+    border-color: var(--accent-gold, #c9a961);
+    box-shadow: 0 2px 8px rgba(201, 169, 97, 0.25);
+}
+
+.folio-dialog-actions .vtt-btn.primary:hover {
+    background: #dfbe73;
+    border-color: #dfbe73;
+    box-shadow: 0 4px 14px rgba(201, 169, 97, 0.4);
+}
+
+/* Опасное подтверждение (удаление героя — красная кнопка) */
+.folio-dialog-actions .vtt-btn.danger {
+    background: #8b3a3a;
+    color: #ffffff;
+    border-color: #a64444;
+    box-shadow: 0 2px 8px rgba(139, 58, 58, 0.3);
+}
+
+.folio-dialog-actions .vtt-btn.danger:hover {
+    background: #a64444;
+    border-color: #c25353;
+    box-shadow: 0 4px 14px rgba(166, 68, 68, 0.5);
+}
