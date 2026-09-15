@@ -42,8 +42,11 @@ def cleanup_stale_players(room_id: str, timeout_seconds: int = 300):
 
 def get_prep_monsters_payload(user_id: int) -> Dict[str, List[Dict[str, Any]]]:
     """
-    Загружает базовых монстров (SRD), доступные пользователю паки с монстрами
-    и полный список монстров, входящих в эти паки.
+    Загружает:
+    1. Базовых монстров (SRD).
+    2. Доступные пользователю паки с монстрами.
+    3. Монстров, входящих в эти паки.
+    4. Всех личных монстров мастера из Кузни (marketplace_assets).
     """
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -97,10 +100,33 @@ def get_prep_monsters_payload(user_id: int) -> Dict[str, List[Dict[str, Any]]]:
                 """, (pack_ids,))
                 pack_monsters = cur.fetchall()
 
+            # 4. ВСЕ собственные монстры автора из Кузни
+            cur.execute("""
+                SELECT 
+                    ma.id,
+                    ma.title AS name,
+                    cm.armor_class,
+                    cm.hit_points,
+                    cm.challenge_rating,
+                    cm.speed,
+                    cm.meta,
+                    cm.attributes,
+                    cm.traits,
+                    cm.actions,
+                    cm.legendary_actions,
+                    cm.token_url AS token_image
+                FROM marketplace_assets ma
+                JOIN custom_monsters cm ON ma.id = cm.asset_id
+                WHERE ma.author_id = %s AND ma.asset_type = 'monster'
+                ORDER BY ma.updated_at DESC
+            """, (user_id,))
+            my_custom_monsters = cur.fetchall()
+
     return {
         "monsters": base_monsters,
         "user_packs": user_packs,
-        "pack_monsters": pack_monsters
+        "pack_monsters": pack_monsters,
+        "my_custom_monsters": my_custom_monsters
     }
 
 
