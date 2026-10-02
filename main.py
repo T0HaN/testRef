@@ -3,7 +3,7 @@ from datetime import datetime
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from markupsafe import Markup, escape
 
@@ -110,6 +110,20 @@ async def security_middleware(request: Request, call_next):
         return JSONResponse({"detail": "Cross-site request rejected"}, status_code=403)
 
     response = await call_next(request)
+    # Унифицированные SVG-иконки подключаются ко всем HTML-страницам. Это
+    # позволяет постепенно убрать emoji из старых шаблонов без дублирования
+    # include в каждом из них.
+    content_type = response.headers.get("content-type", "")
+    if content_type.startswith("text/html") and hasattr(response, "body_iterator"):
+        chunks = [chunk async for chunk in response.body_iterator]
+        body = b"".join(chunks)
+        marker = b"</head>"
+        if marker in body and b"/static/js/iconify.js" not in body:
+            injection = b'<link rel="stylesheet" href="/static/css/iconify.css?v=1"><script src="/static/js/iconify.js?v=1" defer></script>'
+            body = body.replace(marker, injection + marker, 1)
+        headers = dict(response.headers)
+        headers.pop("content-length", None)
+        response = Response(content=body, status_code=response.status_code, headers=headers, media_type="text/html")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

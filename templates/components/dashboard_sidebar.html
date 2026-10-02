@@ -1,0 +1,18 @@
+<aside class="sidebar" id="sidebar">
+    <div class="user-profile">
+        <div class="user-avatar">
+            <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><circle cx="9" cy="9" r=".5"></circle><circle cx="15" cy="9" r=".5"></circle></svg>
+        </div>
+        <div class="user-info">
+            <a href="/profile" class="user-name">{{ user.username|default(username|default('Путник')) }}</a>
+            <form action="/logout" method="post" style="display:inline"><button type="submit" class="user-logout">Покинуть таверну</button></form>
+        </div>
+    </div>
+    <nav class="nav-menu" aria-label="Основная навигация">
+        <a href="/dashboard" class="nav-item"><svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg><span>Сводка</span></a>
+        <a href="/chars" class="nav-item"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19 19 4M5 5l14 14"></path><path d="M3 3h4v4H3zM17 17h4v4h-4z"></path></svg><span>Мои персонажи</span></a>
+        <a href="/games" class="nav-item"><svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 6 5-3 8 4 5-3v14l-5 3-8-4-5 3z"></path><path d="M8 3v14M16 7v14"></path></svg><span>Мои игры</span></a>
+        <a href="/creator" class="nav-item{% if request.url.path.startswith('/creator') %} active{% endif %}"><svg class="icon-svg" viewBox="0 0 24 24"><path d="m14 6 4 4M3 21l3-8L16 3a2.8 2.8 0 0 1 4 4L10 17z"></path></svg><span>Кузня Творца</span></a>
+        <a href="/market" class="nav-item{% if request.url.path.startswith('/market') %} active{% endif %}"><svg class="icon-svg" viewBox="0 0 24 24"><path d="m6 3-4 6 10 13L22 9l-4-6z"></path><path d="M2 9h20M6 3l1 6 5 13 5-13 1-6"></path></svg><span>Лавка древностей</span></a>
+    </nav>
+</aside>

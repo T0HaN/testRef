@@ -55,6 +55,7 @@ window.addEventListener('DOMContentLoaded', () => {
     loadScenes();
     loadRoomAssets('map');
     loadRoomAssets('monster');
+    bindSavedPropsSelection();
 });
 
 chatLog.addEventListener('scroll', async () => {
@@ -1132,26 +1133,50 @@ async function loadRoomAssets(type) {
         const data = await response.json();
         const assets = data.assets || [];
         if (!assets.length) { target.innerHTML = '<div class="asset-library-empty">Нет доступных ассетов</div>'; return; }
-        target.innerHTML = assets.map(asset => {
-            const image = asset.cover_image_url || asset.content_url || '/static/images/default_asset.png';
+        target.innerHTML = assets.map((asset, index) => {
+            const image = asset.cover_image_url || asset.content_url || '/static/images/icon.svg';
             const safeTitle = escapeHtmlText(asset.title || 'Без названия');
-            const button = type === 'map'
-                ? `<button class="vtt-btn asset-use-btn" data-asset="${encodeURIComponent(JSON.stringify(asset))}">Добавить сцену</button>`
-                : `<button class="vtt-btn asset-use-btn" data-asset="${encodeURIComponent(JSON.stringify(asset))}">На карту</button>`;
-            return `<article class="asset-library-card"><img src="${escapeHtmlText(image)}" alt=""><div class="asset-library-name">${safeTitle}</div>${button}</article>`;
+            const unavailable = type === 'map' && !asset.content_url;
+            return `<article class="asset-library-card"><label class="asset-card-check"><input type="checkbox" class="room-asset-cb" data-index="${index}" aria-label="Выбрать ${safeTitle}" ${unavailable ? 'disabled' : ''}></label><img data-src="${escapeHtmlText(image)}" alt="" loading="lazy"><div class="asset-library-name">${safeTitle}${unavailable ? ' · нет файла' : ''}</div></article>`;
         }).join('');
-        target.querySelectorAll('.asset-use-btn').forEach(btn => btn.addEventListener('click', async () => {
-            const asset = JSON.parse(decodeURIComponent(btn.dataset.asset));
-            if (type === 'map') {
-                const response = await fetch(`/api/room/${window.roomData.id}/scene/from-asset`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: asset.title, background_url: asset.content_url, width: asset.grid_width * 50, height: asset.grid_height * 50})});
-                if (response.ok) { await loadScenes(); showToast('Карта добавлена в сцены', 'success'); }
-            } else if (type === 'monster') {
-                addMonsterToMap(asset.title, asset.content_url, '10', '10', 0); showToast('Монстр добавлен на карту', 'success');
-            } else if (asset.content_url) {
-                addPropToMap(asset.title, asset.content_url, 50); showToast('Ассет добавлен на карту', 'success');
-            }
+        target.querySelectorAll('.room-asset-cb').forEach(cb => cb.addEventListener('change', () => {
+            const img = cb.closest('.asset-library-card').querySelector('img');
+            if (cb.checked && img.dataset.src) { img.src = img.dataset.src; delete img.dataset.src; }
         }));
+        bindAssetSelection(type, target, assets);
     } catch (error) { target.innerHTML = '<div class="asset-library-empty">Не удалось загрузить библиотеку</div>'; }
+}
+
+function bindAssetSelection(type, target, assets) {
+    const prefix = type === 'map' ? 'map' : (type === 'monster' ? 'monster' : 'prop');
+    const all = document.getElementById(`${prefix}-assets-all`);
+    const apply = document.getElementById(`${prefix}-assets-apply`);
+    if (all) all.onchange = () => target.querySelectorAll('.room-asset-cb').forEach(cb => { cb.checked = all.checked; cb.dispatchEvent(new Event('change')); });
+    if (apply) apply.onclick = async () => {
+        const selected = [...target.querySelectorAll('.room-asset-cb:checked')].map(cb => assets[Number(cb.dataset.index)]).filter(Boolean);
+        if (!selected.length) { showToast('Выберите хотя бы один ассет', 'info'); return; }
+        for (const asset of selected) {
+            if (type === 'map') {
+                await fetch(`/api/room/${window.roomData.id}/scene/from-asset`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: asset.title, background_url: asset.content_url, width: (asset.grid_width || 30) * 50, height: (asset.grid_height || 30) * 50})});
+            } else if (type === 'monster') {
+                addMonsterToMap(asset.title, asset.content_url, '10', '10', 0);
+            }
+        }
+        if (type === 'map') { await loadScenes(); showToast(`Добавлено карт: ${selected.length}`, 'success'); }
+        if (type === 'monster') showToast(`Добавлено монстров: ${selected.length}`, 'success');
+    };
+}
+
+function bindSavedPropsSelection() {
+    const list = document.getElementById('props-list'); const all = document.getElementById('saved-props-all'); const apply = document.getElementById('saved-props-apply');
+    if (!list || !apply) return;
+    if (all) all.onchange = () => list.querySelectorAll('.saved-prop-cb').forEach(cb => { cb.checked = all.checked; });
+    apply.onclick = () => {
+        const selected = list.querySelectorAll('.saved-prop-cb:checked');
+        if (!selected.length) { showToast('Выберите хотя бы один пропс', 'info'); return; }
+        selected.forEach(cb => addPropToMap(cb.dataset.name, cb.dataset.img || null, cb.dataset.size));
+        showToast(`Добавлено пропсов: ${selected.length}`, 'success');
+    };
 }
 
 async function exportScenes() {

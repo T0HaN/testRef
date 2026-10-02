@@ -49,6 +49,9 @@
     </style>
 </head>
 <body>
+    <button class="mobile-menu-btn" id="menu-toggle" aria-label="Открыть меню">
+        <svg class="icon-svg" viewBox="0 0 24 24" width="24" height="24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+    </button>
     <div class="creator-dashboard-container" style="padding: 2rem 1.5rem; max-width: 1200px; margin: 0 auto;">
 
         <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
@@ -159,5 +162,7 @@
         {% endif %}
 
     </div>
+    {% include 'components/dashboard_sidebar.html' %}
+    <script src="/static/js/MainMenu.js"></script>
 </body>
 </html>

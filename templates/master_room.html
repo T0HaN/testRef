@@ -201,6 +201,7 @@
                     </div>
                     <div class="asset-library-block">
                         <div class="asset-library-title">🗺️ Карты из моей библиотеки</div>
+                        <div class="asset-selection-toolbar"><label><input type="checkbox" id="map-assets-all"> Выбрать всё</label><button class="vtt-btn" type="button" id="map-assets-apply">Добавить выбранные</button></div>
                         <div id="map-assets-list" class="asset-library-grid"><div class="empty-state">Загрузка ассетов...</div></div>
                     </div>
                 </div>
@@ -315,6 +316,7 @@
                     {% endif %}
                     <div class="asset-library-block">
                         <div class="asset-library-title">👹 Монстры из моих паков</div>
+                        <div class="asset-selection-toolbar"><label><input type="checkbox" id="monster-assets-all"> Выбрать всё</label><button class="vtt-btn" type="button" id="monster-assets-apply">Добавить выбранных</button></div>
                         <div id="monster-assets-list" class="asset-library-grid"><div class="empty-state">Загрузка ассетов...</div></div>
                     </div>
                 </div>
@@ -337,12 +339,14 @@
                             ➕ Загрузить предмет
                         </button>
                     </div>
+                    <div class="asset-selection-toolbar"><label><input type="checkbox" id="saved-props-all"> Выбрать всё</label><button class="vtt-btn" type="button" id="saved-props-apply">Добавить выбранные</button></div>
 
                     <div id="props-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
                         {% if props %}
                             {% for p in props %}
                             <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 10px; padding: 0.7rem; display: flex; flex-direction: column; gap: 0.4rem;">
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" class="saved-prop-cb" data-name="{{ p.name | forceescape }}" data-img="{{ p.image_url | forceescape }}" data-size="{{ p.default_size }}" aria-label="Выбрать {{ p.name }}">
                                     {% if p.image_url %}
                                     <img src="{{ p.image_url }}" style="width: 38px; height: 38px; border-radius: 4px; object-fit: contain; background: var(--bg-primary); border: 1px solid var(--border-color); flex-shrink: 0;" alt="{{ p.name }}">
                                     {% else %}
@@ -373,6 +377,7 @@
                     </div>
                     <div class="asset-library-block">
                         <div class="asset-library-title">🎒 Мои ассеты и паки</div>
+                        <div class="asset-selection-toolbar"><label><input type="checkbox" id="prop-assets-all"> Выбрать всё</label><button class="vtt-btn" type="button" id="prop-assets-apply">Добавить выбранные</button></div>
                         <div id="prop-assets-list" class="asset-library-grid"><div class="empty-state">Загрузка ассетов...</div></div>
                     </div>
                 </div>

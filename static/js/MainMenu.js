@@ -20,14 +20,16 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 const menuBtn = document.getElementById('menu-toggle');
 const sidebar = document.getElementById('sidebar');
 
-menuBtn.addEventListener('click', () => {
-    sidebar.classList.toggle('mobile-open');
-});
+if (menuBtn && sidebar) {
+    menuBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('mobile-open');
+    });
+}
 
 // Свайп или клик вне меню для закрытия на мобильных
 document.addEventListener('click', (e) => {
     if (window.innerWidth <= 900) {
-        if (!sidebar.contains(e.target) && e.target !== menuBtn) {
+        if (sidebar && !sidebar.contains(e.target) && e.target !== menuBtn) {
             sidebar.classList.remove('mobile-open');
         }
     }
