@@ -190,6 +190,11 @@
                         <button class="vtt-btn primary" style="width: 100%; border-color: var(--accent-gold);" onclick="document.getElementById('sceneFileInput').click()">
                             ➕ Загрузить новую карту
                         </button>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            <button class="vtt-btn" style="flex: 1;" type="button" onclick="exportScenes()">⬇️ Экспорт сцен</button>
+                            <input type="file" id="scenePackageInput" accept="application/json,.json" style="display: none;" onchange="importScenes(this)">
+                            <button class="vtt-btn" style="flex: 1;" type="button" onclick="document.getElementById('scenePackageInput').click()">⬆️ Импорт сцен</button>
+                        </div>
                     </div>
                     <div id="scenes-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
                         <div class="empty-state">Загрузка сцен...</div>

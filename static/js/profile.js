@@ -68,9 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            if (newPass.length < 4) {
+            if (newPass.length < 8) {
                 e.preventDefault();
-                alert('Новый пароль должен быть не короче 4 символов');
+                alert('Новый пароль должен быть не короче 8 символов');
                 newPasswordInput.focus();
                 return;
             }

@@ -15,6 +15,7 @@ from typing import Any, Dict, List, Optional
 import boto3
 import psycopg2
 import psycopg2.extras
+from psycopg2.extensions import connection as PsycopgConnection
 from psycopg2.extras import RealDictCursor
 import redis.asyncio as redis
 from fastapi import UploadFile
@@ -144,6 +145,16 @@ def send_email_sync(to_email: str, subject: str, html_content: str):
 # === DB CONNECTION ===
 # ============================================================
 
+
+class ClosingConnection(PsycopgConnection):
+    """Транзакционный context manager, который также закрывает соединение."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
 def get_db_connection():
     conn = psycopg2.connect(
         dbname=settings.DB_NAME,
@@ -151,7 +162,8 @@ def get_db_connection():
         password=settings.DB_PASSWORD.get_secret_value(),
         host=settings.DB_HOST,
         port=settings.DB_PORT,
-        connect_timeout=5
+        connect_timeout=5,
+        connection_factory=ClosingConnection,
     )
     psycopg2.extras.register_default_jsonb(conn, loads=json.loads)
     return conn
@@ -277,10 +289,49 @@ def init_s3_bucket():
 
 ALLOWED_IMAGE_EXTS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
 ALLOWED_IMAGE_TYPES = {'image/png', 'image/jpeg', 'image/gif', 'image/webp'}
+ALLOWED_AUDIO_EXTS = {'mp3', 'ogg', 'wav', 'webm', 'm4a', 'mp4'}
+ALLOWED_AUDIO_TYPES = {
+    'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/mp4'
+}
 DEFAULT_MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5 МБ
+MAX_AUDIO_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 МБ
+
+
+async def read_upload_limited(
+        file: UploadFile,
+        allowed_types: set[str],
+        max_size: int,
+        allowed_extensions: Optional[set[str]] = None,
+) -> bytes:
+    """Читает UploadFile порциями, ограничивая MIME, размер и пустые файлы."""
+    content_type = (file.content_type or '').lower()
+    if content_type not in allowed_types:
+        raise ValueError("Неподдерживаемый тип файла.")
+
+    raw_name = (file.filename or '').replace('\\', '/').split('/')[-1]
+    extension = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else ''
+    if allowed_extensions is not None and extension not in allowed_extensions:
+        raise ValueError("Неподдерживаемое расширение файла.")
+
+    chunks = []
+    total = 0
+    while True:
+        chunk = await file.read(64 * 1024)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_size:
+            raise ValueError(f"Файл слишком большой (максимум {max_size // (1024 * 1024)} МБ).")
+        chunks.append(chunk)
+
+    if total == 0:
+        raise ValueError("Пустой файл.")
+    return b"".join(chunks)
 
 
 def upload_asset_file(file_bytes: bytes, filename: str, content_type: str, folder: str = "assets") -> str:
+    if not file_bytes:
+        raise ValueError("Пустой файл.")
     raw_name = (filename or '').replace('\\', '/').split('/')[-1]
     ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else 'bin'
 

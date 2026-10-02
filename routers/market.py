@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 import psycopg2.extras
 
 from dependencies import templates, get_current_user
+from config import settings
 from utils import get_db_connection
 
 market_router = APIRouter(prefix="/market", tags=["Marketplace"])
@@ -120,10 +121,16 @@ async def pack_details(pack_id: UUID, request: Request, current_user: dict = Dep
 # 3. Покупка пака
 @market_router.post("/pack/{pack_id}/buy")
 async def buy_pack(pack_id: UUID, current_user: dict = Depends(get_current_user)):
+    if not settings.MARKETPLACE_PURCHASES_ENABLED:
+        raise HTTPException(status_code=503, detail="Покупки временно отключены")
+
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             # 1. Получаем пак
-            cur.execute("SELECT * FROM packs WHERE id = %s AND is_published = TRUE", (str(pack_id),))
+            cur.execute(
+                "SELECT * FROM packs WHERE id = %s AND is_published = TRUE FOR UPDATE",
+                (str(pack_id),)
+            )
             pack = cur.fetchone()
 
             if not pack:
@@ -140,6 +147,21 @@ async def buy_pack(pack_id: UUID, current_user: dict = Depends(get_current_user)
 
             market_price = calc_market_price(pack["price"])
             author_payout = Decimal(str(pack["price"]))
+
+            # Блокируем строку покупателя: проверка и списание выполняются в той
+            # же транзакции, что покупка, начисление и выдача библиотеки.
+            cur.execute("SELECT balance FROM users WHERE id = %s FOR UPDATE", (current_user['id'],))
+            buyer = cur.fetchone()
+            if not buyer:
+                raise HTTPException(status_code=404, detail="Покупатель не найден")
+            balance = Decimal(str(buyer["balance"] or 0))
+            if balance < market_price:
+                raise HTTPException(status_code=400, detail="Недостаточно средств")
+
+            cur.execute(
+                "UPDATE users SET balance = balance - %s WHERE id = %s",
+                (market_price, current_user['id'])
+            )
 
             # 3. Фиксируем транзакцию покупки
             cur.execute("""

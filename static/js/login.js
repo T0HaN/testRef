@@ -73,10 +73,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Проверка пароля
-        if (password.length < 4) {
+        // Для новых аккаунтов действует усиленное требование. Старые аккаунты
+        // с более коротким паролем могут войти и сменить его в профиле.
+        if (!isLoginMode && password.length < 8) {
             e.preventDefault();
-            alert('Пароль должен содержать минимум 4 символа');
+            alert('Пароль должен содержать минимум 8 символов');
             passwordInput.focus();
             return;
         }

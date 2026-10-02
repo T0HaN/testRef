@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import re
@@ -11,7 +11,8 @@ class UserLogin(BaseModel):
     role: Optional[str] = Field(None, pattern="^(player|master)$")
 
 class UserRegister(UserLogin):
-    @validator('username')
+    @field_validator('username')
+    @classmethod
     def username_alphanumeric(cls, v):
         if not re.match(r'^[a-zA-Z0-9_]+$', v):
             raise ValueError('Логин может содержать только буквы, цифры и _')
@@ -40,14 +41,14 @@ class Coins(BaseModel):
     pp: int = 0
 
 class Inventory(BaseModel):
-    weapons: List[Dict[str, Any]] = []
-    armor: List[Dict[str, Any]] = []
-    gear: List[Dict[str, Any]] = []
-    arrows: List[Dict[str, Any]] = []
-    bolts: List[Dict[str, Any]] = []
-    coins: Coins = Coins()
-    known_spells: List[str] = []
-    items: List[Dict[str, Any]] = []
+    weapons: List[Dict[str, Any]] = Field(default_factory=list)
+    armor: List[Dict[str, Any]] = Field(default_factory=list)
+    gear: List[Dict[str, Any]] = Field(default_factory=list)
+    arrows: List[Dict[str, Any]] = Field(default_factory=list)
+    bolts: List[Dict[str, Any]] = Field(default_factory=list)
+    coins: Coins = Field(default_factory=Coins)
+    known_spells: List[str] = Field(default_factory=list)
+    items: List[Dict[str, Any]] = Field(default_factory=list)
 
 class CharacterCreate(BaseModel):
     name: str = Field(..., min_length=1)
@@ -56,10 +57,10 @@ class CharacterCreate(BaseModel):
     subclass: Optional[str] = "Нет"
     alignment: str
     xp: int = Field(default=0, ge=0)
-    physical: Physical = Physical()
+    physical: Physical = Field(default_factory=Physical)
     stats: Dict[str, Stat]
-    saving_throws: List[str] = []
-    skills: List[str] = []
+    saving_throws: List[str] = Field(default_factory=list)
+    skills: List[str] = Field(default_factory=list)
     ac: str = "10"
     initiative: str = "+0"
     speed: str = "30 фт"
@@ -94,7 +95,8 @@ class RewardRequest(BaseModel):
     target: str = "all"  # 'all' или char_id
     reason: Optional[str] = ""
 
-    @validator('coins')
+    @field_validator('coins')
+    @classmethod
     def coins_non_negative(cls, v):
         if any(val < 0 for val in v.values()):
             raise ValueError('Количество монет не может быть отрицательным')
@@ -122,14 +124,14 @@ class TokenUpload(BaseModel):
 
 
 class SpellCreate(BaseModel):
-    name_ru: str
-    name_en: str
-    level: int
-    school: str
-    casting_time: str
-    range: str
-    components: str
-    duration: str
-    description: str
-    source: Optional[str] = None
-    classes: List[str] = []
+    name_ru: str = Field(..., min_length=1, max_length=200)
+    name_en: str = Field(..., min_length=1, max_length=200)
+    level: int = Field(..., ge=0, le=9)
+    school: str = Field(..., min_length=1, max_length=100)
+    casting_time: str = Field(..., min_length=1, max_length=200)
+    range: str = Field(..., min_length=1, max_length=200)
+    components: str = Field(..., min_length=1, max_length=500)
+    duration: str = Field(..., min_length=1, max_length=200)
+    description: str = Field(..., min_length=1, max_length=20_000)
+    source: Optional[str] = Field(None, max_length=200)
+    classes: List[str] = Field(default_factory=list, max_length=30)

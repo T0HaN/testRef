@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     # Secure-флаг для session-cookie и доп. Origin для WebSocket (CSWSH)
     SESSION_COOKIE_SECURE: bool = True  # отключайте только при отладке по HTTP
     WS_ALLOWED_ORIGINS: str = ""  # CSV дополнительных Origin, если не совпадают с Host
+    # CSV логинов, которым разрешено менять глобальные справочники приложения.
+    ADMIN_USERNAMES: str = ""
+    # Включать только после миграции, добавляющей users.balance.
+    MARKETPLACE_PURCHASES_ENABLED: bool = False
 
     # === DIRECTORIES ===
     DATA_DIR: Path = BASE_DIR / "data"

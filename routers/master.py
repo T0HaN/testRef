@@ -708,6 +708,78 @@ async def api_get_scenes(room_id: int, current_user: dict = Depends(get_current_
     return JSONResponse(content={"status": "ok", "scenes": scenes})
 
 
+@router.get("/api/room/{room_id}/scenes/export")
+async def api_export_scenes(room_id: int, current_user: dict = Depends(get_current_user)):
+    """Экспорт сцен комнаты для переноса в другую кампанию."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id, current_user['id']))
+            if not cur.fetchone():
+                return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
+
+    scenes = get_room_scenes(room_id)
+    return JSONResponse(content={
+        "format": "folio-scenes",
+        "version": 1,
+        "scenes": [
+            {
+                "name": str(scene.get("name", "Сцена"))[:200],
+                "background_url": scene.get("background_url"),
+                "map_width": int(scene.get("map_width") or 1920),
+                "map_height": int(scene.get("map_height") or 1080),
+                "is_active": bool(scene.get("is_active")),
+            }
+            for scene in scenes
+            if isinstance(scene.get("background_url"), str)
+            and scene["background_url"].startswith("/media/")
+        ],
+    })
+
+
+@router.post("/api/room/{room_id}/scenes/import")
+async def api_import_scenes(
+        room_id: int,
+        file: UploadFile = File(...),
+        current_user: dict = Depends(get_current_user)
+):
+    """Импорт ранее экспортированных сцен с повторным использованием S3-файлов."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id, current_user['id']))
+            if not cur.fetchone():
+                return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
+
+    if (file.content_type or "").lower() not in {"application/json", "text/json", ""}:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Нужен JSON-файл"})
+    raw = await file.read(2 * 1024 * 1024 + 1)
+    if len(raw) > 2 * 1024 * 1024:
+        return JSONResponse(status_code=413, content={"status": "error", "message": "Файл слишком большой"})
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+        source_scenes = payload.get("scenes") if payload.get("format") == "folio-scenes" else None
+        if not isinstance(source_scenes, list) or len(source_scenes) > 100:
+            raise ValueError
+    except (UnicodeDecodeError, json.JSONDecodeError, AttributeError, TypeError, ValueError):
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Некорректный пакет сцен"})
+
+    imported = 0
+    for source in source_scenes:
+        if not isinstance(source, dict):
+            continue
+        background_url = source.get("background_url")
+        if not isinstance(background_url, str) or not background_url.startswith("/media/"):
+            continue
+        name = str(source.get("name") or "Импортированная сцена").strip()[:200]
+        try:
+            width = max(1, min(int(source.get("map_width") or 1920), 100000))
+            height = max(1, min(int(source.get("map_height") or 1080), 100000))
+        except (TypeError, ValueError):
+            continue
+        create_scene(room_id, name, background_url, width, height)
+        imported += 1
+    return JSONResponse(content={"status": "ok", "imported": imported})
+
+
 @router.post("/api/room/{room_id}/scene/{scene_id}/activate")
 async def api_activate_scene(room_id: int, scene_id: int, current_user: dict = Depends(get_current_user)):
     with get_db_connection() as conn:

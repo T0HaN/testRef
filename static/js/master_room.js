@@ -1122,6 +1122,44 @@ async function loadScenes() {
     }
 }
 
+async function exportScenes() {
+    try {
+        const response = await fetch(`/api/room/${window.roomData.id}/scenes/export`);
+        if (!response.ok) throw new Error('export failed');
+        const payload = await response.json();
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `folio-scenes-room-${window.roomData.id}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('Сцены экспортированы', 'success');
+    } catch (error) {
+        console.error(error);
+        showToast('Не удалось экспортировать сцены', 'error');
+    }
+}
+
+async function importScenes(inputElement) {
+    const file = inputElement.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const response = await fetch(`/api/room/${window.roomData.id}/scenes/import`, { method: 'POST', body: formData });
+        const data = await response.json();
+        if (!response.ok || data.status !== 'ok') throw new Error(data.message || 'import failed');
+        await loadScenes();
+        showToast(`Импортировано сцен: ${data.imported}`, 'success');
+    } catch (error) {
+        console.error(error);
+        showToast(error.message || 'Не удалось импортировать сцены', 'error');
+    } finally {
+        inputElement.value = '';
+    }
+}
+
 function renderScenesList(scenes) {
     const container = document.getElementById('scenes-list');
     if (scenes.length === 0) {

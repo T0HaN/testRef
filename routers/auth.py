@@ -1,24 +1,48 @@
-import time
-import json
-from fastapi import APIRouter, Request, Form
+import logging
+import re
+import secrets
+from html import escape
+
+from fastapi import APIRouter, Request, Form, BackgroundTasks, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2.extras
 
-
-import secrets
-from fastapi import BackgroundTasks
-from werkzeug.security import generate_password_hash
-
 from utils import get_redis_client, send_email_sync, get_random_quote, get_db_connection
-import psycopg2.extras
-
-# Подключаем работу с БД вместо старых JSON-утилит
-from utils import get_random_quote, get_db_connection
 from dependencies import templates, sign_session_data, unsign_session_data
 from config import settings
 
 router = APIRouter(tags=["Auth"])
+logger = logging.getLogger(__name__)
+
+USERNAME_RE = re.compile(r"^[a-z0-9_]{3,50}$")
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+MIN_PASSWORD_LENGTH = 8
+LOGIN_LIMIT = 10
+LOGIN_WINDOW_SECONDS = 300
+_DUMMY_PASSWORD_HASH = generate_password_hash("not-a-real-password")
+
+
+def _login_page(request: Request, *, error: str = "", success: str = "", status_code: int = 200):
+    return templates.TemplateResponse(request, "login.html", context={
+        "error": error or None,
+        "success": success or None,
+        "quote_text": get_random_quote(),
+    }, status_code=status_code)
+
+
+async def _rate_limited(key: str, limit: int = LOGIN_LIMIT) -> bool:
+    """Небольшой распределённый rate limit; при сбое Redis не блокирует вход."""
+    try:
+        client = get_redis_client()
+        redis_key = f"rate_limit:{key}"
+        attempts = await client.incr(redis_key)
+        if attempts == 1:
+            await client.expire(redis_key, LOGIN_WINDOW_SECONDS)
+        return attempts > limit
+    except Exception:
+        logger.exception("Не удалось применить rate limit")
+        return False
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -62,6 +86,30 @@ async def login(
     """Обработка авторизации и регистрации через БД."""
     username = username.strip().lower()
 
+    if action not in {"login", "register"}:
+        return _login_page(request, error="Некорректное действие", status_code=400)
+
+    client_host = request.client.host if request.client else "unknown"
+    rate_key = f"auth:{client_host}:{username[:50]}"
+    if await _rate_limited(rate_key, limit=5 if action == "register" else LOGIN_LIMIT):
+        return _login_page(
+            request,
+            error="Слишком много попыток. Повторите через несколько минут.",
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
+
+    if action == "register" and not USERNAME_RE.fullmatch(username):
+        return _login_page(request, error="Логин: 3–50 латинских букв, цифр или _", status_code=400)
+
+    if action == "login" and (not username or len(username) > 200):
+        return _login_page(request, error="Некорректный логин", status_code=400)
+
+    if not password or len(password) > 256:
+        return _login_page(request, error="Некорректный пароль", status_code=400)
+
+    if action == "register" and len(password) < MIN_PASSWORD_LENGTH:
+        return _login_page(request, error="Пароль должен содержать от 8 до 256 символов", status_code=400)
+
     if action == 'register':
         if not email:
             return templates.TemplateResponse(request, "login.html", context={
@@ -70,6 +118,8 @@ async def login(
             })
 
         email = email.strip().lower()
+        if len(email) > 254 or not EMAIL_RE.fullmatch(email):
+            return _login_page(request, error="Некорректный адрес электронной почты", status_code=400)
 
         try:
             with get_db_connection() as conn:
@@ -95,8 +145,8 @@ async def login(
                 "quote_text": get_random_quote()
             })
 
-        except Exception as e:
-            print(f"Ошибка БД при регистрации: {e}")
+        except Exception:
+            logger.exception("Ошибка БД при регистрации")
             return templates.TemplateResponse(request, "login.html", context={
                 "error": "Внутренняя ошибка сервера при регистрации",
                 "quote_text": get_random_quote()
@@ -111,7 +161,9 @@ async def login(
                     cur.execute("SELECT id, username, password_hash FROM users WHERE username = %s", (username,))
                     user_data = cur.fetchone()
 
-            if not user_data or not check_password_hash(user_data['password_hash'], password):
+            password_hash = user_data['password_hash'] if user_data else _DUMMY_PASSWORD_HASH
+            password_is_valid = check_password_hash(password_hash, password)
+            if not user_data or not password_is_valid:
                 return templates.TemplateResponse(request, "login.html", context={
                     "error": "Неверный логин или пароль",
                     "quote_text": get_random_quote()
@@ -137,17 +189,21 @@ async def login(
                 secure=settings.SESSION_COOKIE_SECURE,
                 samesite="lax"
             )
+            try:
+                await get_redis_client().delete(f"rate_limit:{rate_key}")
+            except Exception:
+                logger.exception("Не удалось сбросить rate limit после входа")
             return response
 
-        except Exception as e:
-            print(f"Ошибка БД при логине: {e}")
+        except Exception:
+            logger.exception("Ошибка БД при логине")
             return templates.TemplateResponse(request, "login.html", context={
                 "error": "Внутренняя ошибка сервера при авторизации",
                 "quote_text": get_random_quote()
             })
 
 
-@router.get("/logout")
+@router.post("/logout")
 async def logout():
     """Выход из системы и очистка сессии."""
     response = RedirectResponse(url="/login", status_code=303)
@@ -169,6 +225,17 @@ async def forgot_password_submit(
     email: str = Form(...)
 ):
     email = email.strip().lower()
+    client_host = request.client.host if request.client else "unknown"
+    if await _rate_limited(f"password_reset:{client_host}:{email[:254]}", limit=5):
+        return templates.TemplateResponse(request, "forgot_password.html", context={
+            "info": "Если путник с такой почтой зарегистрирован, свиток с инструкцией отправлен."
+        }, status_code=status.HTTP_429_TOO_MANY_REQUESTS)
+
+    if len(email) > 254 or not EMAIL_RE.fullmatch(email):
+        # Не раскрываем, существует ли адрес, и сохраняем одинаковый ответ.
+        return templates.TemplateResponse(request, "forgot_password.html", context={
+            "info": "Если путник с такой почтой зарегистрирован, свиток с инструкцией отправлен."
+        })
 
     # Ищем пользователя в БД
     with get_db_connection() as conn:
@@ -181,7 +248,7 @@ async def forgot_password_submit(
         token = secrets.token_urlsafe(32)
         r = get_redis_client()
         # Сохраняем связку токен -> user_id на 20 минут (1200 сек)
-        r.setex(f"reset_pwd:{token}", 1200, str(user['id']))
+        await r.setex(f"reset_pwd:{token}", 1200, str(user['id']))
 
         reset_link = f"{settings.APP_BASE_URL}/reset-password?token={token}"
         
@@ -189,7 +256,7 @@ async def forgot_password_submit(
         email_body = f"""
         <div style="background-color: #141418; color: #e0d4b8; padding: 25px; font-family: Georgia, serif; border: 1px solid #3a352a; border-radius: 8px; max-width: 500px;">
             <h2 style="color: #c9a961; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0;">Восстановление доступа</h2>
-            <p>Приветствуем, путник <strong>{user['username']}</strong>!</p>
+            <p>Приветствуем, путник <strong>{escape(user['username'])}</strong>!</p>
             <p style="color: #a89f8a;">Был получен запрос на сотворение нового тайного ключа (пароля) для вашей летописи в Folio.</p>
             <div style="margin: 25px 0; text-align: center;">
                 <a href="{reset_link}" style="background: linear-gradient(145deg, #c9a961, #8b7542); color: #0a0a0c; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;">
@@ -216,8 +283,10 @@ async def forgot_password_submit(
 # --- СТРАНИЦА ВВОДА НОВОГО ПАРОЛЯ ---
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(request: Request, token: str):
+    if len(token) > 128:
+        return _login_page(request, error="Ссылка восстановления недействительна", status_code=400)
     r = get_redis_client()
-    user_id = r.get(f"reset_pwd:{token}")
+    user_id = await r.get(f"reset_pwd:{token}")
 
     if not user_id:
         return templates.TemplateResponse(request, "login.html", context={
@@ -236,20 +305,23 @@ async def reset_password_submit(
     new_password: str = Form(...),
     confirm_password: str = Form(...)
 ):
+    if len(token) > 128:
+        return _login_page(request, error="Ссылка восстановления недействительна", status_code=400)
     if new_password != confirm_password:
         return templates.TemplateResponse(request, "reset_password.html", context={
             "token": token,
             "error": "Введённые ключи не совпадают"
         })
 
-    if len(new_password) < 4:
+    if len(new_password) < MIN_PASSWORD_LENGTH or len(new_password) > 256:
         return templates.TemplateResponse(request, "reset_password.html", context={
             "token": token,
-            "error": "Пароль должен содержать минимум 4 символа"
+            "error": "Пароль должен содержать от 8 до 256 символов"
         })
 
     r = get_redis_client()
-    user_id = r.get(f"reset_pwd:{token}")
+    # GETDEL делает ссылку одноразовой даже при двух параллельных запросах.
+    user_id = await r.getdel(f"reset_pwd:{token}")
 
     if not user_id:
         return templates.TemplateResponse(request, "login.html", context={
@@ -263,9 +335,6 @@ async def reset_password_submit(
         with conn.cursor() as cur:
             cur.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, int(user_id)))
             conn.commit()
-
-    # Одноразовый токен: сразу удаляем из Redis
-    r.delete(f"reset_pwd:{token}")
 
     return templates.TemplateResponse(request, "login.html", context={
         "success": "Тайный ключ успешно обновлен! Войдите с новым паролем.",

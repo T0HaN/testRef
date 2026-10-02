@@ -7,9 +7,9 @@ from urllib.parse import urlsplit
 from config import settings
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from psycopg2.extras import RealDictCursor
 
-from utils import (load_rooms, save_rooms, get_redis_room_state, save_redis_room_state,
-                       load_chars)
+from utils import get_db_connection, get_redis_room_state, save_redis_room_state
 import utils  # Для доступа к глобальному redis_client
 from dependencies import unsign_session_data
 from pydantic import ValidationError
@@ -23,32 +23,36 @@ player_connections = {}
 
 
 def _is_origin_allowed(websocket: WebSocket) -> bool:
-    """CSWSH: разрешаем Origin, совпадающий с Host (без учета порта), или из списка WS_ALLOWED_ORIGINS."""
+    """CSWSH: разрешаем только точный Origin текущего Host или белого списка."""
     origin = websocket.headers.get("origin")
     if not origin:
-        return True
+        return False
     try:
-        origin_netloc = urlsplit(origin).netloc.lower()
+        parsed_origin = urlsplit(origin)
     except ValueError:
         return False
-    if not origin_netloc:
+    if parsed_origin.scheme not in {"http", "https"} or not parsed_origin.netloc:
         return False
 
+    origin_value = f"{parsed_origin.scheme.lower()}://{parsed_origin.netloc.lower()}"
     host = (websocket.headers.get("host") or "").lower()
-
-    # 1. Прямое совпадение полного netloc (на случай совпадения портов)
-    if origin_netloc == host:
+    scheme = "https" if websocket.url.scheme == "wss" else "http"
+    request_origin = f"{scheme}://{host}"
+    if origin_value == request_origin:
         return True
 
-    # 2. Совпадение только доменных имен/IP без учета портов (NAT / port forwarding)
-    origin_domain = origin_netloc.split(":")[0]
-    host_domain = host.split(":")[0]
-    if origin_domain and origin_domain == host_domain:
-        return True
-
-    # 3. Проверка по белому списку
-    allowed = [o.strip().lower() for o in settings.WS_ALLOWED_ORIGINS.split(",") if o.strip()]
-    return origin_netloc in allowed or origin_domain in allowed
+    allowed = set()
+    for configured in [settings.APP_BASE_URL, *settings.WS_ALLOWED_ORIGINS.split(",")]:
+        configured = configured.strip()
+        if not configured:
+            continue
+        try:
+            parsed = urlsplit(configured)
+        except ValueError:
+            continue
+        if parsed.scheme in {"http", "https"} and parsed.netloc:
+            allowed.add(f"{parsed.scheme.lower()}://{parsed.netloc.lower()}")
+    return origin_value in allowed
 
 
 
@@ -82,7 +86,10 @@ async def room_websocket(websocket: WebSocket, room_id: str):
         return
 
     username = user_data.get('username')
-    user_role = user_data.get('role', 'player')
+    user_id = user_data.get('id')
+    if not username or not isinstance(user_id, int):
+        await websocket.close(code=4001, reason="Invalid session payload")
+        return
 
     # ✅ 2. Проверка существования комнаты
     try:
@@ -92,23 +99,31 @@ async def room_websocket(websocket: WebSocket, room_id: str):
         await websocket.close(code=4004, reason="Invalid room_id")
         return
 
-    rooms_data = load_rooms()
-    room_data = next((r for r in rooms_data['rooms'] if r['id'] == room_id_int), None)
-    if not room_data:
-        await websocket.close(code=4004, reason="Room not found")
-        return
+    # Один точечный запрос вместо загрузки всех комнат и полного графа персонажей.
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT r.id, r.master_id,
+                       EXISTS (
+                           SELECT 1 FROM room_players rp
+                           WHERE rp.room_id = r.id AND rp.user_id = %s
+                       ) AS is_member
+                FROM rooms r
+                WHERE r.id = %s
+            """, (user_id, room_id_int))
+            room_access = cur.fetchone()
 
-    is_master = (room_data.get('master_id') == username) or (
-            user_role == 'master' and room_data.get('master_id') == username)
+            if not room_access:
+                await websocket.close(code=4004, reason="Room not found")
+                return
 
-    # 🛡️ Идентификаторы персонажей, которыми владеет пользователь (нужно для прав на токены)
-    owned_char_ids = set()
-    if not is_master and username:
-        try:
-            owned_char_ids = {str(c.get('id')) for c in load_chars(username)}
-        except Exception as e:
-            print(f"⚠️ Не удалось загрузить персонажей игрока {username}: {e}")
-            owned_char_ids = set()
+            is_master = room_access['master_id'] == user_id
+            if not is_master and not room_access['is_member']:
+                await websocket.close(code=4003, reason="Room access denied")
+                return
+
+            cur.execute("SELECT id FROM characters WHERE user_id = %s", (user_id,))
+            owned_char_ids = {str(row['id']) for row in cur.fetchall()}
 
     try:
         init_data = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
@@ -523,14 +538,13 @@ async def room_websocket(websocket: WebSocket, room_id: str):
                 await asyncio.sleep(60)
                 if player_connections.get(key, 0) <= 0:
                     try:
-                        rooms_data = load_rooms()
-                        room_db = next((r for r in rooms_data['rooms'] if str(r['id']) == rid), None)
-                        if room_db:
-                            room_db['current_players'] = [
-                                p for p in room_db.get('current_players', [])
-                                if p.get('username') != uname
-                            ]
-                            save_rooms(rooms_data)
+                        with get_db_connection() as conn:
+                            with conn.cursor() as cur:
+                                cur.execute(
+                                    "DELETE FROM room_players WHERE room_id = %s AND user_id = %s",
+                                    (int(rid), user_id)
+                                )
+                                conn.commit()
                     except Exception as e:
                         print(f"❌ Ошибка удаления игрока из БД: {e}")
 

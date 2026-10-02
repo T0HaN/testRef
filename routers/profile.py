@@ -1,5 +1,7 @@
 import json
 import secrets
+import re
+from html import escape
 from fastapi import APIRouter, Request, Form, Depends, BackgroundTasks, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -10,6 +12,8 @@ from dependencies import templates, get_current_user
 from utils import get_db_connection, get_redis_client, send_email_sync
 
 profile_router = APIRouter(prefix="/profile", tags=["Profile"])
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+MIN_PASSWORD_LENGTH = 8
 
 
 def get_user_db_record(user_id: int) -> dict:
@@ -56,8 +60,11 @@ async def change_password(
     if new_password != confirm_password:
         return RedirectResponse(url="/profile?error=Новые+пароли+не+совпадают", status_code=status.HTTP_303_SEE_OTHER)
 
-    if len(new_password) < 4:
-        return RedirectResponse(url="/profile?error=Пароль+должен+быть+не+менее+4+символов", status_code=status.HTTP_303_SEE_OTHER)
+    if len(new_password) < MIN_PASSWORD_LENGTH or len(new_password) > 256:
+        return RedirectResponse(url="/profile?error=Пароль+должен+содержать+от+8+до+256+символов", status_code=status.HTTP_303_SEE_OTHER)
+
+    if new_password == current_password:
+        return RedirectResponse(url="/profile?error=Новый+пароль+должен+отличаться+от+текущего", status_code=status.HTTP_303_SEE_OTHER)
 
     new_hash = generate_password_hash(new_password)
     with get_db_connection() as conn:
@@ -81,6 +88,9 @@ async def request_email_change(
 
     new_email = new_email.strip().lower()
 
+    if len(new_email) > 254 or not EMAIL_RE.fullmatch(new_email):
+        return RedirectResponse(url="/profile?error=Некорректный+адрес+электронной+почты", status_code=status.HTTP_303_SEE_OTHER)
+
     if new_email == (user.get('email') or '').lower():
         return RedirectResponse(url="/profile?error=Вы+указали+свой+текущий+адрес", status_code=status.HTTP_303_SEE_OTHER)
 
@@ -96,14 +106,14 @@ async def request_email_change(
     payload = json.dumps({"user_id": user['id'], "new_email": new_email})
     
     r = get_redis_client()
-    r.setex(f"email_change:{token}", 3600, payload)
+    await r.setex(f"email_change:{token}", 3600, payload)
 
     confirm_link = f"{settings.APP_BASE_URL}/profile/confirm-email?token={token}"
 
     email_body = f"""
     <div style="background-color: #141418; color: #e0d4b8; padding: 25px; font-family: Georgia, serif; border: 1px solid #3a352a; border-radius: 8px; max-width: 500px;">
         <h2 style="color: #c9a961; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0;">Смена свитка связи</h2>
-        <p>Приветствуем, <strong>{user['username']}</strong>!</p>
+        <p>Приветствуем, <strong>{escape(user['username'])}</strong>!</p>
         <p style="color: #a89f8a;">Вы запросили привязку этого почтового адреса к вашей летописи в Folio.</p>
         <div style="margin: 25px 0; text-align: center;">
             <a href="{confirm_link}" style="background: linear-gradient(145deg, #c9a961, #8b7542); color: #0a0a0c; padding: 12px 20px; text-decoration: none; font-weight: bold; border-radius: 6px; display: inline-block;">
@@ -134,7 +144,13 @@ async def confirm_email_change(
     current_user: dict = Depends(get_current_user)
 ):
     r = get_redis_client()
-    data_raw = r.get(f"email_change:{token}")
+    if len(token) > 128:
+        return RedirectResponse(
+            url="/profile?error=Ссылка+подтверждения+недействительна",
+            status_code=status.HTTP_303_SEE_OTHER
+        )
+
+    data_raw = await r.get(f"email_change:{token}")
 
     if not data_raw:
         return RedirectResponse(
@@ -157,7 +173,7 @@ async def confirm_email_change(
             conn.commit()
 
     # Одноразовый токен
-    r.delete(f"email_change:{token}")
+    await r.delete(f"email_change:{token}")
 
     return RedirectResponse(
         url="/profile?success=Почтовый+адрес+успешно+обновлён",

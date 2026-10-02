@@ -17,7 +17,9 @@
             </div>
             <div style="display: flex; gap: 0.7rem; align-items: center;">
                 <span style="color: var(--text-secondary); font-size: 0.9rem;">Мастер: <strong style="color: var(--accent-gold);">{{ username }}</strong></span>
-                <a href="/logout" class="nav-btn">🚪 Выйти</a>
+                <form action="/logout" method="post" style="display: inline;">
+                    <button type="submit" class="nav-btn" style="cursor: pointer;">🚪 Выйти</button>
+                </form>
             </div>
         </header>
 

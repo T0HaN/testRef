@@ -246,7 +246,9 @@
             </div>
             <div class="user-info">
                 <a href="/profile" class="user-name">{{ username|default("Путник") }}</a>
-                <a href="/logout" class="user-logout">Покинуть таверну</a>
+                <form action="/logout" method="post" style="display: inline;">
+                    <button type="submit" class="user-logout" style="border: 0; cursor: pointer;">Покинуть таверну</button>
+                </form>
             </div>
         </div>
 

@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse,
 from psycopg2.extras import RealDictCursor
 
 from models import AmmoUseRequest, SpellCreate
-from dependencies import get_current_user, templates
+from dependencies import get_current_user, require_admin, templates
 import utils
 from utils import (
     load_chars, save_chars, normalize_char, prepare_skills_and_saves,
@@ -220,7 +220,7 @@ async def use_ammo(
     return {'status': 'ok', 'remaining': char['inventory'].get(ammo.ammo_type, [])}
 
 
-@router.get("/player/room/{room_id}/leave")
+@router.post("/player/room/{room_id}/leave")
 async def leave_room(
         room_id: str,
         request: Request,
@@ -259,7 +259,7 @@ async def player_heartbeat(current_user: dict = Depends(get_current_user)):
 
 
 @router.post("/api/spells")
-def create_spell(spell: SpellCreate):
+def create_spell(spell: SpellCreate, current_user: dict = Depends(require_admin)):
     """Добавляет новое заклинание в общую таблицу (подключение через .env)."""
     try:
         with get_db_connection() as conn:
@@ -276,14 +276,17 @@ def create_spell(spell: SpellCreate):
                      spell.classes)
                 )
                 conn.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка базы данных: {str(e)}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Ошибка базы данных")
 
     return {"status": "success", "message": f"Заклинание «{spell.name_ru}» успешно добавлено!"}
 
 
 @router.get("/editspells", response_class=HTMLResponse)
-async def render_edit_spells_page(request: Request):
+async def render_edit_spells_page(
+        request: Request,
+        current_user: dict = Depends(require_admin)
+):
     return templates.TemplateResponse(
         request=request,
         name="editspells.html",

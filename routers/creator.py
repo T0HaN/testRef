@@ -1,4 +1,5 @@
 import json
+import math
 from uuid import UUID
 from typing import List, Optional
 from decimal import Decimal, ROUND_HALF_UP
@@ -8,11 +9,48 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 import psycopg2.extras
 
 from dependencies import templates, get_current_user
-from utils import get_db_connection, upload_asset_file
+from utils import (
+    ALLOWED_AUDIO_EXTS, ALLOWED_AUDIO_TYPES, ALLOWED_IMAGE_EXTS, ALLOWED_IMAGE_TYPES, DEFAULT_MAX_UPLOAD_SIZE,
+    MAX_AUDIO_UPLOAD_SIZE, get_db_connection, read_upload_limited,
+    upload_asset_file,
+)
 
 creator_router = APIRouter(prefix="/creator", tags=["Asset Creator"])
 
 PLATFORM_FEE_MULTIPLIER = Decimal("1.10")
+ALLOWED_ASSET_TYPES = {"map", "monster", "spell", "class", "music"}
+ALLOWED_LICENSE_TYPES = {"personal", "commercial"}
+
+
+def validate_asset_fields(title: str, asset_type: str, license_type: str) -> None:
+    if not title.strip() or len(title.strip()) > 200:
+        raise HTTPException(status_code=400, detail="Название должно содержать от 1 до 200 символов")
+    if asset_type not in ALLOWED_ASSET_TYPES:
+        raise HTTPException(status_code=400, detail="Некорректный тип ассета")
+    if license_type not in ALLOWED_LICENSE_TYPES:
+        raise HTTPException(status_code=400, detail="Некорректный тип лицензии")
+
+
+def validate_pack_fields(title: str, author_price: float, discount_percentage: int, license_type: str) -> None:
+    if not title.strip() or len(title.strip()) > 200:
+        raise HTTPException(status_code=400, detail="Название должно содержать от 1 до 200 символов")
+    if license_type not in ALLOWED_LICENSE_TYPES:
+        raise HTTPException(status_code=400, detail="Некорректный тип лицензии")
+    if not math.isfinite(author_price) or author_price < 0 or author_price > 1_000_000:
+        raise HTTPException(status_code=400, detail="Цена должна быть от 0 до 1 000 000")
+    if discount_percentage < 0 or discount_percentage > 100:
+        raise HTTPException(status_code=400, detail="Скидка должна быть от 0 до 100%")
+
+
+async def store_upload(file: UploadFile, folder: str, *, allow_audio: bool = False) -> str:
+    allowed_types = ALLOWED_AUDIO_TYPES if allow_audio else ALLOWED_IMAGE_TYPES
+    allowed_extensions = ALLOWED_AUDIO_EXTS if allow_audio else ALLOWED_IMAGE_EXTS
+    max_size = MAX_AUDIO_UPLOAD_SIZE if allow_audio else DEFAULT_MAX_UPLOAD_SIZE
+    try:
+        content = await read_upload_limited(file, allowed_types, max_size, allowed_extensions)
+        return upload_asset_file(content, file.filename or "upload", file.content_type or "", folder=folder)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def calc_market_price(author_price: Decimal) -> Decimal:
@@ -95,6 +133,9 @@ async def create_asset(
         content_file: UploadFile = File(None),
         current_user: dict = Depends(get_current_user)
 ):
+    validate_asset_fields(title, asset_type, license_type)
+    if len(description) > 10_000 or len(metadata_json) > 100_000:
+        raise HTTPException(status_code=400, detail="Слишком большой объём данных ассета")
     try:
         data = json.loads(metadata_json)
     except json.JSONDecodeError:
@@ -102,13 +143,11 @@ async def create_asset(
 
     cover_url = None
     if cover_image and cover_image.filename:
-        cover_bytes = await cover_image.read()
-        cover_url = upload_asset_file(cover_bytes, cover_image.filename, cover_image.content_type, folder="covers")
+        cover_url = await store_upload(cover_image, "covers")
 
     content_url = None
     if content_file and content_file.filename:
-        content_bytes = await content_file.read()
-        content_url = upload_asset_file(content_bytes, content_file.filename, content_file.content_type, folder="content")
+        content_url = await store_upload(content_file, "content", allow_audio=asset_type == "music")
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -240,6 +279,13 @@ async def update_asset(
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Некорректный JSON параметров")
 
+    if not title.strip() or len(title.strip()) > 200:
+        raise HTTPException(status_code=400, detail="Название должно содержать от 1 до 200 символов")
+    if license_type not in ALLOWED_LICENSE_TYPES:
+        raise HTTPException(status_code=400, detail="Некорректный тип лицензии")
+    if len(description) > 10_000 or len(metadata_json) > 100_000:
+        raise HTTPException(status_code=400, detail="Слишком большой объём данных ассета")
+
     with get_db_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute("SELECT * FROM marketplace_assets WHERE id = %s AND author_id = %s",
@@ -250,13 +296,13 @@ async def update_asset(
 
             cover_url = existing["cover_image_url"]
             if cover_image and cover_image.filename:
-                cover_bytes = await cover_image.read()
-                cover_url = upload_asset_file(cover_bytes, cover_image.filename, cover_image.content_type, folder="covers")
+                cover_url = await store_upload(cover_image, "covers")
 
             content_url = None
             if content_file and content_file.filename:
-                content_bytes = await content_file.read()
-                content_url = upload_asset_file(content_bytes, content_file.filename, content_file.content_type, folder="content")
+                content_url = await store_upload(
+                    content_file, "content", allow_audio=existing['asset_type'] == "music"
+                )
 
             cur.execute("""
                 UPDATE marketplace_assets 
@@ -371,6 +417,9 @@ async def create_pack(
         cover_image: UploadFile = File(None),
         current_user: dict = Depends(get_current_user)
 ):
+    validate_pack_fields(title, author_price, discount_percentage, license_type)
+    if len(description) > 10_000:
+        raise HTTPException(status_code=400, detail="Описание слишком длинное")
     if not asset_ids:
         raise HTTPException(status_code=400, detail="Пак должен содержать хотя бы один ассет")
 
@@ -378,8 +427,7 @@ async def create_pack(
 
     cover_url = None
     if cover_image and cover_image.filename:
-        cover_bytes = await cover_image.read()
-        cover_url = upload_asset_file(cover_bytes, cover_image.filename, cover_image.content_type, folder="pack_covers")
+        cover_url = await store_upload(cover_image, "pack_covers")
 
     author_price_dec = Decimal(str(max(0.0, author_price)))
 
@@ -457,6 +505,9 @@ async def update_pack(
         cover_image: UploadFile = File(None),
         current_user: dict = Depends(get_current_user)
 ):
+    validate_pack_fields(title, author_price, discount_percentage, license_type)
+    if len(description) > 10_000:
+        raise HTTPException(status_code=400, detail="Описание слишком длинное")
     if not asset_ids:
         raise HTTPException(status_code=400, detail="В паке должен быть хотя бы один ассет")
 
@@ -482,8 +533,7 @@ async def update_pack(
 
             cover_url = existing["cover_image_url"]
             if cover_image and cover_image.filename:
-                cover_bytes = await cover_image.read()
-                cover_url = upload_asset_file(cover_bytes, cover_image.filename, cover_image.content_type, folder="pack_covers")
+                cover_url = await store_upload(cover_image, "pack_covers")
 
             cur.execute("""
                 UPDATE packs 

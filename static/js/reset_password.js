@@ -35,9 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const pass = newPasswordInput.value;
         const conf = confirmPasswordInput.value;
 
-        if (pass.length < 4) {
+        if (pass.length < 8) {
             e.preventDefault();
-            alert('Пароль должен содержать минимум 4 символа');
+            alert('Пароль должен содержать минимум 8 символов');
             newPasswordInput.focus();
             return;
         }
