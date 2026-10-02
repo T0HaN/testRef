@@ -7,6 +7,8 @@
     <link rel="icon" href="/static/images/Logo.ico" type="image/x-icon">
     <link rel="stylesheet" href="/static/css/master_room.css?v=5">
     <link rel="stylesheet" href="/static/css/folio_dialogs.css?v=5">
+    <link rel="stylesheet" href="/static/css/iconify.css?v=2">
+    <script src="/static/js/iconify.js?v=2" defer></script>
 </head>
 <body>
 
@@ -447,115 +449,23 @@
         <!-- Center: VTT -->
         <main class="vtt-container" id="vttContainer">
 
-            <!-- ПАНЕЛЬ ИНСТРУМЕНТОВ -->
+            <!-- ПАНЕЛЬ ИНСТРУМЕНТОВ: каждая секция отвечает только за одну задачу -->
             <div class="vtt-toolbar" id="vttToolbar">
-                <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; padding-bottom: 0.2rem;" onclick="toggleToolbar()">
-                    <span style="font-size: 0.8rem; font-weight: bold; color: var(--accent-gold); text-transform: uppercase;">🛠 Инструменты</span>
-                    <span id="toolbarChevron" style="color: var(--text-secondary); font-size: 0.7rem; transition: transform 0.2s;">▲</span>
-                </div>
-
+                <div class="toolbar-heading" onclick="toggleToolbar()"><span>Инструменты карты</span><span id="toolbarChevron">▲</span></div>
                 <div id="toolbarContent">
-                    <div class="draw-panel">
-                        <div class="tool-btn-group">
-                            <button class="tool-btn active" id="toolMove" onclick="setTool('move')" title="Перемещение (ЛКМ)">✋</button>
-                            <button class="tool-btn" id="toolRuler" onclick="setTool('ruler')" title="Линейка (ЛКМ)">📏</button>
-                            <button class="tool-btn" id="toolDraw" onclick="setTool('draw')" title="Рисование (ЛКМ)">🖌️</button>
-                            <button class="tool-btn" id="toolFow" onclick="setTool('fow')" title="Туман войны (ЛКМ)">☁️</button>
-                        </div>
-
-                        <!-- Настройки кисти -->
-                        <div id="drawSettings" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                            <div class="color-picker-row">
-                                <div class="color-btn active" style="background: #e0d4b8;" onclick="setBrushColor('#e0d4b8', this)"></div>
-                                <div class="color-btn" style="background: #8b3a3a;" onclick="setBrushColor('#8b3a3a', this)"></div>
-                                <div class="color-btn" style="background: #4a6b4a;" onclick="setBrushColor('#4a6b4a', this)"></div>
-                                <div class="color-btn" style="background: #3498db;" onclick="setBrushColor('#3498db', this)"></div>
-                                <div class="color-btn" style="background: #111111;" onclick="setBrushColor('#111111', this)"></div>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span style="font-size: 0.7rem; color: var(--text-secondary);">Толщина:</span>
-                                <input type="range" id="brushSize" min="2" max="20" value="4" style="flex: 1; accent-color: var(--accent-gold);" onchange="setBrushSize(this.value)">
-                            </div>
-                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="clearDrawings(); return false;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
-                                    <path d="M3 6h18" />
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                    <line x1="10" y1="11" x2="10" y2="17" />
-                                    <line x1="14" y1="11" x2="14" y2="17" />
-                                </svg>
-                                Стереть рисунки
-                            </button>
-                        </div>
-
-                        <!-- Настройки тумана -->
-                        <div id="fowSettings" style="display: none; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-                            <div class="tool-btn-group">
-                                <button class="tool-btn active" id="fowModeReveal" onclick="setFowMode('reveal')" style="font-size: 0.8rem;">👁️ Раскрыть</button>
-                                <button class="tool-btn" id="fowModeHide" onclick="setFowMode('hide')" style="font-size: 0.8rem;">⬛ Скрыть</button>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span style="font-size: 0.7rem; color: var(--text-secondary);">Размер:</span>
-                                <input type="range" min="20" max="200" value="60" style="flex: 1; accent-color: var(--accent-gold);" onchange="fogBrushSize = parseInt(this.value)">
-                            </div>
-                            <button class="vtt-btn" style="padding: 0.2rem; font-size: 0.8rem; border-color: var(--text-secondary);" onclick="fowHideAll(); return false;">⬛ Залить туманом</button>
-                            <button class="vtt-btn danger" style="padding: 0.2rem; font-size: 0.8rem;" onclick="fowClearAll(); return false;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
-                                    <path d="M3 6h18" />
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                    <line x1="10" y1="11" x2="10" y2="17" />
-                                    <line x1="14" y1="11" x2="14" y2="17" />
-                                </svg>
-                                Убрать туман
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style="height: 1px; background: var(--border-color); margin: 0.1rem 0;"></div>
-
-                    <!-- Раздельные кнопки удаления Карты и Токенов -->
-                    <div style="display: flex; gap: 0.3rem;">
-                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearMap(); return false;" title="Удалить текущую карту">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
-                                <path d="M3 6h18" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                <line x1="10" y1="11" x2="10" y2="17" />
-                                <line x1="14" y1="11" x2="14" y2="17" />
-                            </svg>
-                            Карта
-                        </button>
-                        <button class="vtt-btn danger" style="flex: 1; font-size: 0.75rem; padding: 0.3rem;" onclick="clearAllTokens(); return false;" title="Удалить все токены">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
-                                <path d="M3 6h18" />
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                <line x1="10" y1="11" x2="10" y2="17" />
-                                <line x1="14" y1="11" x2="14" y2="17" />
-                            </svg>
-                            Токены
-                        </button>
-                    </div>
-
-                    <button class="vtt-btn" style="width: 100%; margin-top: 0.3rem; border-color: var(--accent-gold);" onclick="addCustomToken(); return false;">
-                        🔵 Создать маркер
-                    </button>
-
-                    <button class="vtt-btn" id="gridToggleBtn" onclick="toggleGrid()" title="Показать/скрыть сетку">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#c9a961" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="display:inline-block; vertical-align:middle; margin-right:0.2rem;">
-                            <path d="M2 12h20" />
-                            <path d="M4 16h16" />
-                            <path d="M7 8h10" />
-                            <path d="M9 20h6" />
-                            <path d="M10 4h4" />
-                        </svg>
-                        Сетка
-                    </button>
-                    <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.5rem; text-align: center;">
-                        <div style="font-size: 0.7rem; color: var(--text-secondary); margin-bottom: 0.3rem;">Клетка: <span id="gridSizeLabel">50</span>px</div>
-                        <input type="range" id="gridSizeSlider" min="20" max="150" value="50" oninput="changeGridSize(this.value)" style="width: 100%; accent-color: var(--accent-gold); cursor: pointer;">
-                    </div>
+                    <section class="map-tool-section"><div class="map-tool-label">Режим</div><div class="tool-btn-group">
+                        <button class="tool-btn active" id="toolMove" onclick="setTool('move')" title="Перемещать">✋</button>
+                        <button class="tool-btn" id="toolRuler" onclick="setTool('ruler')" title="Измерять">📏</button>
+                        <button class="tool-btn" id="toolDraw" onclick="setTool('draw')" title="Рисовать">🖌️</button>
+                        <button class="tool-btn" id="toolFow" onclick="setTool('fow')" title="Туман войны">☁️</button>
+                    </div></section>
+                    <section class="map-tool-section" id="drawSettings" style="display:none"><div class="map-tool-label">Перо</div><div class="color-picker-row">
+                        <div class="color-btn active" style="background:#e0d4b8" onclick="setBrushColor('#e0d4b8', this)"></div><div class="color-btn" style="background:#8b3a3a" onclick="setBrushColor('#8b3a3a', this)"></div><div class="color-btn" style="background:#4a6b4a" onclick="setBrushColor('#4a6b4a', this)"></div><div class="color-btn" style="background:#3498db" onclick="setBrushColor('#3498db', this)"></div><div class="color-btn" style="background:#111" onclick="setBrushColor('#111', this)"></div>
+                    </div><label class="range-label">Толщина <input type="range" id="brushSize" min="2" max="20" value="4" onchange="setBrushSize(this.value)"></label><button class="vtt-btn danger" onclick="clearDrawings();return false">Стереть рисунки</button></section>
+                    <section class="map-tool-section" id="fowSettings" style="display:none"><div class="map-tool-label">Туман войны</div><div class="tool-btn-group"><button class="tool-btn active" id="fowModeReveal" onclick="setFowMode('reveal')">Раскрыть</button><button class="tool-btn" id="fowModeHide" onclick="setFowMode('hide')">Скрыть</button></div><label class="range-label">Размер <input type="range" min="20" max="200" value="60" onchange="fogBrushSize=parseInt(this.value)"></label><button class="vtt-btn" onclick="fowHideAll();return false">Заполнить туманом</button><button class="vtt-btn danger" onclick="fowClearAll();return false">Очистить туман</button></section>
+                    <section class="map-tool-section"><div class="map-tool-label">Сетка</div><button class="vtt-btn" id="gridToggleBtn" onclick="toggleGrid()">Показать сетку</button><label class="range-label">Размер клетки <span id="gridSizeLabel">50</span> px<input type="range" id="gridSizeSlider" min="20" max="150" value="50" oninput="changeGridSize(this.value)"></label></section>
+                    <section class="map-tool-section"><div class="map-tool-label">Объекты</div><button class="vtt-btn" onclick="addCustomToken();return false">Создать маркер</button><button class="vtt-btn danger" onclick="clearAllTokens();return false">Удалить все токены</button></section>
+                    <section class="map-tool-section"><div class="map-tool-label">Сброс</div><button class="vtt-btn danger" onclick="clearMap();return false">Очистить карту</button></section>
                 </div>
             </div>
 

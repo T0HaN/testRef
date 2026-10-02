@@ -114,16 +114,25 @@ async def security_middleware(request: Request, call_next):
     # позволяет постепенно убрать emoji из старых шаблонов без дублирования
     # include в каждом из них.
     content_type = response.headers.get("content-type", "")
-    if content_type.startswith("text/html") and hasattr(response, "body_iterator"):
-        chunks = [chunk async for chunk in response.body_iterator]
-        body = b"".join(chunks)
+    if content_type.startswith("text/html"):
+        streamed = hasattr(response, "body_iterator")
+        if streamed:
+            chunks = [chunk async for chunk in response.body_iterator]
+            body = b"".join(chunks)
+        else:
+            body = getattr(response, "body", b"") or b""
+        if isinstance(body, str):
+            body = body.encode("utf-8")
         marker = b"</head>"
+        changed = False
         if marker in body and b"/static/js/iconify.js" not in body:
-            injection = b'<link rel="stylesheet" href="/static/css/iconify.css?v=1"><script src="/static/js/iconify.js?v=1" defer></script>'
+            injection = b'<link rel="stylesheet" href="/static/css/iconify.css?v=2"><script src="/static/js/iconify.js?v=2" defer></script>'
             body = body.replace(marker, injection + marker, 1)
-        headers = dict(response.headers)
-        headers.pop("content-length", None)
-        response = Response(content=body, status_code=response.status_code, headers=headers, media_type="text/html")
+            changed = True
+        if changed or streamed:
+            headers = dict(response.headers)
+            headers.pop("content-length", None)
+            response = Response(content=body, status_code=response.status_code, headers=headers, media_type="text/html")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")

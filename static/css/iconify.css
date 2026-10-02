@@ -1,3 +1,3 @@
 .emoji-icon { display:inline-flex; width:1.05em; height:1.05em; vertical-align:-.16em; align-items:center; justify-content:center; margin-inline:.05em; }
-.emoji-icon img { width:100%; height:100%; object-fit:contain; display:block; }
+.emoji-icon img, .emoji-icon svg { width:100%; height:100%; object-fit:contain; display:block; }
 .button .emoji-icon, button .emoji-icon, .nav-btn .emoji-icon { width:1.15em; height:1.15em; }

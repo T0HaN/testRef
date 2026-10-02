@@ -621,7 +621,9 @@ function zoomAt(cx, cy, factor) {
 
 function toggleGrid() {
     gridVisible = !gridVisible;
-    document.getElementById('gridToggleBtn').classList.toggle('active', gridVisible);
+    const gridButton = document.getElementById('gridToggleBtn');
+    gridButton.classList.toggle('active', gridVisible);
+    gridButton.textContent = gridVisible ? 'Скрыть сетку' : 'Показать сетку';
     render();
 }
 
