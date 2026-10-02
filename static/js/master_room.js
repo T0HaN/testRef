@@ -53,6 +53,8 @@ const chatLog = document.getElementById('chatLog');
 window.addEventListener('DOMContentLoaded', () => {
     chatLog.scrollTop = chatLog.scrollHeight;
     loadScenes();
+    loadRoomAssets('map');
+    loadRoomAssets('monster');
 });
 
 chatLog.addEventListener('scroll', async () => {
@@ -1120,6 +1122,36 @@ async function loadScenes() {
     } catch (e) {
         console.error(e);
     }
+}
+
+async function loadRoomAssets(type) {
+    const target = type === 'map' ? document.getElementById('map-assets-list') : (type === 'monster' ? document.getElementById('monster-assets-list') : document.getElementById('prop-assets-list'));
+    if (!target) return;
+    try {
+        const response = await fetch(`/api/room/${window.roomData.id}/assets?asset_type=${encodeURIComponent(type)}`);
+        const data = await response.json();
+        const assets = data.assets || [];
+        if (!assets.length) { target.innerHTML = '<div class="asset-library-empty">Нет доступных ассетов</div>'; return; }
+        target.innerHTML = assets.map(asset => {
+            const image = asset.cover_image_url || asset.content_url || '/static/images/default_asset.png';
+            const safeTitle = escapeHtmlText(asset.title || 'Без названия');
+            const button = type === 'map'
+                ? `<button class="vtt-btn asset-use-btn" data-asset="${encodeURIComponent(JSON.stringify(asset))}">Добавить сцену</button>`
+                : `<button class="vtt-btn asset-use-btn" data-asset="${encodeURIComponent(JSON.stringify(asset))}">На карту</button>`;
+            return `<article class="asset-library-card"><img src="${escapeHtmlText(image)}" alt=""><div class="asset-library-name">${safeTitle}</div>${button}</article>`;
+        }).join('');
+        target.querySelectorAll('.asset-use-btn').forEach(btn => btn.addEventListener('click', async () => {
+            const asset = JSON.parse(decodeURIComponent(btn.dataset.asset));
+            if (type === 'map') {
+                const response = await fetch(`/api/room/${window.roomData.id}/scene/from-asset`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name: asset.title, background_url: asset.content_url, width: asset.grid_width * 50, height: asset.grid_height * 50})});
+                if (response.ok) { await loadScenes(); showToast('Карта добавлена в сцены', 'success'); }
+            } else if (type === 'monster') {
+                addMonsterToMap(asset.title, asset.content_url, '10', '10', 0); showToast('Монстр добавлен на карту', 'success');
+            } else if (asset.content_url) {
+                addPropToMap(asset.title, asset.content_url, 50); showToast('Ассет добавлен на карту', 'success');
+            }
+        }));
+    } catch (error) { target.innerHTML = '<div class="asset-library-empty">Не удалось загрузить библиотеку</div>'; }
 }
 
 async function exportScenes() {

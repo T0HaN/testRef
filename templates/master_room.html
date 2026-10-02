@@ -199,6 +199,10 @@
                     <div id="scenes-list" style="display: flex; flex-direction: column; gap: 0.8rem;">
                         <div class="empty-state">Загрузка сцен...</div>
                     </div>
+                    <div class="asset-library-block">
+                        <div class="asset-library-title">🗺️ Карты из моей библиотеки</div>
+                        <div id="map-assets-list" class="asset-library-grid"><div class="empty-state">Загрузка ассетов...</div></div>
+                    </div>
                 </div>
 
                 <!-- Вкладка: Кубы -->
@@ -309,6 +313,10 @@
                         <a href="/master/prep/{{ room.id }}" class="btn-view" style="display: inline-block; width: auto; margin-top: 0.5rem;">В бестиарий →</a>
                     </div>
                     {% endif %}
+                    <div class="asset-library-block">
+                        <div class="asset-library-title">👹 Монстры из моих паков</div>
+                        <div id="monster-assets-list" class="asset-library-grid"><div class="empty-state">Загрузка ассетов...</div></div>
+                    </div>
                 </div>
 
                 <!-- Вкладка: Предметы окружения -->
@@ -362,6 +370,10 @@
                                 <div style="font-size: 0.8rem; margin-top: 0.5rem;">Используйте форму выше, чтобы загрузить пропсы в библиотеку</div>
                             </div>
                         {% endif %}
+                    </div>
+                    <div class="asset-library-block">
+                        <div class="asset-library-title">🎒 Мои ассеты и паки</div>
+                        <div id="prop-assets-list" class="asset-library-grid"><div class="empty-state">Загрузка ассетов...</div></div>
                     </div>
                 </div>
 

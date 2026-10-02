@@ -1,12 +1,13 @@
 import json
 import time
 import asyncio
+import mimetypes
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Depends, Form, HTTPException, UploadFile, File
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse, FileResponse
 from psycopg2.extras import RealDictCursor
 
 from models import RewardRequest, RollRequest
@@ -17,7 +18,7 @@ from utils import (
     normalize_char, calculate_ac, prepare_skills_and_saves, get_class_features,
     calc_level_from_xp, calc_prof_bonus, get_level_progress, XP_THRESHOLDS,
     get_db_connection, get_redis_room_state, save_redis_room_state, get_random_quote, get_all_monsters,
-    upload_image_to_s3, create_scene, get_room_scenes, set_active_scene, delete_scene
+    upload_image_to_local, upload_image_to_s3, create_scene, get_room_scenes, set_active_scene, delete_scene
 )
 from sse import add_sse_listener, remove_sse_listener, broadcast_room_event
 from routers.websockets import broadcast_ws_event
@@ -667,7 +668,7 @@ async def api_upload_scene(
                 return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
 
     try:
-        background_url = await upload_image_to_s3(file, prefix=f"room_{room_id}", max_size=15 * 1024 * 1024)
+        background_url = await upload_image_to_local(file, prefix="scenes", max_size=15 * 1024 * 1024)
         scene = create_scene(room_id, name, background_url, width, height)
 
         if 'created_at' in scene and scene['created_at']:
@@ -693,6 +694,32 @@ async def api_upload_scene(
         return JSONResponse(content={"status": "error", "message": str(e)}, status_code=500)
 
 
+@router.post("/api/room/{room_id}/scene/from-asset")
+async def api_scene_from_asset(room_id: int, request: Request, current_user: dict = Depends(get_current_user)):
+    """Создаёт сцену из уже сохранённой карты библиотеки без повторной загрузки."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id, current_user['id']))
+            if not cur.fetchone():
+                return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
+    try:
+        data = await request.json()
+        url = str(data.get('background_url') or '')
+        if not url.startswith('/media/') or '..' in Path(url).parts:
+            raise ValueError('Недопустимый путь карты')
+        name = str(data.get('name') or 'Карта из библиотеки').strip()[:200]
+        width = max(1, min(int(data.get('width') or 1920), 100000))
+        height = max(1, min(int(data.get('height') or 1080), 100000))
+        scene = create_scene(room_id, name, url, width, height)
+        if scene.get('is_active'):
+            state = await get_redis_room_state(str(room_id)); state.update(map_image=url, map_width=width, map_height=height)
+            await save_redis_room_state(str(room_id), state)
+            await broadcast_ws_event(str(room_id), {'type': 'map_update', 'image': url, 'width': width, 'height': height, 'scene_id': scene['id']})
+        return JSONResponse(content={'status': 'ok', 'scene': scene})
+    except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        return JSONResponse(status_code=400, content={'status': 'error', 'message': str(exc)})
+
+
 @router.get("/api/room/{room_id}/scenes")
 async def api_get_scenes(room_id: int, current_user: dict = Depends(get_current_user)):
     with get_db_connection() as conn:
@@ -706,6 +733,47 @@ async def api_get_scenes(room_id: int, current_user: dict = Depends(get_current_
         if 'created_at' in s and s['created_at']:
             s['created_at'] = s['created_at'].isoformat()
     return JSONResponse(content={"status": "ok", "scenes": scenes})
+
+
+@router.get("/api/room/{room_id}/assets")
+async def api_room_assets(
+        room_id: int,
+        asset_type: Optional[str] = None,
+        current_user: dict = Depends(get_current_user)
+):
+    """Библиотека ассетов мастера: свои и входящие в купленные паки."""
+    allowed = {"map", "monster", "spell", "class", "music"}
+    if asset_type and asset_type not in allowed:
+        return JSONResponse(status_code=400, content={"status": "error", "message": "Неизвестный тип ассета"})
+    with get_db_connection() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT id FROM rooms WHERE id = %s AND master_id = %s", (room_id, current_user['id']))
+            if not cur.fetchone():
+                return JSONResponse(status_code=403, content={"status": "error", "message": "Access denied"})
+            params = [current_user['id'], current_user['id']]
+            type_clause = "AND a.asset_type = %s" if asset_type else ""
+            if asset_type:
+                params.append(asset_type)
+            cur.execute(f"""
+                SELECT DISTINCT a.id, a.asset_type, a.title, a.description, a.cover_image_url,
+                       COALESCE(mp.map_image_url, cm.token_url, au.audio_url) AS content_url,
+                       COALESCE(mp.grid_width, 30) AS grid_width,
+                       COALESCE(mp.grid_height, 30) AS grid_height,
+                       p.title AS pack_title
+                FROM marketplace_assets a
+                LEFT JOIN custom_maps mp ON mp.asset_id = a.id
+                LEFT JOIN custom_monsters cm ON cm.asset_id = a.id
+                LEFT JOIN custom_audio au ON au.asset_id = a.id
+                LEFT JOIN pack_assets pa ON pa.asset_id = a.id
+                LEFT JOIN packs p ON p.id = pa.pack_id
+                WHERE (a.author_id = %s OR EXISTS (
+                    SELECT 1 FROM purchases pur WHERE pur.buyer_id = %s AND pur.pack_id = p.id
+                ) OR p.author_id = %s)
+                {type_clause}
+                ORDER BY a.asset_type, a.title
+            """, [current_user['id'], current_user['id'], current_user['id'], *([asset_type] if asset_type else [])])
+            assets = [dict(row) for row in cur.fetchall()]
+    return JSONResponse(content={"status": "ok", "assets": assets})
 
 
 @router.get("/api/room/{room_id}/scenes/export")
@@ -839,6 +907,17 @@ async def api_delete_scene(room_id: int, scene_id: int, current_user: dict = Dep
 
 @router.get("/media/{path:path}")
 async def get_media_from_s3(path: str):
+    # Новые файлы лежат локально. Resolve + проверка корня блокируют traversal.
+    try:
+        relative = Path(path)
+        media_root = utils.settings.MEDIA_DIR.resolve()
+        local_path = (media_root / relative).resolve()
+        if media_root in local_path.parents and local_path.is_file():
+            guessed = mimetypes.guess_type(local_path.name)[0] or "application/octet-stream"
+            return FileResponse(local_path, media_type=guessed)
+    except (OSError, ValueError):
+        pass
+    # Fallback нужен для уже загруженных в S3 карт и ассетов.
     try:
         response = utils.s3_client.get_object(Bucket=utils.settings.S3_BUCKET, Key=path)
 

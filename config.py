@@ -43,6 +43,9 @@ class Settings(BaseSettings):
 
     # === DIRECTORIES ===
     DATA_DIR: Path = BASE_DIR / "data"
+    # Локальное хранилище пользовательских файлов. Карты и ассеты не зависят
+    # от S3/MinIO и доступны через защищённый endpoint /media/.
+    MEDIA_DIR: Path = BASE_DIR / "data" / "media"
     TEMPLATES_DIR: Path = BASE_DIR / "templates"
     STATIC_DIR: Path = BASE_DIR / "static"
 
@@ -85,3 +88,4 @@ settings = Settings()
 
 settings.DATA_DIR.mkdir(exist_ok=True)
 (settings.DATA_DIR / "user_data").mkdir(exist_ok=True)
+settings.MEDIA_DIR.mkdir(parents=True, exist_ok=True)

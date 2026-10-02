@@ -6,6 +6,7 @@ import smtplib
 import string
 import time
 import uuid
+import mimetypes
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from datetime import datetime
@@ -384,6 +385,32 @@ async def upload_image_to_s3(
     return f"/media/{filename}"
 
 
+async def upload_image_to_local(
+        file: UploadFile,
+        prefix: str = "maps",
+        max_size: int = DEFAULT_MAX_UPLOAD_SIZE
+) -> str:
+    """Сохраняет изображение на сервере и возвращает URL /media/.
+
+    Имя генерируется UUID, поэтому имя клиента и path traversal не влияют на
+    путь. MIME и расширение проверяются до записи.
+    """
+    raw_name = (file.filename or '').replace('\\', '/').split('/')[-1]
+    ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else 'png'
+    if ext not in ALLOWED_IMAGE_EXTS:
+        raise ValueError("Неподдерживаемый формат файла. Допустимы: png, jpg, jpeg, webp, gif.")
+    content_type = (file.content_type or '').lower()
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        raise ValueError("Неподдерживаемый MIME-тип изображения.")
+    content = await read_upload_limited(file, max_size)
+    folder = re.sub(r"[^a-zA-Z0-9_-]", "", prefix)[:40] or "uploads"
+    target_dir = settings.MEDIA_DIR / folder
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / f"{uuid.uuid4().hex}.{ext}"
+    target.write_bytes(content)
+    return f"/media/{folder}/{target.name}"
+
+
 # ============================================================
 # === SCENES (КАРТЫ) ===
 # ============================================================
@@ -453,10 +480,21 @@ def delete_scene(room_id: int, scene_id: int):
             conn.commit()
 
             try:
-                key = scene['background_url'].replace('/media/', '')
-                s3_client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
+                url = str(scene['background_url'] or '')
+                if url.startswith('/media/'):
+                    relative = Path(url.removeprefix('/media/'))
+                    local_root = settings.MEDIA_DIR.resolve()
+                    local_path = (local_root / relative).resolve()
+                    if local_root in local_path.parents and local_path.is_file():
+                        local_path.unlink()
+                    else:
+                        key = url.removeprefix('/media/')
+                        s3_client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
+                else:
+                    key = url.replace('/media/', '')
+                    s3_client.delete_object(Bucket=settings.S3_BUCKET, Key=key)
             except Exception as e:
-                print(f"Ошибка удаления файла из S3: {e}")
+                print(f"Ошибка удаления файла карты: {e}")
 
             return scene
 
