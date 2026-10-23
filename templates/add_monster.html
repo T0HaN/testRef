@@ -19,6 +19,7 @@
             --accent-green: #4a6b4a;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
+
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
             background: radial-gradient(ellipse at top, #1a1610 0%, var(--bg-primary) 60%);
@@ -35,6 +36,10 @@
     <div class="container" style="max-width: 800px; margin: 2rem auto; padding: 1.5rem; background: var(--bg-secondary); border-radius: 12px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
         <h1 style="text-align: center; color: var(--accent-gold);">➕ Добавить нового монстра</h1>
         <form action="/monsters/new" method="post" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 1rem;">
+
+            <!-- CSRF-токен: fallback считывает из state или напрямую из cookies -->
+            <input type="hidden" name="csrf_token" value="{{ csrf_token or request.state.csrf_token or request.cookies.get('csrftoken') or request.cookies.get('fastapi-csrf-token') }}">
+
             {% if room_id %}
             <input type="hidden" name="room_id" value="{{ room_id }}">
             {% endif %}

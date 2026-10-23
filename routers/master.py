@@ -961,11 +961,16 @@ async def api_upload_prop(
 
 # === МОНСТРЫ ===
 
-@router.get("/monsters/new")
+@router.get("/monsters/new", response_class=HTMLResponse)
 async def new_monster_form(request: Request, room_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    return templates.TemplateResponse(request, "add_monster.html", {"request": request, "room_id": room_id})
-
-
+    return templates.TemplateResponse(
+        request=request,
+        name="add_monster.html",
+        context={
+            "room_id": room_id,
+            "csrf_token": getattr(request.state, "csrf_token", None) or request.cookies.get("csrftoken")
+        }
+    )
 def _parse_list_field(value: str) -> list:
     if not value or not value.strip():
         return []
