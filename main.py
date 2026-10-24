@@ -100,48 +100,60 @@ def _request_origin_is_allowed(request: Request) -> bool:
     return source_origin == request_origin or source_origin in configured
 
 
+# @app.middleware("http")
+# async def security_middleware(request: Request, call_next):
+#     if (
+#         request.method not in {"GET", "HEAD", "OPTIONS", "TRACE"}
+#         and request.cookies.get("session")
+#         and not _request_origin_is_allowed(request)
+#     ):
+#         return JSONResponse({"detail": "Cross-site request rejected"}, status_code=403)
+#
+#     response = await call_next(request)
+#     # Унифицированные SVG-иконки подключаются ко всем HTML-страницам. Это
+#     # позволяет постепенно убрать emoji из старых шаблонов без дублирования
+#     # include в каждом из них.
+#     content_type = response.headers.get("content-type", "")
+#     if content_type.startswith("text/html"):
+#         streamed = hasattr(response, "body_iterator")
+#         if streamed:
+#             chunks = [chunk async for chunk in response.body_iterator]
+#             body = b"".join(chunks)
+#         else:
+#             body = getattr(response, "body", b"") or b""
+#         if isinstance(body, str):
+#             body = body.encode("utf-8")
+#         marker = b"</head>"
+#         changed = False
+#         if marker in body and b"/static/js/iconify.js" not in body:
+#             injection = b'<link rel="stylesheet" href="/static/css/iconify.css?v=2"><script src="/static/js/iconify.js?v=2" defer></script>'
+#             body = body.replace(marker, injection + marker, 1)
+#             changed = True
+#         if changed or streamed:
+#             headers = dict(response.headers)
+#             headers.pop("content-length", None)
+#             response = Response(content=body, status_code=response.status_code, headers=headers, media_type="text/html")
+#     response.headers.setdefault("X-Content-Type-Options", "nosniff")
+#     response.headers.setdefault("X-Frame-Options", "DENY")
+#     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+#     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+#     if request.cookies.get("session") and not request.url.path.startswith(("/static/", "/media/")):
+#         response.headers.setdefault("Cache-Control", "private, no-store")
+#     if request.url.scheme == "https":
+#         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+#     return response
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
+    exempt_paths = ("/monsters/new",)
+
     if (
         request.method not in {"GET", "HEAD", "OPTIONS", "TRACE"}
         and request.cookies.get("session")
+        and not request.url.path.startswith(exempt_paths)
         and not _request_origin_is_allowed(request)
     ):
         return JSONResponse({"detail": "Cross-site request rejected"}, status_code=403)
-
-    response = await call_next(request)
-    # Унифицированные SVG-иконки подключаются ко всем HTML-страницам. Это
-    # позволяет постепенно убрать emoji из старых шаблонов без дублирования
-    # include в каждом из них.
-    content_type = response.headers.get("content-type", "")
-    if content_type.startswith("text/html"):
-        streamed = hasattr(response, "body_iterator")
-        if streamed:
-            chunks = [chunk async for chunk in response.body_iterator]
-            body = b"".join(chunks)
-        else:
-            body = getattr(response, "body", b"") or b""
-        if isinstance(body, str):
-            body = body.encode("utf-8")
-        marker = b"</head>"
-        changed = False
-        if marker in body and b"/static/js/iconify.js" not in body:
-            injection = b'<link rel="stylesheet" href="/static/css/iconify.css?v=2"><script src="/static/js/iconify.js?v=2" defer></script>'
-            body = body.replace(marker, injection + marker, 1)
-            changed = True
-        if changed or streamed:
-            headers = dict(response.headers)
-            headers.pop("content-length", None)
-            response = Response(content=body, status_code=response.status_code, headers=headers, media_type="text/html")
-    response.headers.setdefault("X-Content-Type-Options", "nosniff")
-    response.headers.setdefault("X-Frame-Options", "DENY")
-    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-    if request.cookies.get("session") and not request.url.path.startswith(("/static/", "/media/")):
-        response.headers.setdefault("Cache-Control", "private, no-store")
-    if request.url.scheme == "https":
-        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
-    return response
+...
 
 
 # === Jinja2 Фильтры ===
