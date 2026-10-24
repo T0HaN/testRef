@@ -962,13 +962,17 @@ async def api_upload_prop(
 # === МОНСТРЫ ===
 
 @router.get("/monsters/new", response_class=HTMLResponse)
-async def new_monster_form(request: Request, room_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+async def new_monster_form(request: Request, room_id: Optional[str] = None,
+                           current_user: dict = Depends(get_current_user)):
+    # Вызов request.state.csrf_token заставляет middleware сгенерировать токен
+    token = getattr(request.state, "csrf_token", None) or request.cookies.get("csrftoken") or ""
+
     return templates.TemplateResponse(
         request=request,
         name="add_monster.html",
         context={
             "room_id": room_id,
-            "csrf_token": getattr(request.state, "csrf_token", None) or request.cookies.get("csrftoken")
+            "csrf_token": token
         }
     )
 def _parse_list_field(value: str) -> list:
