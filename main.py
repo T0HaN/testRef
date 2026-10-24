@@ -144,16 +144,56 @@ def _request_origin_is_allowed(request: Request) -> bool:
 #     return response
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
+    # 1. Проверяем исключения (для наполнения базы)
     exempt_paths = ("/monsters/new",)
+    is_exempt = any(request.url.path.startswith(p) for p in exempt_paths)
 
+    # 2. CSRF / Origin проверка
     if (
         request.method not in {"GET", "HEAD", "OPTIONS", "TRACE"}
         and request.cookies.get("session")
-        and not request.url.path.startswith(exempt_paths)
+        and not is_exempt
         and not _request_origin_is_allowed(request)
     ):
         return JSONResponse({"detail": "Cross-site request rejected"}, status_code=403)
-...
+
+    # 3. Получаем ответ от следующего слоя
+    response = await call_next(request)
+
+    # 4. Модификация HTML (подключение иконок)
+    content_type = response.headers.get("content-type", "")
+    if content_type.startswith("text/html"):
+        streamed = hasattr(response, "body_iterator")
+        if streamed:
+            chunks = [chunk async for chunk in response.body_iterator]
+            body = b"".join(chunks)
+        else:
+            body = getattr(response, "body", b"") or b""
+        if isinstance(body, str):
+            body = body.encode("utf-8")
+        marker = b"</head>"
+        changed = False
+        if marker in body and b"/static/js/iconify.js" not in body:
+            injection = b'<link rel="stylesheet" href="/static/css/iconify.css?v=2"><script src="/static/js/iconify.js?v=2" defer></script>'
+            body = body.replace(marker, injection + marker, 1)
+            changed = True
+        if changed or streamed:
+            headers = dict(response.headers)
+            headers.pop("content-length", None)
+            response = Response(content=body, status_code=response.status_code, headers=headers, media_type="text/html")
+
+    # 5. Заголовки безопасности
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    if request.cookies.get("session") and not request.url.path.startswith(("/static/", "/media/")):
+        response.headers.setdefault("Cache-Control", "private, no-store")
+    if request.url.scheme == "https":
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+
+    # 6. КРИТИЧЕСКИ ВАЖНО: всегда возвращать response на верхнем уровне отступа функции!
+    return response
 
 
 # === Jinja2 Фильтры ===
